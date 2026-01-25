@@ -1,23 +1,24 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
-  Calendar, 
+  Calendar as CalendarIcon, 
   Check, 
   X, 
   Clock, 
-  User, 
   Phone, 
   ArrowLeft,
   Loader2,
   Filter,
-  RefreshCw
+  RefreshCw,
+  User
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Select,
   SelectContent,
@@ -53,6 +54,7 @@ const Admin = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
 
   useEffect(() => {
     if (!isCheckingRole && !isAdmin) {
@@ -118,6 +120,32 @@ const Admin = () => {
     
     setIsUpdating(null);
   };
+
+  // Get dates that have appointments
+  const getDatesWithAppointments = () => {
+    const dates = new Map<string, { count: number; hasConfirmed: boolean; hasPending: boolean }>();
+    
+    appointments.forEach((apt) => {
+      const dateKey = apt.appointment_date;
+      const existing = dates.get(dateKey) || { count: 0, hasConfirmed: false, hasPending: false };
+      existing.count++;
+      if (apt.status === "confirmed") existing.hasConfirmed = true;
+      if (apt.status === "pending") existing.hasPending = true;
+      dates.set(dateKey, existing);
+    });
+    
+    return dates;
+  };
+
+  // Get appointments for selected date
+  const getAppointmentsForDate = (date: Date | undefined) => {
+    if (!date) return [];
+    const dateStr = format(date, "yyyy-MM-dd");
+    return appointments.filter((apt) => apt.appointment_date === dateStr);
+  };
+
+  const datesWithAppointments = getDatesWithAppointments();
+  const selectedDateAppointments = getAppointmentsForDate(selectedDate);
 
   if (isCheckingRole) {
     return (
@@ -189,45 +217,114 @@ const Admin = () => {
         </div>
       </div>
 
-      {/* Appointments List */}
+      {/* Main Content */}
       <div className="container mx-auto px-4 pb-8">
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ) : appointments.length === 0 ? (
-          <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-              <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="font-display text-lg font-medium text-foreground mb-1">
-                Nenhum agendamento
-              </h3>
-              <p className="text-sm text-muted-foreground font-body">
-                {filter === "all" 
-                  ? "Ainda não há agendamentos registrados."
-                  : `Nenhum agendamento ${statusLabels[filter]?.toLowerCase() || ""}.`}
-              </p>
-            </CardContent>
-          </Card>
         ) : (
-          <div className="space-y-4">
-            <AnimatePresence>
-              {appointments.map((appointment, index) => (
-                <motion.div
-                  key={appointment.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <Card className="overflow-hidden">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <CardTitle className="font-display text-lg truncate">
-                              {appointment.client_name}
-                            </CardTitle>
+          <div className="grid lg:grid-cols-2 gap-6">
+            {/* Calendar Section */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="font-display text-lg flex items-center gap-2">
+                  <CalendarIcon className="h-5 w-5 text-primary" />
+                  Calendário de Agendamentos
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  locale={ptBR}
+                  className="rounded-xl border border-border mx-auto pointer-events-auto"
+                  modifiers={{
+                    hasAppointment: (date) => {
+                      const dateStr = format(date, "yyyy-MM-dd");
+                      return datesWithAppointments.has(dateStr);
+                    },
+                    hasConfirmed: (date) => {
+                      const dateStr = format(date, "yyyy-MM-dd");
+                      return datesWithAppointments.get(dateStr)?.hasConfirmed || false;
+                    },
+                    hasPending: (date) => {
+                      const dateStr = format(date, "yyyy-MM-dd");
+                      const info = datesWithAppointments.get(dateStr);
+                      return info?.hasPending && !info?.hasConfirmed || false;
+                    },
+                  }}
+                  modifiersStyles={{
+                    hasConfirmed: {
+                      backgroundColor: "hsl(var(--primary) / 0.2)",
+                      color: "hsl(var(--primary))",
+                      fontWeight: "bold",
+                    },
+                    hasPending: {
+                      backgroundColor: "hsl(45 93% 47% / 0.2)",
+                      color: "hsl(45 93% 37%)",
+                      fontWeight: "bold",
+                    },
+                  }}
+                />
+                
+                {/* Legend */}
+                <div className="flex justify-center gap-4 mt-4 text-xs font-body">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-primary/30" />
+                    <span className="text-muted-foreground">Confirmado</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-amber-400/30" />
+                    <span className="text-muted-foreground">Pendente</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Appointments for Selected Date */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="font-display text-lg">
+                  {selectedDate ? (
+                    <>
+                      📅 {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
+                      <Badge variant="secondary" className="ml-2 font-body text-xs">
+                        {selectedDateAppointments.length} agendamento{selectedDateAppointments.length !== 1 ? "s" : ""}
+                      </Badge>
+                    </>
+                  ) : (
+                    "Selecione uma data"
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {selectedDateAppointments.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground font-body">
+                    <CalendarIcon className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                    <p>Nenhum agendamento nesta data</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                    <AnimatePresence>
+                      {selectedDateAppointments.map((appointment, index) => (
+                        <motion.div
+                          key={appointment.id}
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -20 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="bg-secondary/30 rounded-xl p-4 border border-border"
+                        >
+                          {/* Time & Status */}
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-4 w-4 text-primary" />
+                              <span className="font-display font-semibold text-foreground">
+                                {appointment.appointment_time.slice(0, 5)}
+                              </span>
+                            </div>
                             <Badge 
                               variant="outline" 
                               className={`${statusColors[appointment.status]} font-body text-xs`}
@@ -235,124 +332,112 @@ const Admin = () => {
                               {statusLabels[appointment.status]}
                             </Badge>
                           </div>
-                          <p className="text-sm text-primary font-medium font-body">
-                            {appointment.service_type}
-                          </p>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-0 space-y-4">
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Calendar className="h-4 w-4 flex-shrink-0" />
-                          <span className="font-body">
-                            {format(parseISO(appointment.appointment_date), "dd/MM/yyyy", { locale: ptBR })}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Clock className="h-4 w-4 flex-shrink-0" />
-                          <span className="font-body">{appointment.appointment_time.slice(0, 5)}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-muted-foreground col-span-2">
-                          <Phone className="h-4 w-4 flex-shrink-0" />
-                          <a 
-                            href={`https://wa.me/${appointment.client_phone.replace(/\D/g, '')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-body text-primary hover:underline"
-                          >
-                            {appointment.client_phone}
-                          </a>
-                        </div>
-                        {appointment.notes && (
-                          <div className="col-span-2 bg-secondary/50 rounded-lg p-3">
-                            <p className="text-sm text-muted-foreground font-body">
-                              📝 {appointment.notes}
+
+                          {/* Client Info */}
+                          <div className="space-y-1.5 mb-3">
+                            <div className="flex items-center gap-2 text-foreground">
+                              <User className="h-4 w-4 text-muted-foreground" />
+                              <span className="font-body font-medium">{appointment.client_name}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                              <Phone className="h-3.5 w-3.5" />
+                              <a 
+                                href={`https://wa.me/${appointment.client_phone.replace(/\D/g, '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-body text-primary hover:underline"
+                              >
+                                {appointment.client_phone}
+                              </a>
+                            </div>
+                            <p className="text-sm text-primary font-medium font-body pl-6">
+                              💅 {appointment.service_type}
                             </p>
+                            {appointment.notes && (
+                              <p className="text-xs text-muted-foreground font-body pl-6 italic">
+                                📝 {appointment.notes}
+                              </p>
+                            )}
                           </div>
-                        )}
-                      </div>
 
-                      {/* Actions */}
-                      {appointment.status === "pending" && (
-                        <div className="flex gap-2 pt-2">
-                          <Button
-                            size="sm"
-                            onClick={() => updateStatus(appointment.id, "confirmed")}
-                            disabled={isUpdating === appointment.id}
-                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                          >
-                            {isUpdating === appointment.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <Check className="h-4 w-4 mr-1" />
-                                Confirmar
-                              </>
-                            )}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => updateStatus(appointment.id, "cancelled")}
-                            disabled={isUpdating === appointment.id}
-                            className="flex-1 border-rose-200 text-rose-600 hover:bg-rose-50"
-                          >
-                            {isUpdating === appointment.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <X className="h-4 w-4 mr-1" />
-                                Cancelar
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      )}
+                          {/* Actions */}
+                          {appointment.status === "pending" && (
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => updateStatus(appointment.id, "confirmed")}
+                                disabled={isUpdating === appointment.id}
+                                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs"
+                              >
+                                {isUpdating === appointment.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <>
+                                    <Check className="h-3 w-3 mr-1" />
+                                    Confirmar
+                                  </>
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateStatus(appointment.id, "cancelled")}
+                                disabled={isUpdating === appointment.id}
+                                className="flex-1 border-rose-200 text-rose-600 hover:bg-rose-50 h-8 text-xs"
+                              >
+                                {isUpdating === appointment.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <>
+                                    <X className="h-3 w-3 mr-1" />
+                                    Cancelar
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          )}
 
-                      {appointment.status === "confirmed" && (
-                        <div className="flex gap-2 pt-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => updateStatus(appointment.id, "cancelled")}
-                            disabled={isUpdating === appointment.id}
-                            className="w-full border-rose-200 text-rose-600 hover:bg-rose-50"
-                          >
-                            {isUpdating === appointment.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <X className="h-4 w-4 mr-1" />
-                                Cancelar agendamento
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      )}
+                          {appointment.status === "confirmed" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => updateStatus(appointment.id, "cancelled")}
+                              disabled={isUpdating === appointment.id}
+                              className="w-full border-rose-200 text-rose-600 hover:bg-rose-50 h-8 text-xs"
+                            >
+                              {isUpdating === appointment.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <>
+                                  <X className="h-3 w-3 mr-1" />
+                                  Cancelar agendamento
+                                </>
+                              )}
+                            </Button>
+                          )}
 
-                      {appointment.status === "cancelled" && (
-                        <div className="flex gap-2 pt-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => updateStatus(appointment.id, "pending")}
-                            disabled={isUpdating === appointment.id}
-                            className="w-full"
-                          >
-                            {isUpdating === appointment.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              "Reativar como pendente"
-                            )}
-                          </Button>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+                          {appointment.status === "cancelled" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => updateStatus(appointment.id, "pending")}
+                              disabled={isUpdating === appointment.id}
+                              className="w-full h-8 text-xs"
+                            >
+                              {isUpdating === appointment.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                "Reativar como pendente"
+                              )}
+                            </Button>
+                          )}
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>
