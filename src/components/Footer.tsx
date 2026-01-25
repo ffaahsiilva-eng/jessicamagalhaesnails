@@ -1,7 +1,8 @@
 import { memo, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Heart, MapPin, Clock, Phone } from "lucide-react";
+import { Heart, MapPin, Clock, Phone, Download } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { Link } from "react-router-dom";
 interface FooterProps {
   whatsappNumber: string;
 }
@@ -93,9 +94,10 @@ const Footer = memo(({
                 </a>
               </li>
               <li>
-                <a href="#contato" className="hover:text-primary transition-colors">
-                  Contato
-                </a>
+                <Link to="/install" className="hover:text-primary transition-colors flex items-center gap-2">
+                  <Download className="h-3 w-3" />
+                  Instalar App
+                </Link>
               </li>
             </ul>
           </motion.div>

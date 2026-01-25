@@ -8,6 +8,7 @@ import Footer from "@/components/Footer";
 import BookingCalendar from "@/components/BookingCalendar";
 import AuthModal from "@/components/AuthModal";
 import GospelRadio from "@/components/GospelRadio";
+import InstallBanner from "@/components/InstallBanner";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 const Index = () => {
@@ -56,6 +57,8 @@ const Index = () => {
       />
 
       <GospelRadio />
+      
+      <InstallBanner />
     </div>
   );
 };
