@@ -17,7 +17,8 @@ import {
   Lock,
   Unlock,
   Plus,
-  Trash2
+  Trash2,
+  MessageCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -185,6 +186,20 @@ const Admin = () => {
     }
     
     setIsUpdating(null);
+  };
+
+  const sendWhatsAppMessage = (appointment: Appointment) => {
+    const formattedDate = format(parseISO(appointment.appointment_date), "dd/MM/yyyy", { locale: ptBR });
+    const message = encodeURIComponent(
+      `Olá ${appointment.client_name}! 🎉\n\n` +
+      `Seu agendamento foi *CONFIRMADO*! ✅\n\n` +
+      `📅 Data: ${formattedDate}\n` +
+      `🕐 Horário: ${appointment.appointment_time.slice(0, 5)}\n` +
+      `💅 Serviço: ${appointment.service_type}\n\n` +
+      `${getRandomPhrase()}\n\n` +
+      `Te espero! 😘`
+    );
+    window.open(`https://wa.me/${appointment.client_phone.replace(/\D/g, '')}?text=${message}`, "_blank");
   };
 
   const blockTimeSlot = async () => {
@@ -725,22 +740,29 @@ const Admin = () => {
                           )}
 
                           {appointment.status === "confirmed" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => updateStatus(appointment.id, "cancelled")}
-                              disabled={isUpdating === appointment.id}
-                              className="w-full border-rose-200 text-rose-600 hover:bg-rose-50 h-8 text-xs"
-                            >
-                              {isUpdating === appointment.id ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <>
-                                  <X className="h-3 w-3 mr-1" />
-                                  Cancelar agendamento
-                                </>
-                              )}
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => sendWhatsAppMessage(appointment)}
+                                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs"
+                              >
+                                <MessageCircle className="h-3 w-3 mr-1" />
+                                Enviar WhatsApp
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateStatus(appointment.id, "cancelled")}
+                                disabled={isUpdating === appointment.id}
+                                className="border-rose-200 text-rose-600 hover:bg-rose-50 h-8 text-xs"
+                              >
+                                {isUpdating === appointment.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <X className="h-3 w-3" />
+                                )}
+                              </Button>
+                            </div>
                           )}
 
                           {appointment.status === "cancelled" && (
