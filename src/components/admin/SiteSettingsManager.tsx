@@ -14,6 +14,7 @@ const categoryLabels: Record<string, { label: string; icon: React.ReactNode }> =
   contact: { label: "Contato", icon: <Phone className="h-4 w-4" /> },
   hero: { label: "Hero", icon: <Type className="h-4 w-4" /> },
   branding: { label: "Marca", icon: <ImageIcon className="h-4 w-4" /> },
+  theme: { label: "Tema", icon: <Settings className="h-4 w-4" /> },
 };
 
 const SiteSettingsManager = () => {
