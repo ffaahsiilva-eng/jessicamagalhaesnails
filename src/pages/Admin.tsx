@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { format, parseISO, isSameDay } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
   Calendar as CalendarIcon, 
@@ -13,7 +13,10 @@ import {
   Loader2,
   Filter,
   RefreshCw,
-  User
+  User,
+  Lock,
+  Unlock,
+  Plus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,23 +29,39 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useToast } from "@/hooks/use-toast";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Appointment = Tables<"appointments">;
+type BlockedSlot = Tables<"blocked_slots">;
+
+const timeSlots = [
+  "09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"
+];
 
 const statusColors: Record<string, string> = {
   pending: "bg-amber-100 text-amber-800 border-amber-200",
   confirmed: "bg-emerald-100 text-emerald-800 border-emerald-200",
   cancelled: "bg-rose-100 text-rose-800 border-rose-200",
+  blocked: "bg-slate-200 text-slate-700 border-slate-300",
 };
 
 const statusLabels: Record<string, string> = {
   pending: "Pendente",
   confirmed: "Confirmado",
   cancelled: "Cancelado",
+  blocked: "Bloqueado",
 };
 
 const Admin = () => {
@@ -51,10 +70,14 @@ const Admin = () => {
   const { toast } = useToast();
   
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
+  const [blockReason, setBlockReason] = useState("");
+  const [selectedTimeToBlock, setSelectedTimeToBlock] = useState<string>("");
 
   useEffect(() => {
     if (!isCheckingRole && !isAdmin) {
@@ -64,20 +87,24 @@ const Admin = () => {
 
   useEffect(() => {
     if (isAdmin) {
-      fetchAppointments();
+      fetchData();
     }
   }, [isAdmin, filter]);
 
-  const fetchAppointments = async () => {
+  const fetchData = async () => {
     setIsLoading(true);
-    
+    await Promise.all([fetchAppointments(), fetchBlockedSlots()]);
+    setIsLoading(false);
+  };
+
+  const fetchAppointments = async () => {
     let query = supabase
       .from("appointments")
       .select("*")
       .order("appointment_date", { ascending: true })
       .order("appointment_time", { ascending: true });
 
-    if (filter !== "all") {
+    if (filter !== "all" && filter !== "blocked") {
       query = query.eq("status", filter);
     }
 
@@ -92,8 +119,18 @@ const Admin = () => {
     } else {
       setAppointments(data || []);
     }
-    
-    setIsLoading(false);
+  };
+
+  const fetchBlockedSlots = async () => {
+    const { data, error } = await supabase
+      .from("blocked_slots")
+      .select("*")
+      .order("blocked_date", { ascending: true })
+      .order("blocked_time", { ascending: true });
+
+    if (!error && data) {
+      setBlockedSlots(data);
+    }
   };
 
   const updateStatus = async (id: string, status: string) => {
@@ -121,31 +158,126 @@ const Admin = () => {
     setIsUpdating(null);
   };
 
-  // Get dates that have appointments
-  const getDatesWithAppointments = () => {
-    const dates = new Map<string, { count: number; hasConfirmed: boolean; hasPending: boolean }>();
+  const blockTimeSlot = async () => {
+    if (!selectedDate || !selectedTimeToBlock) {
+      toast({
+        title: "Selecione data e horário",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const { error } = await supabase.from("blocked_slots").insert({
+      blocked_date: format(selectedDate, "yyyy-MM-dd"),
+      blocked_time: selectedTimeToBlock,
+      reason: blockReason || null,
+      created_by: user?.id || null,
+    });
+
+    if (error) {
+      if (error.code === "23505") {
+        toast({
+          title: "Horário já bloqueado",
+          description: "Este horário já está bloqueado.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Erro ao bloquear",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    } else {
+      toast({
+        title: "Horário bloqueado!",
+        description: `${format(selectedDate, "dd/MM")} às ${selectedTimeToBlock}`,
+      });
+      setIsBlockDialogOpen(false);
+      setBlockReason("");
+      setSelectedTimeToBlock("");
+      fetchBlockedSlots();
+    }
+  };
+
+  const unblockTimeSlot = async (slotId: string) => {
+    setIsUpdating(slotId);
+    
+    const { error } = await supabase
+      .from("blocked_slots")
+      .delete()
+      .eq("id", slotId);
+
+    if (error) {
+      toast({
+        title: "Erro ao desbloquear",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Horário desbloqueado!",
+      });
+      fetchBlockedSlots();
+    }
+    
+    setIsUpdating(null);
+  };
+
+  // Get dates that have appointments or blocked slots
+  const getDatesWithEvents = () => {
+    const dates = new Map<string, { hasConfirmed: boolean; hasPending: boolean; hasBlocked: boolean }>();
     
     appointments.forEach((apt) => {
       const dateKey = apt.appointment_date;
-      const existing = dates.get(dateKey) || { count: 0, hasConfirmed: false, hasPending: false };
-      existing.count++;
+      const existing = dates.get(dateKey) || { hasConfirmed: false, hasPending: false, hasBlocked: false };
       if (apt.status === "confirmed") existing.hasConfirmed = true;
       if (apt.status === "pending") existing.hasPending = true;
+      dates.set(dateKey, existing);
+    });
+
+    blockedSlots.forEach((slot) => {
+      const dateKey = slot.blocked_date;
+      const existing = dates.get(dateKey) || { hasConfirmed: false, hasPending: false, hasBlocked: false };
+      existing.hasBlocked = true;
       dates.set(dateKey, existing);
     });
     
     return dates;
   };
 
-  // Get appointments for selected date
-  const getAppointmentsForDate = (date: Date | undefined) => {
-    if (!date) return [];
+  // Get appointments and blocked slots for selected date
+  const getEventsForDate = (date: Date | undefined) => {
+    if (!date) return { appointments: [], blocked: [] };
     const dateStr = format(date, "yyyy-MM-dd");
-    return appointments.filter((apt) => apt.appointment_date === dateStr);
+    return {
+      appointments: appointments.filter((apt) => apt.appointment_date === dateStr),
+      blocked: blockedSlots.filter((slot) => slot.blocked_date === dateStr),
+    };
   };
 
-  const datesWithAppointments = getDatesWithAppointments();
-  const selectedDateAppointments = getAppointmentsForDate(selectedDate);
+  // Get available times to block for selected date
+  const getAvailableTimesToBlock = () => {
+    if (!selectedDate) return timeSlots;
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
+    
+    const bookedTimes = appointments
+      .filter((apt) => apt.appointment_date === dateStr && apt.status !== "cancelled")
+      .map((apt) => apt.appointment_time.slice(0, 5));
+    
+    const blockedTimes = blockedSlots
+      .filter((slot) => slot.blocked_date === dateStr)
+      .map((slot) => slot.blocked_time.slice(0, 5));
+
+    const unavailableTimes = [...bookedTimes, ...blockedTimes];
+    return timeSlots.filter((time) => !unavailableTimes.includes(time));
+  };
+
+  const datesWithEvents = getDatesWithEvents();
+  const selectedDateEvents = getEventsForDate(selectedDate);
+  const availableTimesToBlock = getAvailableTimesToBlock();
 
   if (isCheckingRole) {
     return (
@@ -186,7 +318,7 @@ const Admin = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={fetchAppointments}
+              onClick={fetchData}
               className="gap-2"
             >
               <RefreshCw className="h-4 w-4" />
@@ -198,7 +330,7 @@ const Admin = () => {
 
       {/* Filters */}
       <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <Filter className="h-4 w-4 text-muted-foreground" />
           <Select value={filter} onValueChange={setFilter}>
             <SelectTrigger className="w-40">
@@ -213,6 +345,10 @@ const Admin = () => {
           </Select>
           <Badge variant="secondary" className="font-body">
             {appointments.length} agendamento{appointments.length !== 1 ? "s" : ""}
+          </Badge>
+          <Badge variant="outline" className="font-body text-muted-foreground">
+            <Lock className="h-3 w-3 mr-1" />
+            {blockedSlots.length} bloqueado{blockedSlots.length !== 1 ? "s" : ""}
           </Badge>
         </div>
       </div>
@@ -241,18 +377,19 @@ const Admin = () => {
                   locale={ptBR}
                   className="rounded-xl border border-border mx-auto pointer-events-auto"
                   modifiers={{
-                    hasAppointment: (date) => {
-                      const dateStr = format(date, "yyyy-MM-dd");
-                      return datesWithAppointments.has(dateStr);
-                    },
                     hasConfirmed: (date) => {
                       const dateStr = format(date, "yyyy-MM-dd");
-                      return datesWithAppointments.get(dateStr)?.hasConfirmed || false;
+                      return datesWithEvents.get(dateStr)?.hasConfirmed || false;
                     },
                     hasPending: (date) => {
                       const dateStr = format(date, "yyyy-MM-dd");
-                      const info = datesWithAppointments.get(dateStr);
+                      const info = datesWithEvents.get(dateStr);
                       return info?.hasPending && !info?.hasConfirmed || false;
+                    },
+                    hasBlocked: (date) => {
+                      const dateStr = format(date, "yyyy-MM-dd");
+                      const info = datesWithEvents.get(dateStr);
+                      return info?.hasBlocked && !info?.hasConfirmed && !info?.hasPending || false;
                     },
                   }}
                   modifiersStyles={{
@@ -266,11 +403,16 @@ const Admin = () => {
                       color: "hsl(45 93% 37%)",
                       fontWeight: "bold",
                     },
+                    hasBlocked: {
+                      backgroundColor: "hsl(var(--muted))",
+                      color: "hsl(var(--muted-foreground))",
+                      fontWeight: "bold",
+                    },
                   }}
                 />
                 
                 {/* Legend */}
-                <div className="flex justify-center gap-4 mt-4 text-xs font-body">
+                <div className="flex flex-wrap justify-center gap-3 mt-4 text-xs font-body">
                   <div className="flex items-center gap-1.5">
                     <div className="w-3 h-3 rounded-full bg-primary/30" />
                     <span className="text-muted-foreground">Confirmado</span>
@@ -279,6 +421,10 @@ const Admin = () => {
                     <div className="w-3 h-3 rounded-full bg-amber-400/30" />
                     <span className="text-muted-foreground">Pendente</span>
                   </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-muted" />
+                    <span className="text-muted-foreground">Bloqueado</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -286,35 +432,158 @@ const Admin = () => {
             {/* Appointments for Selected Date */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="font-display text-lg">
-                  {selectedDate ? (
-                    <>
-                      📅 {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
-                      <Badge variant="secondary" className="ml-2 font-body text-xs">
-                        {selectedDateAppointments.length} agendamento{selectedDateAppointments.length !== 1 ? "s" : ""}
-                      </Badge>
-                    </>
-                  ) : (
-                    "Selecione uma data"
+                <div className="flex items-center justify-between">
+                  <CardTitle className="font-display text-lg">
+                    {selectedDate ? (
+                      <>
+                        📅 {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
+                      </>
+                    ) : (
+                      "Selecione uma data"
+                    )}
+                  </CardTitle>
+                  
+                  {selectedDate && (
+                    <Dialog open={isBlockDialogOpen} onOpenChange={setIsBlockDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button size="sm" variant="outline" className="gap-1.5">
+                          <Lock className="h-3.5 w-3.5" />
+                          Bloquear
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                          <DialogTitle className="font-display">
+                            Bloquear Horário - {format(selectedDate, "dd/MM/yyyy")}
+                          </DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          <div className="space-y-2">
+                            <Label className="font-body">Horário</Label>
+                            {availableTimesToBlock.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">
+                                Todos os horários já estão ocupados ou bloqueados.
+                              </p>
+                            ) : (
+                              <div className="grid grid-cols-4 gap-2">
+                                {availableTimesToBlock.map((time) => (
+                                  <button
+                                    key={time}
+                                    onClick={() => setSelectedTimeToBlock(time)}
+                                    className={`
+                                      py-2 px-2 rounded-lg font-body text-sm transition-all
+                                      ${selectedTimeToBlock === time
+                                        ? "bg-primary text-primary-foreground"
+                                        : "bg-secondary text-secondary-foreground hover:bg-primary/20"
+                                      }
+                                    `}
+                                  >
+                                    {time}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="reason" className="font-body">Motivo (opcional)</Label>
+                            <Input
+                              id="reason"
+                              value={blockReason}
+                              onChange={(e) => setBlockReason(e.target.value)}
+                              placeholder="Ex: Compromisso pessoal"
+                              className="bg-secondary/50"
+                            />
+                          </div>
+                          <Button
+                            onClick={blockTimeSlot}
+                            disabled={!selectedTimeToBlock}
+                            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                          >
+                            <Lock className="h-4 w-4 mr-2" />
+                            Bloquear Horário
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   )}
-                </CardTitle>
+                </div>
+                
+                {selectedDate && (
+                  <div className="flex gap-2 mt-1">
+                    <Badge variant="secondary" className="font-body text-xs">
+                      {selectedDateEvents.appointments.length} agendamento{selectedDateEvents.appointments.length !== 1 ? "s" : ""}
+                    </Badge>
+                    {selectedDateEvents.blocked.length > 0 && (
+                      <Badge variant="outline" className="font-body text-xs text-muted-foreground">
+                        <Lock className="h-2.5 w-2.5 mr-1" />
+                        {selectedDateEvents.blocked.length} bloqueado{selectedDateEvents.blocked.length !== 1 ? "s" : ""}
+                      </Badge>
+                    )}
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
-                {selectedDateAppointments.length === 0 ? (
+                {selectedDateEvents.appointments.length === 0 && selectedDateEvents.blocked.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground font-body">
                     <CalendarIcon className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                    <p>Nenhum agendamento nesta data</p>
+                    <p>Nenhum agendamento ou bloqueio nesta data</p>
                   </div>
                 ) : (
                   <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
                     <AnimatePresence>
-                      {selectedDateAppointments.map((appointment, index) => (
+                      {/* Blocked Slots */}
+                      {selectedDateEvents.blocked.map((slot, index) => (
+                        <motion.div
+                          key={`blocked-${slot.id}`}
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -20 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="bg-muted/50 rounded-xl p-4 border border-border"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Lock className="h-4 w-4 text-muted-foreground" />
+                              <span className="font-display font-semibold text-muted-foreground">
+                                {slot.blocked_time.slice(0, 5)}
+                              </span>
+                              <Badge variant="outline" className={`${statusColors.blocked} font-body text-xs`}>
+                                Bloqueado
+                              </Badge>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => unblockTimeSlot(slot.id)}
+                              disabled={isUpdating === slot.id}
+                              className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                            >
+                              {isUpdating === slot.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <>
+                                  <Unlock className="h-3 w-3 mr-1" />
+                                  Desbloquear
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                          {slot.reason && (
+                            <p className="text-xs text-muted-foreground mt-2 pl-6 italic">
+                              📝 {slot.reason}
+                            </p>
+                          )}
+                        </motion.div>
+                      ))}
+
+                      {/* Appointments */}
+                      {selectedDateEvents.appointments.map((appointment, index) => (
                         <motion.div
                           key={appointment.id}
                           initial={{ opacity: 0, x: 20 }}
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: -20 }}
-                          transition={{ delay: index * 0.05 }}
+                          transition={{ delay: (selectedDateEvents.blocked.length + index) * 0.05 }}
                           className="bg-secondary/30 rounded-xl p-4 border border-border"
                         >
                           {/* Time & Status */}
