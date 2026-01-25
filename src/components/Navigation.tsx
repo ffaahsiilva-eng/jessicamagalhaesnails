@@ -63,8 +63,7 @@ const Navigation = ({
       `}>
       <div className="container mx-auto px-6 flex items-center justify-between">
         {/* Logo */}
-        <a href="#" className="font-display text-2xl font-semibold text-foreground">J​M<span className="text-primary">​M</span>
-        </a>
+        
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-8">
@@ -90,7 +89,7 @@ const Navigation = ({
         </div>
 
         {/* Mobile Menu Button */}
-        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden p-2 text-foreground">
+        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden p-2 text-foreground rounded-xl shadow-lg opacity-100">
           {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
       </div>
