@@ -22,7 +22,7 @@ const Footer = ({
         }} viewport={{
           once: true
         }}>
-            <h3 className="font-display text-2xl font-semibold mb-4">Jessica<span className="text-primary">Nails</span>
+            <h3 className="font-display text-2xl font-semibold mb-4">Magalhães<span className="text-primary">Nails</span>
             </h3>
             <p className="text-background/70 font-body text-sm">
               Cuidando das suas unhas com carinho e profissionalismo desde 2020.
@@ -94,7 +94,7 @@ const Footer = ({
         {/* Bottom */}
         <div className="border-t border-background/20 pt-6 text-center">
           <p className="text-background/50 font-body text-sm flex items-center justify-center gap-1">
-            Feito com <Heart className="h-4 w-4 text-primary fill-primary" /> por Glamour Nails
+            Feito com <Heart className="h-4 w-4 text-primary fill-primary" /> por Jessica
           </p>
         </div>
       </div>
