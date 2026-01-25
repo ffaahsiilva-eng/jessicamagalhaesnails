@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { Settings, Loader2, Upload, X, Save, Phone, Instagram, Facebook, Type, Image as ImageIcon } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Settings, Loader2, Upload, X, Save, Phone, Type, Image as ImageIcon, Eye } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,6 +22,7 @@ const SiteSettingsManager = () => {
   const [editedValues, setEditedValues] = useState<Record<string, string>>({});
   const [savingKeys, setSavingKeys] = useState<Set<string>>(new Set());
   const [uploadingKeys, setUploadingKeys] = useState<Set<string>>(new Set());
+  const [showPreview, setShowPreview] = useState(false);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   // Group settings by category
@@ -126,6 +127,13 @@ const SiteSettingsManager = () => {
         return updated;
       });
     }
+  };
+
+  // Get preview values
+  const getPreviewValue = (key: string) => {
+    const setting = settings.find(s => s.key === key);
+    if (!setting) return "";
+    return editedValues[key] !== undefined ? editedValues[key] : setting.value;
   };
 
   const renderField = (setting: SiteSetting) => {
@@ -258,12 +266,45 @@ const SiteSettingsManager = () => {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="font-display text-lg flex items-center gap-2">
-          <Settings className="h-5 w-5 text-primary" />
-          Configurações do Site
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="font-display text-lg flex items-center gap-2">
+            <Settings className="h-5 w-5 text-primary" />
+            Configurações do Site
+          </CardTitle>
+          <Button
+            size="sm"
+            variant={showPreview ? "default" : "outline"}
+            onClick={() => setShowPreview(!showPreview)}
+            className="gap-1.5"
+          >
+            <Eye className="h-4 w-4" />
+            {showPreview ? "Fechar Preview" : "Preview"}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
+        {/* Live Preview */}
+        {showPreview && (
+          <div className="mb-6 p-4 rounded-xl bg-gradient-to-br from-secondary/50 to-muted/30 border border-border">
+            <h4 className="font-body font-medium text-sm text-muted-foreground mb-3">Preview ao Vivo</h4>
+            <div className="bg-card rounded-lg p-4 shadow-sm space-y-2">
+              <p className="text-xs text-primary uppercase tracking-wider">
+                {getPreviewValue("hero_subtitle") || "Nail Designer"}
+              </p>
+              <h3 className="font-display text-2xl font-semibold">
+                {getPreviewValue("hero_title") || "Jéssica Magalhães"}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {getPreviewValue("hero_description") || "Descrição do site..."}
+              </p>
+              <div className="pt-2 border-t border-border mt-2 text-xs text-muted-foreground space-y-1">
+                <p>📱 WhatsApp: {getPreviewValue("whatsapp_number") || "..."}</p>
+                <p>🕐 {getPreviewValue("business_hours_weekday") || "Seg-Sáb: 9h às 19h"}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <Tabs defaultValue={categories[0]} className="w-full">
           <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${categories.length}, 1fr)` }}>
             {categories.map((category) => (

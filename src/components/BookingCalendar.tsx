@@ -14,10 +14,11 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { format, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Clock, Check, MessageCircle, X, Loader2 } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Check, MessageCircle, X, Loader2, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
+import { z } from "zod";
 
 interface BookingCalendarProps {
   isOpen: boolean;
@@ -35,6 +36,21 @@ interface BlockedSlot {
   blocked_time: string;
 }
 
+// Validation schema
+const bookingSchema = z.object({
+  name: z.string().trim().min(2, "Nome deve ter pelo menos 2 caracteres").max(100, "Nome muito longo"),
+  email: z.string().trim().email("Email inválido").max(255, "Email muito longo"),
+  phone: z.string().trim().regex(/^\(\d{2}\)\s?\d{4,5}-?\d{4}$|^\d{10,11}$/, "Telefone inválido (ex: (91) 91234-5678)"),
+});
+
+const formatPhoneInput = (value: string) => {
+  const numbers = value.replace(/\D/g, "");
+  if (numbers.length <= 2) return numbers;
+  if (numbers.length <= 7) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+  if (numbers.length <= 11) return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
+  return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
+};
+
 const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarProps) => {
   const [step, setStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
@@ -47,6 +63,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
   const [bookedSlots, setBookedSlots] = useState<Appointment[]>([]);
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
   // Fetch available time slots from database
@@ -129,11 +146,48 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
     return timeSlots.filter((time) => !unavailableTimes.includes(time));
   };
 
+  const validateForm = () => {
+    try {
+      bookingSchema.parse({ name, email, phone });
+      setErrors({});
+      return true;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const newErrors: Record<string, string> = {};
+        error.errors.forEach((err) => {
+          if (err.path[0]) {
+            newErrors[err.path[0] as string] = err.message;
+          }
+        });
+        setErrors(newErrors);
+      }
+      return false;
+    }
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneInput(e.target.value);
+    setPhone(formatted);
+    // Clear error when user types
+    if (errors.phone) {
+      setErrors((prev) => ({ ...prev, phone: "" }));
+    }
+  };
+
   const handleSendWhatsApp = async () => {
-    if (!selectedDate || !selectedTime || !selectedService || !name || !phone) {
+    if (!selectedDate || !selectedTime || !selectedService) {
       toast({
         title: "Preencha todos os campos",
         description: "Por favor, preencha todas as informações para agendar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!validateForm()) {
+      toast({
+        title: "Verifique os dados",
+        description: "Por favor, corrija os erros antes de continuar.",
         variant: "destructive",
       });
       return;
@@ -144,15 +198,18 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
+      // Clean phone for storage
+      const cleanPhone = phone.replace(/\D/g, "");
+
       const { error } = await supabase.from("appointments").insert({
         user_id: user?.id || null,
-        client_name: name,
-        client_email: email || null,
-        client_phone: phone,
+        client_name: name.trim(),
+        client_email: email.trim(),
+        client_phone: cleanPhone,
         service_type: selectedService,
         appointment_date: format(selectedDate, "yyyy-MM-dd"),
         appointment_time: selectedTime,
-        notes: notes,
+        notes: notes.trim() || null,
         status: "pending",
       });
 
@@ -161,12 +218,13 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
       const formattedDate = format(selectedDate, "dd/MM/yyyy", { locale: ptBR });
       const message = encodeURIComponent(
         `Olá! Gostaria de agendar um horário:\n\n` +
-        `👤 Nome: ${name}\n` +
+        `👤 Nome: ${name.trim()}\n` +
         `📱 Telefone: ${phone}\n` +
+        `📧 Email: ${email.trim()}\n` +
         `💅 Serviço: ${selectedService}\n` +
         `📅 Data: ${formattedDate}\n` +
         `🕐 Horário: ${selectedTime}\n` +
-        `${notes ? `📝 Observações: ${notes}\n` : ""}\n` +
+        `${notes.trim() ? `📝 Observações: ${notes.trim()}\n` : ""}\n` +
         `Você pode confirmar meu agendamento? 💖`
       );
 
@@ -198,10 +256,12 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
     setEmail("");
     setPhone("");
     setNotes("");
+    setErrors({});
     onClose();
   };
 
   const availableTimes = getAvailableTimes(selectedDate);
+  const isStep3Valid = name.trim().length >= 2 && email.trim().length > 0 && phone.trim().length >= 10;
 
   return (
     <AnimatePresence>
@@ -379,39 +439,70 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                     className="space-y-4"
                   >
                     <div className="space-y-2">
-                      <Label htmlFor="name" className="font-body text-foreground">Seu nome</Label>
+                      <Label htmlFor="name" className="font-body text-foreground">
+                        Seu nome *
+                      </Label>
                       <Input
                         id="name"
                         value={name}
-                        onChange={(e) => setName(e.target.value)}
+                        onChange={(e) => {
+                          setName(e.target.value);
+                          if (errors.name) setErrors((prev) => ({ ...prev, name: "" }));
+                        }}
                         placeholder="Como posso te chamar?"
-                        className="bg-secondary/50"
+                        className={`bg-secondary/50 ${errors.name ? "border-destructive" : ""}`}
+                        maxLength={100}
                       />
+                      {errors.name && (
+                        <p className="text-destructive text-xs flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          {errors.name}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="email" className="font-body text-foreground">
-                        Email (para lembrete)
+                        Email * (para lembrete)
                       </Label>
                       <Input
                         id="email"
                         type="email"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="seu@email.com (opcional)"
-                        className="bg-secondary/50"
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          if (errors.email) setErrors((prev) => ({ ...prev, email: "" }));
+                        }}
+                        placeholder="seu@email.com"
+                        className={`bg-secondary/50 ${errors.email ? "border-destructive" : ""}`}
+                        maxLength={255}
                       />
+                      {errors.email && (
+                        <p className="text-destructive text-xs flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          {errors.email}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="phone" className="font-body text-foreground">WhatsApp</Label>
+                      <Label htmlFor="phone" className="font-body text-foreground">
+                        WhatsApp *
+                      </Label>
                       <Input
                         id="phone"
                         value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="(00) 00000-0000"
-                        className="bg-secondary/50"
+                        onChange={handlePhoneChange}
+                        placeholder="(91) 91234-5678"
+                        className={`bg-secondary/50 ${errors.phone ? "border-destructive" : ""}`}
+                        maxLength={16}
                       />
+                      {errors.phone && (
+                        <p className="text-destructive text-xs flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          {errors.phone}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -425,6 +516,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                         placeholder="Algo que devemos saber?"
                         rows={3}
                         className="bg-secondary/50 resize-none"
+                        maxLength={500}
                       />
                     </div>
 
@@ -448,7 +540,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                       </Button>
                       <Button
                         onClick={handleSendWhatsApp}
-                        disabled={isLoading || !name || !phone}
+                        disabled={isLoading || !isStep3Valid}
                         className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
                       >
                         <MessageCircle className="mr-2 h-4 w-4" />
@@ -468,11 +560,11 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                     <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
                       <Check className="h-8 w-8 text-primary" />
                     </div>
-                    <h3 className="font-display text-2xl font-semibold text-foreground">
-                      Solicitação Enviada!
+                    <h3 className="font-display text-xl font-semibold text-foreground">
+                      Agendamento Enviado!
                     </h3>
-                    <p className="text-muted-foreground font-body">
-                      Aguarde a confirmação pelo WhatsApp. Você receberá um lembrete antes do horário.
+                    <p className="text-muted-foreground font-body text-sm">
+                      Sua solicitação foi enviada pelo WhatsApp. Aguarde a confirmação.
                     </p>
                     <Button
                       onClick={resetAndClose}

@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, Loader2, Upload, ImageIcon, X, GripVertical } from "lucide-react";
+import { Plus, Trash2, Loader2, Upload, ImageIcon, X, GripVertical, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,10 +44,11 @@ interface GalleryImage {
 interface SortableImageProps {
   image: GalleryImage;
   onDelete: (id: string) => void;
+  onEdit: (image: GalleryImage) => void;
   isDeleting: boolean;
 }
 
-const SortableImage = ({ image, onDelete, isDeleting }: SortableImageProps) => {
+const SortableImage = ({ image, onDelete, onEdit, isDeleting }: SortableImageProps) => {
   const {
     attributes,
     listeners,
@@ -77,6 +78,11 @@ const SortableImage = ({ image, onDelete, isDeleting }: SortableImageProps) => {
         alt={image.alt_text || "Imagem da galeria"}
         className="w-full h-full object-cover"
       />
+      {image.alt_text && (
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+          <p className="text-white text-xs truncate">{image.alt_text}</p>
+        </div>
+      )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 hover:opacity-100 transition-opacity">
         <button
           {...attributes}
@@ -85,19 +91,29 @@ const SortableImage = ({ image, onDelete, isDeleting }: SortableImageProps) => {
         >
           <GripVertical className="h-4 w-4 text-muted-foreground" />
         </button>
-        <Button
-          size="icon"
-          variant="destructive"
-          onClick={() => onDelete(image.id)}
-          disabled={isDeleting}
-          className="absolute top-2 right-2 h-8 w-8"
-        >
-          {isDeleting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Trash2 className="h-4 w-4" />
-          )}
-        </Button>
+        <div className="absolute top-2 right-2 flex gap-1">
+          <Button
+            size="icon"
+            variant="secondary"
+            onClick={() => onEdit(image)}
+            className="h-8 w-8"
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            size="icon"
+            variant="destructive"
+            onClick={() => onDelete(image.id)}
+            disabled={isDeleting}
+            className="h-8 w-8"
+          >
+            {isDeleting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -108,8 +124,12 @@ const GalleryManager = () => {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [altText, setAltText] = useState("");
+  const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
+  const [editAltText, setEditAltText] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -176,7 +196,6 @@ const GalleryManager = () => {
     setIsUploading(true);
 
     try {
-      // Upload to storage
       const fileExt = selectedFile.name.split(".").pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
@@ -186,12 +205,10 @@ const GalleryManager = () => {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
       const { data: urlData } = supabase.storage
         .from("gallery-images")
         .getPublicUrl(uploadData.path);
 
-      // Save to database
       const maxOrder = images?.reduce((max, img) => Math.max(max, img.display_order), 0) || 0;
 
       const { error: dbError } = await supabase.from("gallery_images").insert({
@@ -224,6 +241,41 @@ const GalleryManager = () => {
     setSelectedFile(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
+    }
+  };
+
+  const handleEdit = (image: GalleryImage) => {
+    setEditingImage(image);
+    setEditAltText(image.alt_text || "");
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingImage) return;
+
+    setIsSavingEdit(true);
+
+    try {
+      const { error } = await supabase
+        .from("gallery_images")
+        .update({ alt_text: editAltText || null })
+        .eq("id", editingImage.id);
+
+      if (error) throw error;
+
+      toast({ title: "Descrição atualizada!" });
+      queryClient.invalidateQueries({ queryKey: ["admin-gallery"] });
+      queryClient.invalidateQueries({ queryKey: ["gallery"] });
+      setIsEditDialogOpen(false);
+      setEditingImage(null);
+    } catch (error: any) {
+      toast({
+        title: "Erro ao salvar",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -260,10 +312,8 @@ const GalleryManager = () => {
 
       const newOrder = arrayMove(images, oldIndex, newIndex);
 
-      // Optimistically update the UI
       queryClient.setQueryData(["admin-gallery"], newOrder);
 
-      // Update the database
       try {
         const updates = newOrder.map((image, index) => ({
           id: image.id,
@@ -309,7 +359,6 @@ const GalleryManager = () => {
                 <DialogTitle className="font-display">Adicionar Foto</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-4">
-                {/* Image Upload */}
                 <div className="space-y-2">
                   <Label className="font-body">Imagem</Label>
                   {previewUrl ? (
@@ -421,6 +470,7 @@ const GalleryManager = () => {
                       <SortableImage
                         image={image}
                         onDelete={handleDelete}
+                        onEdit={handleEdit}
                         isDeleting={deletingId === image.id}
                       />
                     </motion.div>
@@ -431,6 +481,63 @@ const GalleryManager = () => {
           </DndContext>
         )}
       </CardContent>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display">Editar Descrição</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {editingImage && (
+              <div className="aspect-video rounded-xl overflow-hidden border border-border">
+                <img
+                  src={editingImage.image_url}
+                  alt={editingImage.alt_text || "Imagem"}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="editAlt" className="font-body">
+                Descrição
+              </Label>
+              <Input
+                id="editAlt"
+                value={editAltText}
+                onChange={(e) => setEditAltText(e.target.value)}
+                placeholder="Ex: Nail art floral rosa"
+                className="bg-secondary/50"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsEditDialogOpen(false);
+                  setEditingImage(null);
+                }}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleSaveEdit}
+                disabled={isSavingEdit}
+                className="flex-1 bg-primary hover:bg-primary/90"
+              >
+                {isSavingEdit ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Salvar"
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
