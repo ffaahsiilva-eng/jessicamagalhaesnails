@@ -148,7 +148,8 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         `Você pode confirmar meu agendamento? 💖`
       );
 
-      window.open(`https://wa.me/${whatsappNumber}?text=${message}`, "_blank");
+      // Usa location.href para evitar bloqueio de popup
+      window.location.href = `https://wa.me/${whatsappNumber}?text=${message}`;
 
       toast({
         title: "Agendamento enviado!",
