@@ -190,13 +190,13 @@ const Admin = () => {
       if (status === "confirmed" && appointment) {
         const formattedDate = format(parseISO(appointment.appointment_date), "dd/MM/yyyy", { locale: ptBR });
         const message = encodeURIComponent(
-          `Olá ${appointment.client_name}! 🎉\n\n` +
-          `Seu agendamento foi *CONFIRMADO*! ✅\n\n` +
-          `📅 Data: ${formattedDate}\n` +
-          `🕐 Horário: ${appointment.appointment_time.slice(0, 5)}\n` +
-          `💅 Serviço: ${appointment.service_type}\n\n` +
+          `Olá ${appointment.client_name}!\n\n` +
+          `Seu agendamento foi *CONFIRMADO*!\n\n` +
+          `*Data:* ${formattedDate}\n` +
+          `*Horário:* ${appointment.appointment_time.slice(0, 5)}\n` +
+          `*Serviço:* ${appointment.service_type}\n\n` +
           `${getRandomPhrase()}\n\n` +
-          `Te espero! 😘`
+          `Te espero!`
         );
         window.open(`https://wa.me/${appointment.client_phone.replace(/\D/g, '')}?text=${message}`, "_blank");
       }
@@ -210,13 +210,13 @@ const Admin = () => {
   const sendWhatsAppMessage = (appointment: Appointment) => {
     const formattedDate = format(parseISO(appointment.appointment_date), "dd/MM/yyyy", { locale: ptBR });
     const message = encodeURIComponent(
-      `Olá ${appointment.client_name}! 🎉\n\n` +
-      `Seu agendamento foi *CONFIRMADO*! ✅\n\n` +
-      `📅 Data: ${formattedDate}\n` +
-      `🕐 Horário: ${appointment.appointment_time.slice(0, 5)}\n` +
-      `💅 Serviço: ${appointment.service_type}\n\n` +
+      `Olá ${appointment.client_name}!\n\n` +
+      `Seu agendamento foi *CONFIRMADO*!\n\n` +
+      `*Data:* ${formattedDate}\n` +
+      `*Horário:* ${appointment.appointment_time.slice(0, 5)}\n` +
+      `*Serviço:* ${appointment.service_type}\n\n` +
       `${getRandomPhrase()}\n\n` +
-      `Te espero! 😘`
+      `Te espero!`
     );
     window.open(`https://wa.me/${appointment.client_phone.replace(/\D/g, '')}?text=${message}`, "_blank");
   };

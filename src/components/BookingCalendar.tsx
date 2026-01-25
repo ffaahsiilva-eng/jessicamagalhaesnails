@@ -218,14 +218,14 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
       const formattedDate = format(selectedDate, "dd/MM/yyyy", { locale: ptBR });
       const message = encodeURIComponent(
         `Olá! Gostaria de agendar um horário:\n\n` +
-        `👤 Nome: ${name.trim()}\n` +
-        `📱 Telefone: ${phone}\n` +
-        `📧 Email: ${email.trim()}\n` +
-        `💅 Serviço: ${selectedService}\n` +
-        `📅 Data: ${formattedDate}\n` +
-        `🕐 Horário: ${selectedTime}\n` +
-        `${notes.trim() ? `📝 Observações: ${notes.trim()}\n` : ""}\n` +
-        `Você pode confirmar meu agendamento? 💖`
+        `*Nome:* ${name.trim()}\n` +
+        `*Telefone:* ${phone}\n` +
+        `*Email:* ${email.trim()}\n` +
+        `*Serviço:* ${selectedService}\n` +
+        `*Data:* ${formattedDate}\n` +
+        `*Horário:* ${selectedTime}\n` +
+        `${notes.trim() ? `*Observações:* ${notes.trim()}\n` : ""}\n` +
+        `Você pode confirmar meu agendamento?`
       );
 
       window.location.href = `https://wa.me/${whatsappNumber}?text=${message}`;
