@@ -7,6 +7,7 @@ import SocialLinks from "@/components/SocialLinks";
 import Footer from "@/components/Footer";
 import BookingCalendar from "@/components/BookingCalendar";
 import AuthModal from "@/components/AuthModal";
+import GospelRadio from "@/components/GospelRadio";
 
 // Configurações do negócio - altere conforme necessário
 const WHATSAPP_NUMBER = "5591918371798";
@@ -51,6 +52,8 @@ const Index = () => {
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
       />
+
+      <GospelRadio />
     </div>
   );
 };
