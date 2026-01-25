@@ -3,6 +3,7 @@ import { Type, Loader2, Save, RotateCcw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import {
   Select,
   SelectContent,
@@ -36,9 +37,26 @@ const bodyFonts = [
   { value: "Work Sans", label: "Work Sans", style: "Profissional" },
 ];
 
+const headingSizes = [
+  { value: "small", label: "Pequeno", scale: 0.85 },
+  { value: "normal", label: "Normal", scale: 1 },
+  { value: "large", label: "Grande", scale: 1.15 },
+  { value: "xlarge", label: "Extra Grande", scale: 1.3 },
+];
+
+const bodySizes = [
+  { value: "small", label: "Pequeno", scale: 0.9 },
+  { value: "normal", label: "Normal", scale: 1 },
+  { value: "large", label: "Grande", scale: 1.1 },
+  { value: "xlarge", label: "Extra Grande", scale: 1.2 },
+];
+
 const defaultFonts = {
   font_display: "Cormorant Garamond",
   font_body: "Montserrat",
+  font_scale: "1",
+  font_heading_size: "normal",
+  font_body_size: "normal",
 };
 
 const FontManager = () => {
@@ -62,6 +80,10 @@ const FontManager = () => {
     return localValues[key] || defaultFonts[key as keyof typeof defaultFonts] || "";
   };
 
+  const getNumericValue = (key: string): number => {
+    return parseFloat(localValues[key] || defaultFonts[key as keyof typeof defaultFonts] || "1");
+  };
+
   const handleChange = (key: string, value: string) => {
     setLocalValues((prev) => ({ ...prev, [key]: value }));
     setHasChanges(true);
@@ -73,6 +95,9 @@ const FontManager = () => {
   const applyFontPreview = (values: Record<string, string>) => {
     const displayFont = values.font_display || defaultFonts.font_display;
     const bodyFont = values.font_body || defaultFonts.font_body;
+    const scale = parseFloat(values.font_scale || defaultFonts.font_scale);
+    const headingSize = values.font_heading_size || defaultFonts.font_heading_size;
+    const bodySize = values.font_body_size || defaultFonts.font_body_size;
 
     // Load fonts dynamically
     const link = document.getElementById("dynamic-fonts") as HTMLLinkElement;
@@ -80,9 +105,29 @@ const FontManager = () => {
       link.href = `https://fonts.googleapis.com/css2?family=${displayFont.replace(/ /g, "+")}:wght@300;400;500;600;700&family=${bodyFont.replace(/ /g, "+")}:wght@300;400;500;600;700&display=swap`;
     }
 
-    // Apply to CSS variables
-    document.documentElement.style.setProperty("--font-display", `"${displayFont}", serif`);
-    document.documentElement.style.setProperty("--font-body", `"${bodyFont}", sans-serif`);
+    const root = document.documentElement;
+
+    // Apply font families
+    root.style.setProperty("--font-display", `"${displayFont}", serif`);
+    root.style.setProperty("--font-body", `"${bodyFont}", sans-serif`);
+
+    // Get size multipliers
+    const headingScale = headingSizes.find((s) => s.value === headingSize)?.scale || 1;
+    const bodyScale = bodySizes.find((s) => s.value === bodySize)?.scale || 1;
+
+    // Apply font sizes with scale
+    const baseSize = 16 * scale;
+    root.style.setProperty("--font-size-base", `${baseSize * bodyScale}px`);
+    root.style.setProperty("--font-size-sm", `${baseSize * bodyScale * 0.875}px`);
+    root.style.setProperty("--font-size-xs", `${baseSize * bodyScale * 0.75}px`);
+    root.style.setProperty("--font-size-lg", `${baseSize * bodyScale * 1.125}px`);
+    root.style.setProperty("--font-size-xl", `${baseSize * bodyScale * 1.25}px`);
+
+    // Heading sizes
+    root.style.setProperty("--font-size-h1", `${baseSize * headingScale * 2.5}px`);
+    root.style.setProperty("--font-size-h2", `${baseSize * headingScale * 2}px`);
+    root.style.setProperty("--font-size-h3", `${baseSize * headingScale * 1.5}px`);
+    root.style.setProperty("--font-size-h4", `${baseSize * headingScale * 1.25}px`);
   };
 
   const handleSaveAll = async () => {
@@ -93,7 +138,7 @@ const FontManager = () => {
       );
       await Promise.all(promises);
       setHasChanges(false);
-      toast({ title: "Fontes salvas!" });
+      toast({ title: "Fontes e tamanhos salvos!" });
     } catch (error: any) {
       toast({
         title: "Erro ao salvar",
@@ -109,7 +154,7 @@ const FontManager = () => {
     setLocalValues(defaultFonts);
     setHasChanges(true);
     applyFontPreview(defaultFonts);
-    toast({ title: "Fontes resetadas para o padrão" });
+    toast({ title: "Fontes e tamanhos resetados para o padrão" });
   };
 
   if (isLoading) {
@@ -122,13 +167,17 @@ const FontManager = () => {
     );
   }
 
+  const headingScale = headingSizes.find((s) => s.value === getValue("font_heading_size"))?.scale || 1;
+  const bodyScale = bodySizes.find((s) => s.value === getValue("font_body_size"))?.scale || 1;
+  const globalScale = getNumericValue("font_scale");
+
   return (
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="font-display text-lg flex items-center gap-2">
             <Type className="h-5 w-5 text-primary" />
-            Fontes do Site
+            Fontes e Tamanhos
           </CardTitle>
           <div className="flex gap-2">
             <Button
@@ -160,61 +209,131 @@ const FontManager = () => {
         {/* Live Preview */}
         <div className="p-4 rounded-xl bg-gradient-to-br from-secondary/50 to-muted/30 border border-border">
           <h4 className="font-body font-medium text-sm text-muted-foreground mb-3">
-            Preview das Fontes
+            Preview ao Vivo
           </h4>
           <div className="bg-card rounded-lg p-4 shadow-sm space-y-3">
-            <h3 
-              className="text-2xl font-semibold"
-              style={{ fontFamily: `"${getValue("font_display")}", serif` }}
+            <h3
+              style={{
+                fontFamily: `"${getValue("font_display")}", serif`,
+                fontSize: `${32 * headingScale * globalScale}px`,
+              }}
+              className="font-semibold"
             >
               Jéssica Magalhães
             </h3>
-            <p 
-              className="text-sm text-muted-foreground"
-              style={{ fontFamily: `"${getValue("font_body")}", sans-serif` }}
+            <h4
+              style={{
+                fontFamily: `"${getValue("font_display")}", serif`,
+                fontSize: `${24 * headingScale * globalScale}px`,
+              }}
+              className="font-medium text-muted-foreground"
             >
-              Este é um exemplo de texto do corpo usando a fonte selecionada. 
-              A fonte do corpo é usada para parágrafos, descrições e textos gerais do site.
+              Nail Designer
+            </h4>
+            <p
+              style={{
+                fontFamily: `"${getValue("font_body")}", sans-serif`,
+                fontSize: `${16 * bodyScale * globalScale}px`,
+              }}
+              className="text-muted-foreground"
+            >
+              Este é um exemplo de texto do corpo usando a fonte e tamanho selecionados.
+              A fonte do corpo é usada para parágrafos, descrições e textos gerais.
             </p>
-            <Button size="sm" style={{ fontFamily: `"${getValue("font_body")}", sans-serif` }}>
-              Botão de Exemplo
-            </Button>
+            <p
+              style={{
+                fontFamily: `"${getValue("font_body")}", sans-serif`,
+                fontSize: `${14 * bodyScale * globalScale}px`,
+              }}
+              className="text-muted-foreground"
+            >
+              Texto menor para legendas e informações secundárias.
+            </p>
           </div>
         </div>
 
-        {/* Font Selectors */}
+        {/* Global Scale Slider */}
+        <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="font-body font-semibold">Escala Global</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Ajusta proporcionalmente todos os tamanhos de fonte
+              </p>
+            </div>
+            <span className="text-lg font-mono font-semibold text-primary">
+              {Math.round(getNumericValue("font_scale") * 100)}%
+            </span>
+          </div>
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>80%</span>
+              <span>100%</span>
+              <span>120%</span>
+            </div>
+            <Slider
+              value={[getNumericValue("font_scale") * 100]}
+              onValueChange={([val]) => handleChange("font_scale", String(val / 100))}
+              min={80}
+              max={120}
+              step={5}
+              className="cursor-pointer"
+            />
+          </div>
+        </div>
+
+        {/* Font Family Selectors */}
         <div className="grid gap-4">
           {/* Display Font */}
           <div className="p-4 rounded-xl bg-secondary/30 border border-border space-y-3">
-            <div>
-              <Label className="font-body font-semibold">Fonte dos Títulos</Label>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Usada em títulos, cabeçalhos e destaques
-              </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="font-body font-semibold">Fonte dos Títulos</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Usada em títulos e destaques
+                </p>
+              </div>
             </div>
-            <Select
-              value={getValue("font_display")}
-              onValueChange={(value) => handleChange("font_display", value)}
-            >
-              <SelectTrigger className="bg-background">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {displayFonts.map((font) => (
-                  <SelectItem key={font.value} value={font.value}>
-                    <span style={{ fontFamily: `"${font.value}", serif` }}>
-                      {font.label}
-                    </span>
-                    <span className="text-xs text-muted-foreground ml-2">
-                      ({font.style})
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div 
-              className="text-lg font-semibold pt-2"
-              style={{ fontFamily: `"${getValue("font_display")}", serif` }}
+            <div className="grid sm:grid-cols-2 gap-3">
+              <Select
+                value={getValue("font_display")}
+                onValueChange={(value) => handleChange("font_display", value)}
+              >
+                <SelectTrigger className="bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {displayFonts.map((font) => (
+                    <SelectItem key={font.value} value={font.value}>
+                      <span style={{ fontFamily: `"${font.value}", serif` }}>
+                        {font.label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={getValue("font_heading_size")}
+                onValueChange={(value) => handleChange("font_heading_size", value)}
+              >
+                <SelectTrigger className="bg-background">
+                  <SelectValue placeholder="Tamanho" />
+                </SelectTrigger>
+                <SelectContent>
+                  {headingSizes.map((size) => (
+                    <SelectItem key={size.value} value={size.value}>
+                      {size.label} ({Math.round(size.scale * 100)}%)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div
+              style={{
+                fontFamily: `"${getValue("font_display")}", serif`,
+                fontSize: `${24 * headingScale}px`,
+              }}
+              className="font-semibold pt-2"
             >
               Exemplo de Título
             </div>
@@ -222,37 +341,56 @@ const FontManager = () => {
 
           {/* Body Font */}
           <div className="p-4 rounded-xl bg-secondary/30 border border-border space-y-3">
-            <div>
-              <Label className="font-body font-semibold">Fonte do Corpo</Label>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Usada em textos, botões e elementos gerais
-              </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="font-body font-semibold">Fonte do Corpo</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Usada em textos e elementos gerais
+                </p>
+              </div>
             </div>
-            <Select
-              value={getValue("font_body")}
-              onValueChange={(value) => handleChange("font_body", value)}
+            <div className="grid sm:grid-cols-2 gap-3">
+              <Select
+                value={getValue("font_body")}
+                onValueChange={(value) => handleChange("font_body", value)}
+              >
+                <SelectTrigger className="bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {bodyFonts.map((font) => (
+                    <SelectItem key={font.value} value={font.value}>
+                      <span style={{ fontFamily: `"${font.value}", sans-serif` }}>
+                        {font.label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={getValue("font_body_size")}
+                onValueChange={(value) => handleChange("font_body_size", value)}
+              >
+                <SelectTrigger className="bg-background">
+                  <SelectValue placeholder="Tamanho" />
+                </SelectTrigger>
+                <SelectContent>
+                  {bodySizes.map((size) => (
+                    <SelectItem key={size.value} value={size.value}>
+                      {size.label} ({Math.round(size.scale * 100)}%)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p
+              style={{
+                fontFamily: `"${getValue("font_body")}", sans-serif`,
+                fontSize: `${16 * bodyScale}px`,
+              }}
+              className="pt-2"
             >
-              <SelectTrigger className="bg-background">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {bodyFonts.map((font) => (
-                  <SelectItem key={font.value} value={font.value}>
-                    <span style={{ fontFamily: `"${font.value}", sans-serif` }}>
-                      {font.label}
-                    </span>
-                    <span className="text-xs text-muted-foreground ml-2">
-                      ({font.style})
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p 
-              className="text-sm pt-2"
-              style={{ fontFamily: `"${getValue("font_body")}", sans-serif` }}
-            >
-              Exemplo de texto do corpo com a fonte selecionada.
+              Exemplo de texto do corpo com a fonte e tamanho selecionados.
             </p>
           </div>
         </div>
