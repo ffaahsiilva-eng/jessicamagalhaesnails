@@ -1,28 +1,35 @@
 import { motion } from "framer-motion";
 import { Heart, MapPin, Clock, Phone } from "lucide-react";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
+
 interface FooterProps {
   whatsappNumber: string;
 }
-const Footer = ({
-  whatsappNumber
-}: FooterProps) => {
+
+const Footer = ({ whatsappNumber }: FooterProps) => {
+  const { getSetting } = useSiteSettings();
+  
+  const businessHours = getSetting("business_hours_weekday", "Seg-Sáb: 9h às 19h");
+  const businessNote = getSetting("business_hours_note", "Atendimento com hora marcada");
+  const siteName = getSetting("site_name", "Jéssica Magalhães");
+
   const formatPhone = (phone: string) => {
     return phone.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
   };
-  return <footer className="bg-foreground text-background py-12">
+
+  return (
+    <footer className="bg-foreground text-background py-12">
       <div className="container mx-auto px-6">
         <div className="grid md:grid-cols-3 gap-8 mb-8">
           {/* Brand */}
-          <motion.div initial={{
-          opacity: 0,
-          y: 20
-        }} whileInView={{
-          opacity: 1,
-          y: 0
-        }} viewport={{
-          once: true
-        }}>
-            <h3 className="font-display text-2xl font-semibold mb-4">Magalhães<span className="text-primary">Nails</span>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <h3 className="font-display text-2xl font-semibold mb-4">
+              {siteName.split(" ")[0]}
+              <span className="text-primary">Nails</span>
             </h3>
             <p className="text-background/70 font-body text-sm">
               Cuidando das suas unhas com carinho e profissionalismo desde 2020.
@@ -30,26 +37,21 @@ const Footer = ({
           </motion.div>
 
           {/* Info */}
-          <motion.div initial={{
-          opacity: 0,
-          y: 20
-        }} whileInView={{
-          opacity: 1,
-          y: 0
-        }} viewport={{
-          once: true
-        }} transition={{
-          delay: 0.1
-        }}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+          >
             <h4 className="font-body font-semibold mb-4">Informações</h4>
             <ul className="space-y-3 text-background/70 font-body text-sm">
               <li className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-primary" />
-                Seg-Sáb: 9h às 19h
+                {businessHours}
               </li>
               <li className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-primary" />
-                Atendimento com hora marcada
+                {businessNote}
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-primary" />
@@ -59,17 +61,12 @@ const Footer = ({
           </motion.div>
 
           {/* Links */}
-          <motion.div initial={{
-          opacity: 0,
-          y: 20
-        }} whileInView={{
-          opacity: 1,
-          y: 0
-        }} viewport={{
-          once: true
-        }} transition={{
-          delay: 0.2
-        }}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+          >
             <h4 className="font-body font-semibold mb-4">Links Rápidos</h4>
             <ul className="space-y-2 text-background/70 font-body text-sm">
               <li>
@@ -94,10 +91,12 @@ const Footer = ({
         {/* Bottom */}
         <div className="border-t border-background/20 pt-6 text-center">
           <p className="text-background/50 font-body text-sm flex items-center justify-center gap-1">
-            Feito com <Heart className="h-4 w-4 text-primary fill-primary" /> por Jessica
+            Feito com <Heart className="h-4 w-4 text-primary fill-primary" /> por {siteName.split(" ")[0]}
           </p>
         </div>
       </div>
-    </footer>;
+    </footer>
+  );
 };
+
 export default Footer;
