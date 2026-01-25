@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, memo, useCallback } from "react";
+import { useState, useRef, useEffect, memo, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Pause, Radio, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Slider } from "@/components/ui/slider";
 // Rádio Gospel online - você pode trocar por outra URL de streaming
 const RADIO_STREAM_URL = "https://stream.zeno.fm/yn65fsaurfhvv";
 
-const GospelRadio = memo(() => {
+const GospelRadio = forwardRef<HTMLDivElement>((_, ref) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(0.7);
   const [isMuted, setIsMuted] = useState(false);
@@ -75,6 +75,7 @@ const GospelRadio = memo(() => {
 
   return (
     <motion.div
+      ref={ref}
       drag
       dragMomentum={false}
       dragElastic={0.1}
@@ -177,4 +178,4 @@ const GospelRadio = memo(() => {
 
 GospelRadio.displayName = "GospelRadio";
 
-export default GospelRadio;
+export default memo(GospelRadio);

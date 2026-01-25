@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useSiteSettings } from "./useSiteSettings";
 
 const defaultFonts = {
@@ -25,15 +25,41 @@ const bodyScales: Record<string, number> = {
 
 export const useFonts = () => {
   const { getSetting, isLoading } = useSiteSettings();
+  const hasAppliedDefaults = useRef(false);
 
+  // Apply defaults immediately on mount
+  useEffect(() => {
+    if (hasAppliedDefaults.current) return;
+    hasAppliedDefaults.current = true;
+
+    const root = document.documentElement;
+    
+    // Apply default fonts immediately to prevent FOUT
+    root.style.setProperty("--font-display", `"${defaultFonts.font_display}", serif`);
+    root.style.setProperty("--font-body", `"${defaultFonts.font_body}", sans-serif`);
+    
+    // Apply default sizes
+    const baseSize = 16;
+    root.style.setProperty("--font-size-base", `${baseSize}px`);
+    root.style.setProperty("--font-size-sm", `${baseSize * 0.875}px`);
+    root.style.setProperty("--font-size-xs", `${baseSize * 0.75}px`);
+    root.style.setProperty("--font-size-lg", `${baseSize * 1.125}px`);
+    root.style.setProperty("--font-size-xl", `${baseSize * 1.25}px`);
+    root.style.setProperty("--font-size-h1", `${baseSize * 2.5}px`);
+    root.style.setProperty("--font-size-h2", `${baseSize * 2}px`);
+    root.style.setProperty("--font-size-h3", `${baseSize * 1.5}px`);
+    root.style.setProperty("--font-size-h4", `${baseSize * 1.25}px`);
+  }, []);
+
+  // Update when settings load
   useEffect(() => {
     if (isLoading) return;
 
-    const displayFont = getSetting("font_display") || defaultFonts.font_display;
-    const bodyFont = getSetting("font_body") || defaultFonts.font_body;
-    const scale = parseFloat(getSetting("font_scale") || defaultFonts.font_scale);
-    const headingSize = getSetting("font_heading_size") || defaultFonts.font_heading_size;
-    const bodySize = getSetting("font_body_size") || defaultFonts.font_body_size;
+    const displayFont = getSetting("font_display", defaultFonts.font_display);
+    const bodyFont = getSetting("font_body", defaultFonts.font_body);
+    const scale = parseFloat(getSetting("font_scale", defaultFonts.font_scale)) || 1;
+    const headingSize = getSetting("font_heading_size", defaultFonts.font_heading_size);
+    const bodySize = getSetting("font_body_size", defaultFonts.font_body_size);
 
     // Update the Google Fonts link
     let link = document.getElementById("dynamic-fonts") as HTMLLinkElement;
@@ -44,7 +70,9 @@ export const useFonts = () => {
       document.head.appendChild(link);
     }
 
-    link.href = `https://fonts.googleapis.com/css2?family=${displayFont.replace(/ /g, "+")}:wght@300;400;500;600;700&family=${bodyFont.replace(/ /g, "+")}:wght@300;400;500;600;700&display=swap`;
+    const displayFontUrl = displayFont.replace(/ /g, "+");
+    const bodyFontUrl = bodyFont.replace(/ /g, "+");
+    link.href = `https://fonts.googleapis.com/css2?family=${displayFontUrl}:wght@300;400;500;600;700&family=${bodyFontUrl}:wght@300;400;500;600;700&display=swap`;
 
     const root = document.documentElement;
 
