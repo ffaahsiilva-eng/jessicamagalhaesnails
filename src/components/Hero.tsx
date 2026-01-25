@@ -54,8 +54,7 @@ const Hero = ({
         }} transition={{
           delay: 0.4,
           duration: 0.6
-        }} className="md:text-7xl font-display font-semibold text-foreground mb-6 leading-tight text-4xl">Jessica Magalhães
-Nails
+        }} className="md:text-7xl font-display font-semibold text-foreground mb-6 leading-tight text-4xl">Jessica Magalhães 
           </motion.h1>
 
           <motion.p initial={{
