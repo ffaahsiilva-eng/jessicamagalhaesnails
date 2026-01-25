@@ -46,6 +46,7 @@ import { useAdminRole } from "@/hooks/useAdminRole";
 import { useToast } from "@/hooks/use-toast";
 import ServicesManager from "@/components/admin/ServicesManager";
 import TimeSlotsManager from "@/components/admin/TimeSlotsManager";
+import GalleryManager from "@/components/admin/GalleryManager";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Appointment = Tables<"appointments">;
@@ -826,6 +827,11 @@ const Admin = () => {
           <div className="grid lg:grid-cols-2 gap-6 mt-6">
             <TimeSlotsManager />
             <ServicesManager />
+          </div>
+
+          {/* Gallery Manager */}
+          <div className="mt-6">
+            <GalleryManager />
           </div>
         </>
         )}
