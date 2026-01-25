@@ -9,7 +9,7 @@ import BookingCalendar from "@/components/BookingCalendar";
 import AuthModal from "@/components/AuthModal";
 
 // Configurações do negócio - altere conforme necessário
-const WHATSAPP_NUMBER = "5511999999999";
+const WHATSAPP_NUMBER = "5591918371798";
 const INSTAGRAM = "https://instagram.com/glamournails";
 const FACEBOOK = "https://facebook.com/glamournails";
 
