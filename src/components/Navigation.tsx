@@ -8,6 +8,7 @@ import { useAdminRole } from "@/hooks/useAdminRole";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import logoJMDefault from "@/assets/logo-jm.png";
+import verifiedBadge from "@/assets/verified-badge.png";
 
 interface NavigationProps {
   onLoginClick: () => void;
@@ -65,11 +66,29 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
     >
       <div className="container mx-auto px-6 flex items-center justify-between">
         {/* Logo */}
-        <a href="/" className="flex-shrink-0">
+        <a href="/" className="flex-shrink-0 flex items-center gap-2">
           <img
             src={logo}
             alt="Logo"
             className={`transition-all duration-300 ${isScrolled ? "h-10" : "h-14"}`}
+          />
+          <motion.img
+            src={verifiedBadge}
+            alt="Verificado"
+            className={`transition-all duration-300 ${isScrolled ? "h-5 w-5" : "h-6 w-6"}`}
+            animate={{
+              filter: [
+                "drop-shadow(0 0 2px rgba(59, 130, 246, 0.5))",
+                "drop-shadow(0 0 8px rgba(59, 130, 246, 0.8))",
+                "drop-shadow(0 0 2px rgba(59, 130, 246, 0.5))",
+              ],
+              scale: [1, 1.1, 1],
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
           />
         </a>
 
