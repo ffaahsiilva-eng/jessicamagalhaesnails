@@ -154,16 +154,23 @@ const Admin = () => {
     }
   };
 
-  const motivationalPhrases = [
-    "Suas unhas merecem esse carinho! 💅✨",
-    "Prepare-se para arrasar com unhas lindas! 💖",
-    "Autoestima começa nos detalhes! 💅💕",
-    "Você merece esse momento de autocuidado! ✨",
-    "Unhas bonitas, autoestima lá em cima! 💖💅",
+  const bibleVerses = [
+    "O Senhor é o meu pastor, nada me faltará. - Salmos 23:1",
+    "Tudo posso naquele que me fortalece. - Filipenses 4:13",
+    "Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito. - João 3:16",
+    "O Senhor é a minha luz e a minha salvação; a quem temerei? - Salmos 27:1",
+    "Confie no Senhor de todo o seu coração. - Provérbios 3:5",
+    "Alegrem-se sempre no Senhor. Novamente direi: alegrem-se! - Filipenses 4:4",
+    "Deus é o nosso refúgio e fortaleza, socorro bem presente na angústia. - Salmos 46:1",
+    "Entrega o teu caminho ao Senhor; confia nele, e ele tudo fará. - Salmos 37:5",
+    "Porque sou eu que conheço os planos que tenho para vocês, planos de prosperidade. - Jeremias 29:11",
+    "Mas os que esperam no Senhor renovarão as suas forças. - Isaías 40:31",
+    "Seja forte e corajoso! Não se apavore, nem desanime, pois o Senhor estará com você. - Josué 1:9",
+    "A paz vos deixo, a minha paz vos dou. - João 14:27",
   ];
 
-  const getRandomPhrase = () => {
-    return motivationalPhrases[Math.floor(Math.random() * motivationalPhrases.length)];
+  const getRandomVerse = () => {
+    return bibleVerses[Math.floor(Math.random() * bibleVerses.length)];
   };
 
   const updateStatus = async (id: string, status: string, appointment?: Appointment) => {
@@ -195,7 +202,7 @@ const Admin = () => {
           `*Data:* ${formattedDate}\n` +
           `*Horário:* ${appointment.appointment_time.slice(0, 5)}\n` +
           `*Serviço:* ${appointment.service_type}\n\n` +
-          `${getRandomPhrase()}\n\n` +
+          `${getRandomVerse()}\n\n` +
           `Te espero!`
         );
         window.open(`https://wa.me/${appointment.client_phone.replace(/\D/g, '')}?text=${message}`, "_blank");
@@ -215,7 +222,7 @@ const Admin = () => {
       `*Data:* ${formattedDate}\n` +
       `*Horário:* ${appointment.appointment_time.slice(0, 5)}\n` +
       `*Serviço:* ${appointment.service_type}\n\n` +
-      `${getRandomPhrase()}\n\n` +
+      `${getRandomVerse()}\n\n` +
       `Te espero!`
     );
     window.open(`https://wa.me/${appointment.client_phone.replace(/\D/g, '')}?text=${message}`, "_blank");
