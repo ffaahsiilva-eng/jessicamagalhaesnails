@@ -75,9 +75,13 @@ const GospelRadio = () => {
 
   return (
     <motion.div
+      drag
+      dragMomentum={false}
+      dragElastic={0.1}
+      whileDrag={{ scale: 1.05, cursor: "grabbing" }}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="fixed bottom-4 right-4 z-50"
+      className="fixed bottom-4 right-4 z-50 cursor-grab active:cursor-grabbing"
     >
       <div className="bg-card/95 backdrop-blur-md border border-border rounded-2xl shadow-card p-3 flex items-center gap-3">
         {/* Indicador de rádio */}
