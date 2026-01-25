@@ -26,6 +26,7 @@ const bodyScales: Record<string, number> = {
 export const useFonts = () => {
   const { getSetting, isLoading } = useSiteSettings();
   const hasAppliedDefaults = useRef(false);
+  const previousSettings = useRef<string>("");
 
   // Apply defaults immediately on mount
   useEffect(() => {
@@ -60,6 +61,15 @@ export const useFonts = () => {
     const scale = parseFloat(getSetting("font_scale", defaultFonts.font_scale)) || 1;
     const headingSize = getSetting("font_heading_size", defaultFonts.font_heading_size);
     const bodySize = getSetting("font_body_size", defaultFonts.font_body_size);
+
+    // Create a settings signature to detect changes
+    const currentSettings = `${displayFont}|${bodyFont}|${scale}|${headingSize}|${bodySize}`;
+    
+    // Skip if settings haven't changed
+    if (previousSettings.current === currentSettings) {
+      return;
+    }
+    previousSettings.current = currentSettings;
 
     // Update the Google Fonts link
     let link = document.getElementById("dynamic-fonts") as HTMLLinkElement;
