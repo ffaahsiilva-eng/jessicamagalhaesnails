@@ -2,35 +2,37 @@ import { memo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Heart, MapPin, Clock, Phone } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
-
 interface FooterProps {
   whatsappNumber: string;
 }
-
-const Footer = memo(({ whatsappNumber }: FooterProps) => {
-  const { getSetting } = useSiteSettings();
-  
+const Footer = memo(({
+  whatsappNumber
+}: FooterProps) => {
+  const {
+    getSetting
+  } = useSiteSettings();
   const businessHours = getSetting("business_hours_weekday", "Seg-Sáb: 9h às 19h");
   const businessNote = getSetting("business_hours_note", "Atendimento com hora marcada");
   const siteName = getSetting("site_name", "Jéssica Magalhães");
-
   const formatPhone = (phone: string) => {
     return phone.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
   };
-
-  return (
-    <footer className="bg-foreground text-background py-12">
+  return <footer className="bg-foreground text-background py-12">
       <div className="container mx-auto px-6">
         <div className="grid md:grid-cols-3 gap-8 mb-8">
           {/* Brand */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
+          <motion.div initial={{
+          opacity: 0,
+          y: 20
+        }} whileInView={{
+          opacity: 1,
+          y: 0
+        }} viewport={{
+          once: true
+        }}>
             <h3 className="font-display text-2xl font-semibold mb-4">
               {siteName.split(" ")[0]}
-              <span className="text-primary">Nails</span>
+              <span className="text-primary">Magalhães</span>
             </h3>
             <p className="text-background/70 font-body text-sm">
               Cuidando das suas unhas com carinho e profissionalismo desde 2020.
@@ -38,12 +40,17 @@ const Footer = memo(({ whatsappNumber }: FooterProps) => {
           </motion.div>
 
           {/* Info */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1 }}
-          >
+          <motion.div initial={{
+          opacity: 0,
+          y: 20
+        }} whileInView={{
+          opacity: 1,
+          y: 0
+        }} viewport={{
+          once: true
+        }} transition={{
+          delay: 0.1
+        }}>
             <h4 className="font-body font-semibold mb-4">Informações</h4>
             <ul className="space-y-3 text-background/70 font-body text-sm">
               <li className="flex items-center gap-2">
@@ -62,12 +69,17 @@ const Footer = memo(({ whatsappNumber }: FooterProps) => {
           </motion.div>
 
           {/* Links */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-          >
+          <motion.div initial={{
+          opacity: 0,
+          y: 20
+        }} whileInView={{
+          opacity: 1,
+          y: 0
+        }} viewport={{
+          once: true
+        }} transition={{
+          delay: 0.2
+        }}>
             <h4 className="font-body font-semibold mb-4">Links Rápidos</h4>
             <ul className="space-y-2 text-background/70 font-body text-sm">
               <li>
@@ -96,10 +108,7 @@ const Footer = memo(({ whatsappNumber }: FooterProps) => {
           </p>
         </div>
       </div>
-    </footer>
-  );
+    </footer>;
 });
-
 Footer.displayName = "Footer";
-
 export default Footer;
