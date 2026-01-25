@@ -22,7 +22,7 @@ const Footer = ({
         }} viewport={{
           once: true
         }}>
-            <h3 className="font-display text-2xl font-semibold mb-4">JessicarNails<span className="text-primary">Nails</span>
+            <h3 className="font-display text-2xl font-semibold mb-4">Jessicar Magalhães<span className="text-primary">Nails</span>
             </h3>
             <p className="text-background/70 font-body text-sm">
               Cuidando das suas unhas com carinho e profissionalismo desde 2020.
