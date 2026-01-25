@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, Loader2, Upload, ImageIcon, X, GripVertical, Pencil } from "lucide-react";
+import { Plus, Trash2, Loader2, Upload, ImageIcon, X, GripVertical, Pencil, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -123,11 +123,14 @@ const GalleryManager = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [altText, setAltText] = useState("");
   const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
   const [editAltText, setEditAltText] = useState("");
+  const [editPreviewUrl, setEditPreviewUrl] = useState<string | null>(null);
+  const [editSelectedFile, setEditSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -247,7 +250,39 @@ const GalleryManager = () => {
   const handleEdit = (image: GalleryImage) => {
     setEditingImage(image);
     setEditAltText(image.alt_text || "");
+    setEditPreviewUrl(null);
+    setEditSelectedFile(null);
     setIsEditDialogOpen(true);
+  };
+
+  const handleEditFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Arquivo inválido",
+        description: "Por favor, selecione uma imagem.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Arquivo muito grande",
+        description: "A imagem deve ter no máximo 5MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setEditSelectedFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setEditPreviewUrl(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSaveEdit = async () => {
@@ -256,18 +291,43 @@ const GalleryManager = () => {
     setIsSavingEdit(true);
 
     try {
+      let newImageUrl = editingImage.image_url;
+
+      // If a new image was selected, upload it
+      if (editSelectedFile) {
+        const fileExt = editSelectedFile.name.split(".").pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from("gallery-images")
+          .upload(fileName, editSelectedFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from("gallery-images")
+          .getPublicUrl(uploadData.path);
+
+        newImageUrl = urlData.publicUrl;
+      }
+
       const { error } = await supabase
         .from("gallery_images")
-        .update({ alt_text: editAltText || null })
+        .update({ 
+          alt_text: editAltText || null,
+          image_url: newImageUrl 
+        })
         .eq("id", editingImage.id);
 
       if (error) throw error;
 
-      toast({ title: "Descrição atualizada!" });
+      toast({ title: editSelectedFile ? "Foto atualizada!" : "Descrição atualizada!" });
       queryClient.invalidateQueries({ queryKey: ["admin-gallery"] });
       queryClient.invalidateQueries({ queryKey: ["gallery"] });
       setIsEditDialogOpen(false);
       setEditingImage(null);
+      setEditPreviewUrl(null);
+      setEditSelectedFile(null);
     } catch (error: any) {
       toast({
         title: "Erro ao salvar",
@@ -483,19 +543,64 @@ const GalleryManager = () => {
       </CardContent>
 
       {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+        setIsEditDialogOpen(open);
+        if (!open) {
+          setEditPreviewUrl(null);
+          setEditSelectedFile(null);
+        }
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-display">Editar Descrição</DialogTitle>
+            <DialogTitle className="font-display">Editar Foto</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             {editingImage && (
-              <div className="aspect-video rounded-xl overflow-hidden border border-border">
-                <img
-                  src={editingImage.image_url}
-                  alt={editingImage.alt_text || "Imagem"}
-                  className="w-full h-full object-cover"
+              <div className="space-y-2">
+                <Label className="font-body">Imagem</Label>
+                <div className="relative aspect-video rounded-xl overflow-hidden border border-border">
+                  <img
+                    src={editPreviewUrl || editingImage.image_url}
+                    alt={editingImage.alt_text || "Imagem"}
+                    className="w-full h-full object-cover"
+                  />
+                  {editPreviewUrl && (
+                    <div className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-md font-body">
+                      Nova imagem
+                    </div>
+                  )}
+                  <button
+                    onClick={() => editFileInputRef.current?.click()}
+                    className="absolute bottom-2 right-2 bg-white/90 hover:bg-white text-foreground rounded-lg px-3 py-1.5 text-sm font-body flex items-center gap-1.5 transition-colors shadow-md"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Trocar Foto
+                  </button>
+                </div>
+                <input
+                  ref={editFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleEditFileSelect}
+                  className="hidden"
                 />
+                {editPreviewUrl && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setEditPreviewUrl(null);
+                      setEditSelectedFile(null);
+                      if (editFileInputRef.current) {
+                        editFileInputRef.current.value = "";
+                      }
+                    }}
+                    className="text-xs text-muted-foreground"
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Cancelar troca de imagem
+                  </Button>
+                )}
               </div>
             )}
 
@@ -518,6 +623,8 @@ const GalleryManager = () => {
                 onClick={() => {
                   setIsEditDialogOpen(false);
                   setEditingImage(null);
+                  setEditPreviewUrl(null);
+                  setEditSelectedFile(null);
                 }}
                 className="flex-1"
               >
