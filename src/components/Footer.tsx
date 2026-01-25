@@ -35,7 +35,7 @@ const Footer = memo(({
               <span className="text-primary">Magalhães</span>
             </h3>
             <p className="text-background/70 font-body text-sm">
-              Cuidando das suas unhas com carinho e profissionalismo desde 2020.
+              Cuidando das suas unhas com carinho e profissionalismo.
             </p>
           </motion.div>
 
