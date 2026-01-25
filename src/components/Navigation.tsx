@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
+import logoJM from "@/assets/logo-jm.png";
 
 interface NavigationProps {
   onLoginClick: () => void;
@@ -73,6 +74,13 @@ const Navigation = ({
       `}>
       <div className="container mx-auto px-6 flex items-center justify-between">
         {/* Logo */}
+        <a href="/" className="flex-shrink-0">
+          <img 
+            src={logoJM} 
+            alt="Jessica Magalhães" 
+            className={`transition-all duration-300 ${isScrolled ? "h-10" : "h-14"}`}
+          />
+        </a>
         
 
         {/* Desktop Navigation */}
