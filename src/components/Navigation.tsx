@@ -1,20 +1,27 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, User, LogOut } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Menu, X, User, LogOut, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
+
 interface NavigationProps {
   onLoginClick: () => void;
   onBookClick: () => void;
 }
+
 const Navigation = ({
   onLoginClick,
   onBookClick
 }: NavigationProps) => {
+  const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<SupabaseUser | null>(null);
+  const { isAdmin } = useAdminRole();
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
@@ -22,6 +29,7 @@ const Navigation = ({
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
   useEffect(() => {
     supabase.auth.getSession().then(({
       data: {
@@ -39,10 +47,12 @@ const Navigation = ({
     });
     return () => subscription.unsubscribe();
   }, []);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setUser(null);
   };
+
   const navLinks = [{
     name: "Serviços",
     href: "#precos"
@@ -72,6 +82,17 @@ const Navigation = ({
             </a>)}
 
           {user ? <div className="flex items-center gap-3">
+              {isAdmin && (
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  onClick={() => navigate("/admin")} 
+                  className="text-primary hover:text-primary/80"
+                >
+                  <Shield className="h-4 w-4 mr-1" />
+                  Admin
+                </Button>
+              )}
               <span className="text-sm text-muted-foreground font-body">
                 Olá, {user.email?.split("@")[0]}
               </span>
@@ -112,21 +133,40 @@ const Navigation = ({
                 </a>)}
 
               <div className="pt-4 border-t border-border space-y-3">
-                {user ? <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground font-body">
-                      Olá, {user.email?.split("@")[0]}
-                    </span>
-                    <Button size="sm" variant="ghost" onClick={handleLogout}>
-                      <LogOut className="h-4 w-4 mr-2" />
-                      Sair
-                    </Button>
-                  </div> : <Button variant="outline" onClick={() => {
-              setIsMobileMenuOpen(false);
-              onLoginClick();
-            }} className="w-full">
+                {user ? (
+                  <>
+                    {isAdmin && (
+                      <Button 
+                        variant="outline" 
+                        onClick={() => {
+                          setIsMobileMenuOpen(false);
+                          navigate("/admin");
+                        }} 
+                        className="w-full border-primary text-primary"
+                      >
+                        <Shield className="h-4 w-4 mr-2" />
+                        Painel Admin
+                      </Button>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground font-body">
+                        Olá, {user.email?.split("@")[0]}
+                      </span>
+                      <Button size="sm" variant="ghost" onClick={handleLogout}>
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Sair
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <Button variant="outline" onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    onLoginClick();
+                  }} className="w-full">
                     <User className="h-4 w-4 mr-2" />
                     Entrar
-                  </Button>}
+                  </Button>
+                )}
 
                 <Button onClick={() => {
               setIsMobileMenuOpen(false);
