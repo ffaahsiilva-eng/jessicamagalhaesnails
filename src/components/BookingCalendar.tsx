@@ -53,6 +53,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [selectedService, setSelectedService] = useState<string>("");
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [bookedSlots, setBookedSlots] = useState<Appointment[]>([]);
@@ -126,6 +127,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
       const { error } = await supabase.from("appointments").insert({
         user_id: user?.id || null,
         client_name: name,
+        client_email: email || null,
         client_phone: phone,
         service_type: selectedService,
         appointment_date: format(selectedDate, "yyyy-MM-dd"),
@@ -174,6 +176,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
     setSelectedTime("");
     setSelectedService("");
     setName("");
+    setEmail("");
     setPhone("");
     setNotes("");
     onClose();
@@ -359,6 +362,20 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="Como posso te chamar?"
+                        className="bg-secondary/50"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="email" className="font-body text-foreground">
+                        Email (para lembrete)
+                      </Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="seu@email.com (opcional)"
                         className="bg-secondary/50"
                       />
                     </div>
