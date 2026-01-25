@@ -10,7 +10,7 @@ import AuthModal from "@/components/AuthModal";
 import GospelRadio from "@/components/GospelRadio";
 
 // Configurações do negócio - altere conforme necessário
-const WHATSAPP_NUMBER = "5591918371798";
+const WHATSAPP_NUMBER = "559191837179";
 const INSTAGRAM = "https://instagram.com/glamournails";
 const FACEBOOK = "https://facebook.com/glamournails";
 
