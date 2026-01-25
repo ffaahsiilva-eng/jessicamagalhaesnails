@@ -65,24 +65,37 @@ const PriceTable = () => {
                   </div>
                 )}
 
-                <div className="flex justify-between items-start gap-4">
-                  <div className="flex-1">
-                    <h3 className="font-display text-xl font-semibold text-foreground flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-accent" />
-                      {service.name}
-                    </h3>
-                    <p className="text-muted-foreground font-body text-sm mt-1">
-                      {service.description}
-                    </p>
-                    <div className="flex items-center gap-1 mt-2 text-muted-foreground text-xs font-body">
-                      <Clock className="h-3 w-3" />
-                      {service.duration}
+                <div className="flex gap-4">
+                  {/* Service Image */}
+                  {service.image_url && (
+                    <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-muted">
+                      <img 
+                        src={service.image_url} 
+                        alt={service.name}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-2xl font-display font-bold text-primary">
-                      {service.price}
-                    </span>
+                  )}
+
+                  <div className="flex-1 flex justify-between items-start gap-4">
+                    <div className="flex-1">
+                      <h3 className="font-display text-xl font-semibold text-foreground flex items-center gap-2">
+                        {!service.image_url && <Sparkles className="h-4 w-4 text-accent" />}
+                        {service.name}
+                      </h3>
+                      <p className="text-muted-foreground font-body text-sm mt-1">
+                        {service.description}
+                      </p>
+                      <div className="flex items-center gap-1 mt-2 text-muted-foreground text-xs font-body">
+                        <Clock className="h-3 w-3" />
+                        {service.duration}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-2xl font-display font-bold text-primary">
+                        {service.price}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </motion.div>

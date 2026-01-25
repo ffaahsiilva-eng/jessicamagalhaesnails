@@ -435,6 +435,7 @@ const Admin = () => {
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
+          <>
           <div className="grid lg:grid-cols-2 gap-6 mb-6">
             {/* Calendar Section */}
             <Card>
@@ -810,6 +811,7 @@ const Admin = () => {
           <div className="mt-6">
             <ServicesManager />
           </div>
+        </>
         )}
       </div>
     </div>
