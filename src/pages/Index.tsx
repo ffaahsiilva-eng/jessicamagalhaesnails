@@ -8,15 +8,17 @@ import Footer from "@/components/Footer";
 import BookingCalendar from "@/components/BookingCalendar";
 import AuthModal from "@/components/AuthModal";
 import GospelRadio from "@/components/GospelRadio";
-
-// Configurações do negócio - altere conforme necessário
-const WHATSAPP_NUMBER = "559191837179";
-const INSTAGRAM = "https://instagram.com/glamournails";
-const FACEBOOK = "https://facebook.com/glamournails";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 const Index = () => {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const { getSetting } = useSiteSettings();
+
+  // Get settings from database with fallbacks
+  const whatsappNumber = getSetting("whatsapp_number", "559191837179");
+  const instagram = getSetting("instagram_url", "https://instagram.com/glamournails");
+  const facebook = getSetting("facebook_url", "https://facebook.com/glamournails");
 
   return (
     <div className="min-h-screen bg-background">
@@ -27,7 +29,7 @@ const Index = () => {
       
       <Hero
         onBookClick={() => setIsBookingOpen(true)}
-        whatsappNumber={WHATSAPP_NUMBER}
+        whatsappNumber={whatsappNumber}
       />
       
       <PriceTable />
@@ -35,17 +37,17 @@ const Index = () => {
       <Gallery />
       
       <SocialLinks
-        instagram={INSTAGRAM}
-        facebook={FACEBOOK}
-        whatsappNumber={WHATSAPP_NUMBER}
+        instagram={instagram}
+        facebook={facebook}
+        whatsappNumber={whatsappNumber}
       />
       
-      <Footer whatsappNumber={WHATSAPP_NUMBER} />
+      <Footer whatsappNumber={whatsappNumber} />
 
       <BookingCalendar
         isOpen={isBookingOpen}
         onClose={() => setIsBookingOpen(false)}
-        whatsappNumber={WHATSAPP_NUMBER}
+        whatsappNumber={whatsappNumber}
       />
 
       <AuthModal
