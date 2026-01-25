@@ -1,4 +1,4 @@
-import { useState, forwardRef } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Mail, Lock, User, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,43 +10,6 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
-const ModalBackdrop = forwardRef<HTMLDivElement, { onClick: () => void; children: React.ReactNode }>(
-  ({ onClick, children }, ref) => {
-    return (
-      <motion.div
-        ref={ref}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm p-4"
-        onClick={onClick}
-      >
-        {children}
-      </motion.div>
-    );
-  }
-);
-ModalBackdrop.displayName = "ModalBackdrop";
-
-const ModalContent = forwardRef<HTMLDivElement, { onClick: (e: React.MouseEvent) => void; children: React.ReactNode }>(
-  ({ onClick, children }, ref) => {
-    return (
-      <motion.div
-        ref={ref}
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="bg-card w-full max-w-sm rounded-3xl shadow-card overflow-hidden"
-        onClick={onClick}
-      >
-        {children}
-      </motion.div>
-    );
-  }
-);
-ModalContent.displayName = "ModalContent";
-
 const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -113,9 +76,25 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
     resetForm();
     onClose();
   };
-  return <AnimatePresence>
-      {isOpen && <ModalBackdrop onClick={handleClose}>
-          <ModalContent onClick={e => e.stopPropagation()}>
+  return <AnimatePresence mode="wait">
+      {isOpen && (
+        <motion.div
+          key="modal-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm p-4"
+          onClick={handleClose}
+        >
+          <motion.div
+            key="modal-content"
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="bg-card w-full max-w-sm rounded-3xl shadow-card overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
             {/* Header */}
             <div className="relative px-6 pt-8 pb-4 text-center">
               <button onClick={handleClose} className="absolute top-4 right-4 p-2 hover:bg-secondary rounded-full transition-colors">
@@ -174,8 +153,9 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                 
               </div>
             </form>
-          </ModalContent>
-        </ModalBackdrop>}
+          </motion.div>
+        </motion.div>
+      )}
     </AnimatePresence>;
 };
 export default AuthModal;

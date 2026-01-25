@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, memo, forwardRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Pause, Radio, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,24 +7,7 @@ import { Slider } from "@/components/ui/slider";
 // Rádio Gospel online - você pode trocar por outra URL de streaming
 const RADIO_STREAM_URL = "https://stream.zeno.fm/yn65fsaurfhvv";
 
-const VolumeControl = forwardRef<HTMLDivElement, { opacity: number; y: number; children: React.ReactNode }>(
-  ({ opacity, y, children }, ref) => {
-    return (
-      <motion.div
-        ref={ref}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity, y }}
-        exit={{ opacity: 0, y: 10 }}
-        className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-card border border-border rounded-lg p-3 shadow-lg"
-      >
-        {children}
-      </motion.div>
-    );
-  }
-);
-VolumeControl.displayName = "VolumeControl";
-
-const GospelRadio = forwardRef<HTMLDivElement>((props, ref) => {
+const GospelRadio = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(0.7);
   const [isMuted, setIsMuted] = useState(false);
@@ -92,7 +75,6 @@ const GospelRadio = forwardRef<HTMLDivElement>((props, ref) => {
 
   return (
     <motion.div
-      ref={ref}
       drag
       dragMomentum={false}
       dragElastic={0.1}
@@ -156,9 +138,15 @@ const GospelRadio = forwardRef<HTMLDivElement>((props, ref) => {
               )}
             </Button>
 
-            <AnimatePresence>
+            <AnimatePresence mode="wait">
               {showVolume && (
-                <VolumeControl opacity={1} y={0}>
+                <motion.div
+                  key="volume-control"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-card border border-border rounded-lg p-3 shadow-lg"
+                >
                   <Slider
                     orientation="vertical"
                     value={[volume]}
@@ -167,7 +155,7 @@ const GospelRadio = forwardRef<HTMLDivElement>((props, ref) => {
                     onValueChange={handleVolumeChange}
                     className="h-20"
                   />
-                </VolumeControl>
+                </motion.div>
               )}
             </AnimatePresence>
           </div>
@@ -186,8 +174,6 @@ const GospelRadio = forwardRef<HTMLDivElement>((props, ref) => {
       </div>
     </motion.div>
   );
-});
+};
 
-GospelRadio.displayName = "GospelRadio";
-
-export default memo(GospelRadio);
+export default GospelRadio;
