@@ -116,6 +116,15 @@
   :root {
     --font-display: "Cormorant Garamond", serif;
     --font-body: "Montserrat", sans-serif;
+    --font-size-base: 16px;
+    --font-size-sm: 14px;
+    --font-size-xs: 12px;
+    --font-size-lg: 18px;
+    --font-size-xl: 20px;
+    --font-size-h1: 40px;
+    --font-size-h2: 32px;
+    --font-size-h3: 24px;
+    --font-size-h4: 20px;
   }
 
   * {
@@ -125,10 +134,27 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-body);
+    font-size: var(--font-size-base);
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1 {
     font-family: var(--font-display);
+    font-size: var(--font-size-h1);
+  }
+
+  h2 {
+    font-family: var(--font-display);
+    font-size: var(--font-size-h2);
+  }
+
+  h3 {
+    font-family: var(--font-display);
+    font-size: var(--font-size-h3);
+  }
+
+  h4, h5, h6 {
+    font-family: var(--font-display);
+    font-size: var(--font-size-h4);
   }
 }
 
