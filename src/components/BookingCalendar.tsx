@@ -42,6 +42,11 @@ interface Appointment {
   appointment_time: string;
 }
 
+interface BlockedSlot {
+  blocked_date: string;
+  blocked_time: string;
+}
+
 const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarProps) => {
   const [step, setStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
@@ -51,12 +56,14 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [bookedSlots, setBookedSlots] = useState<Appointment[]>([]);
+  const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (isOpen) {
       fetchBookedSlots();
+      fetchBlockedSlots();
     }
   }, [isOpen]);
 
@@ -65,10 +72,21 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
       .from("appointments")
       .select("appointment_date, appointment_time")
       .gte("appointment_date", format(new Date(), "yyyy-MM-dd"))
-      .eq("status", "confirmed");
+      .in("status", ["confirmed", "pending"]);
 
     if (!error && data) {
       setBookedSlots(data);
+    }
+  };
+
+  const fetchBlockedSlots = async () => {
+    const { data, error } = await supabase
+      .from("blocked_slots")
+      .select("blocked_date, blocked_time")
+      .gte("blocked_date", format(new Date(), "yyyy-MM-dd"));
+
+    if (!error && data) {
+      setBlockedSlots(data);
     }
   };
 
@@ -76,11 +94,18 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
     if (!date) return timeSlots;
     
     const dateStr = format(date, "yyyy-MM-dd");
+    
     const bookedTimes = bookedSlots
       .filter((slot) => slot.appointment_date === dateStr)
       .map((slot) => slot.appointment_time.slice(0, 5));
     
-    return timeSlots.filter((time) => !bookedTimes.includes(time));
+    const blockedTimes = blockedSlots
+      .filter((slot) => slot.blocked_date === dateStr)
+      .map((slot) => slot.blocked_time.slice(0, 5));
+
+    const unavailableTimes = [...bookedTimes, ...blockedTimes];
+    
+    return timeSlots.filter((time) => !unavailableTimes.includes(time));
   };
 
   const handleSendWhatsApp = async () => {
