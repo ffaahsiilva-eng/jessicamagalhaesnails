@@ -18,7 +18,8 @@ import {
   Unlock,
   Plus,
   Trash2,
-  MessageCircle
+  MessageCircle,
+  DollarSign
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +44,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useToast } from "@/hooks/use-toast";
+import ServicesManager from "@/components/admin/ServicesManager";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Appointment = Tables<"appointments">;
@@ -433,7 +435,7 @@ const Admin = () => {
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
-          <div className="grid lg:grid-cols-2 gap-6">
+          <div className="grid lg:grid-cols-2 gap-6 mb-6">
             {/* Calendar Section */}
             <Card>
               <CardHeader className="pb-3">
@@ -802,6 +804,11 @@ const Admin = () => {
                 )}
               </CardContent>
             </Card>
+          </div>
+
+          {/* Services Manager */}
+          <div className="mt-6">
+            <ServicesManager />
           </div>
         )}
       </div>
