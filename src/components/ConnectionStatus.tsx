@@ -1,25 +1,18 @@
 import { Wifi, WifiOff } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 export const ConnectionStatus = () => {
   const { isOnline } = useOnlineStatus();
 
   return (
-    <AnimatePresence mode="wait">
+    <>
       {!isOnline && (
-        <motion.div
-          key="offline-banner"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          className="fixed top-0 left-0 right-0 z-50 bg-amber-500 text-white py-2 px-4 text-center text-sm font-medium flex items-center justify-center gap-2"
-        >
+        <div className="fixed top-0 left-0 right-0 z-50 bg-destructive text-destructive-foreground py-2 px-4 text-center text-sm font-medium flex items-center justify-center gap-2 animate-in slide-in-from-top duration-300">
           <WifiOff className="w-4 h-4" />
           Modo offline - dados em cache
-        </motion.div>
+        </div>
       )}
-    </AnimatePresence>
+    </>
   );
 };
 
@@ -30,13 +23,13 @@ export const ConnectionIndicator = () => {
     <div className="flex items-center gap-1.5 text-xs">
       {isOnline ? (
         <>
-          <Wifi className="w-3.5 h-3.5 text-green-500" />
+          <Wifi className="w-3.5 h-3.5 text-primary" />
           <span className="text-muted-foreground">Online</span>
         </>
       ) : (
         <>
-          <WifiOff className="w-3.5 h-3.5 text-amber-500" />
-          <span className="text-amber-600">Offline</span>
+          <WifiOff className="w-3.5 h-3.5 text-destructive" />
+          <span className="text-destructive">Offline</span>
         </>
       )}
     </div>
