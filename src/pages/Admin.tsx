@@ -45,12 +45,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useToast } from "@/hooks/use-toast";
 import ServicesManager from "@/components/admin/ServicesManager";
+import TimeSlotsManager from "@/components/admin/TimeSlotsManager";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Appointment = Tables<"appointments">;
 type BlockedSlot = Tables<"blocked_slots">;
 
-const timeSlots = [
+// Default time slots (fallback if database is empty)
+const defaultTimeSlots = [
   "09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"
 ];
 
@@ -75,6 +77,7 @@ const Admin = () => {
   
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
+  const [timeSlots, setTimeSlots] = useState<string[]>(defaultTimeSlots);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
@@ -97,8 +100,20 @@ const Admin = () => {
 
   const fetchData = async () => {
     setIsLoading(true);
-    await Promise.all([fetchAppointments(), fetchBlockedSlots()]);
+    await Promise.all([fetchAppointments(), fetchBlockedSlots(), fetchTimeSlots()]);
     setIsLoading(false);
+  };
+
+  const fetchTimeSlots = async () => {
+    const { data, error } = await supabase
+      .from("available_times")
+      .select("time_slot")
+      .eq("is_active", true)
+      .order("display_order", { ascending: true });
+
+    if (!error && data && data.length > 0) {
+      setTimeSlots(data.map((t) => t.time_slot.slice(0, 5)));
+    }
   };
 
   const fetchAppointments = async () => {
@@ -807,8 +822,9 @@ const Admin = () => {
             </Card>
           </div>
 
-          {/* Services Manager */}
-          <div className="mt-6">
+          {/* Time Slots & Services Managers */}
+          <div className="grid lg:grid-cols-2 gap-6 mt-6">
+            <TimeSlotsManager />
             <ServicesManager />
           </div>
         </>

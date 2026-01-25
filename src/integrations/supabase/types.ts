@@ -59,6 +59,30 @@ export type Database = {
         }
         Relationships: []
       }
+      available_times: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          time_slot: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          time_slot: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          time_slot?: string
+        }
+        Relationships: []
+      }
       blocked_slots: {
         Row: {
           blocked_date: string

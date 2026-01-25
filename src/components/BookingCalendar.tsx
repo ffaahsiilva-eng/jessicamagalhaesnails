@@ -12,24 +12,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { format, addDays, isSameDay } from "date-fns";
+import { format, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Clock, Check, MessageCircle, X } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Check, MessageCircle, X, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-
-const timeSlots = [
-  "09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"
-];
-
-const services = [
-  "Manicure Simples",
-  "Manicure com Francesinha",
-  "Alongamento em Gel",
-  "Esmaltação em Gel",
-  "Banho de Gel",
-  "Pedicure Completa",
-];
+import { useQuery } from "@tanstack/react-query";
 
 interface BookingCalendarProps {
   isOpen: boolean;
@@ -60,6 +48,38 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  // Fetch available time slots from database
+  const { data: timeSlots = [] } = useQuery({
+    queryKey: ["available-times"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("available_times")
+        .select("time_slot")
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+
+      if (error) throw error;
+      return data.map((t) => t.time_slot.slice(0, 5));
+    },
+    enabled: isOpen,
+  });
+
+  // Fetch services from database
+  const { data: services = [] } = useQuery({
+    queryKey: ["services"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("services")
+        .select("name")
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+
+      if (error) throw error;
+      return data.map((s) => s.name);
+    },
+    enabled: isOpen,
+  });
 
   useEffect(() => {
     if (isOpen) {
@@ -150,7 +170,6 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         `Você pode confirmar meu agendamento? 💖`
       );
 
-      // Usa location.href para evitar bloqueio de popup
       window.location.href = `https://wa.me/${whatsappNumber}?text=${message}`;
 
       toast({
@@ -282,7 +301,11 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                       </span>
                     </div>
                     
-                    {availableTimes.length === 0 ? (
+                    {timeSlots.length === 0 ? (
+                      <div className="flex justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      </div>
+                    ) : availableTimes.length === 0 ? (
                       <p className="text-center text-muted-foreground py-8">
                         Sem horários disponíveis nesta data
                       </p>
