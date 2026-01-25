@@ -16,7 +16,8 @@ import {
   User,
   Lock,
   Unlock,
-  Plus
+  Plus,
+  Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -249,6 +250,35 @@ const Admin = () => {
         title: "Horário desbloqueado!",
       });
       fetchBlockedSlots();
+    }
+    
+    setIsUpdating(null);
+  };
+
+  const deleteAppointment = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este agendamento permanentemente?")) {
+      return;
+    }
+    
+    setIsUpdating(id);
+    
+    const { error } = await supabase
+      .from("appointments")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      toast({
+        title: "Erro ao excluir",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Agendamento excluído!",
+        description: "O agendamento foi removido permanentemente.",
+      });
+      fetchAppointments();
     }
     
     setIsUpdating(null);
@@ -714,19 +744,34 @@ const Admin = () => {
                           )}
 
                           {appointment.status === "cancelled" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => updateStatus(appointment.id, "pending")}
-                              disabled={isUpdating === appointment.id}
-                              className="w-full h-8 text-xs"
-                            >
-                              {isUpdating === appointment.id ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                "Reativar como pendente"
-                              )}
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateStatus(appointment.id, "pending")}
+                                disabled={isUpdating === appointment.id}
+                                className="flex-1 h-8 text-xs"
+                              >
+                                {isUpdating === appointment.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  "Reativar como pendente"
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => deleteAppointment(appointment.id)}
+                                disabled={isUpdating === appointment.id}
+                                className="h-8 text-xs"
+                              >
+                                {isUpdating === appointment.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-3 w-3" />
+                                )}
+                              </Button>
+                            </div>
                           )}
                         </motion.div>
                       ))}
