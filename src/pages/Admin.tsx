@@ -133,7 +133,19 @@ const Admin = () => {
     }
   };
 
-  const updateStatus = async (id: string, status: string) => {
+  const motivationalPhrases = [
+    "Suas unhas merecem esse carinho! 💅✨",
+    "Prepare-se para arrasar com unhas lindas! 💖",
+    "Autoestima começa nos detalhes! 💅💕",
+    "Você merece esse momento de autocuidado! ✨",
+    "Unhas bonitas, autoestima lá em cima! 💖💅",
+  ];
+
+  const getRandomPhrase = () => {
+    return motivationalPhrases[Math.floor(Math.random() * motivationalPhrases.length)];
+  };
+
+  const updateStatus = async (id: string, status: string, appointment?: Appointment) => {
     setIsUpdating(id);
     
     const { error } = await supabase
@@ -152,6 +164,22 @@ const Admin = () => {
         title: "Status atualizado!",
         description: `Agendamento ${statusLabels[status].toLowerCase()}.`,
       });
+
+      // Send WhatsApp confirmation message
+      if (status === "confirmed" && appointment) {
+        const formattedDate = format(parseISO(appointment.appointment_date), "dd/MM/yyyy", { locale: ptBR });
+        const message = encodeURIComponent(
+          `Olá ${appointment.client_name}! 🎉\n\n` +
+          `Seu agendamento foi *CONFIRMADO*! ✅\n\n` +
+          `📅 Data: ${formattedDate}\n` +
+          `🕐 Horário: ${appointment.appointment_time.slice(0, 5)}\n` +
+          `💅 Serviço: ${appointment.service_type}\n\n` +
+          `${getRandomPhrase()}\n\n` +
+          `Te espero! 😘`
+        );
+        window.open(`https://wa.me/${appointment.client_phone.replace(/\D/g, '')}?text=${message}`, "_blank");
+      }
+
       fetchAppointments();
     }
     
@@ -634,7 +662,7 @@ const Admin = () => {
                             <div className="flex gap-2">
                               <Button
                                 size="sm"
-                                onClick={() => updateStatus(appointment.id, "confirmed")}
+                                onClick={() => updateStatus(appointment.id, "confirmed", appointment)}
                                 disabled={isUpdating === appointment.id}
                                 className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs"
                               >
