@@ -7,11 +7,13 @@ import Index from "./pages/Index";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import { useThemeColors } from "./hooks/useThemeColors";
+import { useFonts } from "./hooks/useFonts";
 
 const queryClient = new QueryClient();
 
 const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   useThemeColors();
+  useFonts();
   return <>{children}</>;
 };
 
