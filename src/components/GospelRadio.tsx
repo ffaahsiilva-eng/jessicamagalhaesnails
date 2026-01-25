@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, memo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Pause, Radio, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Slider } from "@/components/ui/slider";
 // Rádio Gospel online - você pode trocar por outra URL de streaming
 const RADIO_STREAM_URL = "https://stream.zeno.fm/yn65fsaurfhvv";
 
-const GospelRadio = () => {
+const GospelRadio = memo(() => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(0.7);
   const [isMuted, setIsMuted] = useState(false);
@@ -112,27 +112,11 @@ const GospelRadio = () => {
             onClick={togglePlay}
             className="h-9 w-9 rounded-full bg-primary/10 hover:bg-primary/20 text-primary"
           >
-            <AnimatePresence mode="wait">
-              {isPlaying ? (
-                <motion.div
-                  key="pause"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0 }}
-                >
-                  <Pause className="h-4 w-4" />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="play"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0 }}
-                >
-                  <Play className="h-4 w-4 ml-0.5" />
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {isPlaying ? (
+              <Pause className="h-4 w-4" />
+            ) : (
+              <Play className="h-4 w-4 ml-0.5" />
+            )}
           </Button>
 
           {/* Volume */}
@@ -189,6 +173,8 @@ const GospelRadio = () => {
       </div>
     </motion.div>
   );
-};
+});
+
+GospelRadio.displayName = "GospelRadio";
 
 export default GospelRadio;

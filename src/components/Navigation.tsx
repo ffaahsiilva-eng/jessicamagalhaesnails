@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Menu, X, User, LogOut, Shield } from "lucide-react";
@@ -14,7 +14,7 @@ interface NavigationProps {
   onBookClick: () => void;
 }
 
-const Navigation = ({ onLoginClick, onBookClick }: NavigationProps) => {
+const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
   const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -43,10 +43,10 @@ const Navigation = ({ onLoginClick, onBookClick }: NavigationProps) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     await supabase.auth.signOut();
     setUser(null);
-  };
+  }, []);
 
   const navLinks = [
     { name: "Serviços", href: "#precos" },
@@ -217,6 +217,8 @@ const Navigation = ({ onLoginClick, onBookClick }: NavigationProps) => {
       </AnimatePresence>
     </motion.nav>
   );
-};
+});
+
+Navigation.displayName = "Navigation";
 
 export default Navigation;

@@ -1,3 +1,4 @@
+import { memo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Calendar, Phone } from "lucide-react";
@@ -9,7 +10,7 @@ interface HeroProps {
   whatsappNumber: string;
 }
 
-const Hero = ({ onBookClick, whatsappNumber }: HeroProps) => {
+const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
   const { getSetting } = useSiteSettings();
   
   const heroTitle = getSetting("hero_title", "Jéssica Magalhães");
@@ -18,10 +19,10 @@ const Hero = ({ onBookClick, whatsappNumber }: HeroProps) => {
   const heroImageUrl = getSetting("hero_image_url", "");
   const heroImage = heroImageUrl || heroImageDefault;
 
-  const handleWhatsAppClick = () => {
+  const handleWhatsAppClick = useCallback(() => {
     const message = encodeURIComponent("Olá! Gostaria de agendar um horário.");
     window.open(`https://wa.me/${whatsappNumber}?text=${message}`, "_blank");
-  };
+  }, [whatsappNumber]);
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
@@ -31,6 +32,8 @@ const Hero = ({ onBookClick, whatsappNumber }: HeroProps) => {
           src={heroImage}
           alt="Manicure profissional"
           className="w-full h-full object-cover"
+          loading="eager"
+          decoding="async"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/50 to-background" />
       </div>
@@ -114,6 +117,8 @@ const Hero = ({ onBookClick, whatsappNumber }: HeroProps) => {
       </motion.div>
     </section>
   );
-};
+});
+
+Hero.displayName = "Hero";
 
 export default Hero;

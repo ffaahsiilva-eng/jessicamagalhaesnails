@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface SiteSetting {
@@ -12,7 +13,7 @@ export interface SiteSetting {
 }
 
 export const useSiteSettings = () => {
-  const { data: settings, isLoading } = useQuery({
+  const { data: settings, isLoading, error } = useQuery({
     queryKey: ["site-settings"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -29,13 +30,22 @@ export const useSiteSettings = () => {
       
       return settingsMap;
     },
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
+    gcTime: 1000 * 60 * 30, // Keep in cache for 30 minutes
+    retry: 2,
+    refetchOnWindowFocus: false,
   });
+
+  const getSetting = useCallback(
+    (key: string, fallback: string = "") => settings?.[key] || fallback,
+    [settings]
+  );
 
   return {
     settings: settings || {},
     isLoading,
-    getSetting: (key: string, fallback: string = "") => settings?.[key] || fallback,
+    error,
+    getSetting,
   };
 };
 
