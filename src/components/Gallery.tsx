@@ -1,5 +1,5 @@
+import { memo, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { X, Loader2, ImageIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -18,7 +18,7 @@ const defaultImages = [
   { src: gallery4, alt: "Francesinha com decoração" },
 ];
 
-const Gallery = () => {
+const Gallery = memo(() => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const { data: dbImages, isLoading } = useQuery({
@@ -33,6 +33,9 @@ const Gallery = () => {
       if (error) throw error;
       return data;
     },
+    staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: false,
   });
 
   // Use database images if available, otherwise use default images
@@ -87,6 +90,8 @@ const Gallery = () => {
                   src={image.src}
                   alt={image.alt}
                   className="w-full h-full object-cover"
+                  loading="lazy"
+                  decoding="async"
                 />
               </motion.div>
             ))}
@@ -113,6 +118,8 @@ const Gallery = () => {
       </Dialog>
     </section>
   );
-};
+});
+
+Gallery.displayName = "Gallery";
 
 export default Gallery;

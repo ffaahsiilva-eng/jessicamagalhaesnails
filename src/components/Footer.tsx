@@ -1,3 +1,4 @@
+import { memo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Heart, MapPin, Clock, Phone } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
@@ -6,7 +7,7 @@ interface FooterProps {
   whatsappNumber: string;
 }
 
-const Footer = ({ whatsappNumber }: FooterProps) => {
+const Footer = memo(({ whatsappNumber }: FooterProps) => {
   const { getSetting } = useSiteSettings();
   
   const businessHours = getSetting("business_hours_weekday", "Seg-Sáb: 9h às 19h");
@@ -97,6 +98,8 @@ const Footer = ({ whatsappNumber }: FooterProps) => {
       </div>
     </footer>
   );
-};
+});
+
+Footer.displayName = "Footer";
 
 export default Footer;

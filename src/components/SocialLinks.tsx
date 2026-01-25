@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Instagram, Facebook, Phone } from "lucide-react";
 
@@ -7,8 +8,8 @@ interface SocialLinksProps {
   whatsappNumber: string;
 }
 
-const SocialLinks = ({ instagram, facebook, whatsappNumber }: SocialLinksProps) => {
-  const socials = [
+const SocialLinks = memo(({ instagram, facebook, whatsappNumber }: SocialLinksProps) => {
+  const socials = useMemo(() => [
     {
       name: "Instagram",
       icon: Instagram,
@@ -27,7 +28,7 @@ const SocialLinks = ({ instagram, facebook, whatsappNumber }: SocialLinksProps) 
       href: `https://wa.me/${whatsappNumber}`,
       color: "hover:text-green-500",
     },
-  ];
+  ], [instagram, facebook, whatsappNumber]);
 
   return (
     <section id="contato" className="py-20 bg-secondary/30">
@@ -75,6 +76,8 @@ const SocialLinks = ({ instagram, facebook, whatsappNumber }: SocialLinksProps) 
       </div>
     </section>
   );
-};
+});
+
+SocialLinks.displayName = "SocialLinks";
 
 export default SocialLinks;

@@ -1,9 +1,10 @@
+import { memo } from "react";
 import { motion } from "framer-motion";
 import { Sparkles, Clock, Star, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-const PriceTable = () => {
+const PriceTable = memo(() => {
   const { data: services, isLoading } = useQuery({
     queryKey: ["services"],
     queryFn: async () => {
@@ -16,6 +17,9 @@ const PriceTable = () => {
       if (error) throw error;
       return data;
     },
+    staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: false,
   });
 
   return (
@@ -115,6 +119,8 @@ const PriceTable = () => {
       </div>
     </section>
   );
-};
+});
+
+PriceTable.displayName = "PriceTable";
 
 export default PriceTable;
