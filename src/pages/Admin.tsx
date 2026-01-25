@@ -48,6 +48,7 @@ import ServicesManager from "@/components/admin/ServicesManager";
 import TimeSlotsManager from "@/components/admin/TimeSlotsManager";
 import GalleryManager from "@/components/admin/GalleryManager";
 import SiteSettingsManager from "@/components/admin/SiteSettingsManager";
+import ThemeColorManager from "@/components/admin/ThemeColorManager";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Appointment = Tables<"appointments">;
@@ -842,9 +843,10 @@ const Admin = () => {
             <GalleryManager />
           </div>
 
-          {/* Site Settings Manager */}
-          <div className="mt-6">
+          {/* Site Settings & Theme Manager */}
+          <div className="grid lg:grid-cols-2 gap-6 mt-6">
             <SiteSettingsManager />
+            <ThemeColorManager />
           </div>
         </>
         )}
