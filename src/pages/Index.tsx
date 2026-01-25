@@ -9,6 +9,7 @@ import BookingCalendar from "@/components/BookingCalendar";
 import AuthModal from "@/components/AuthModal";
 import GospelRadio from "@/components/GospelRadio";
 import InstallBanner from "@/components/InstallBanner";
+import { ConnectionStatus } from "@/components/ConnectionStatus";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 const Index = () => {
@@ -23,6 +24,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <ConnectionStatus />
       <Navigation
         onLoginClick={() => setIsAuthOpen(true)}
         onBookClick={() => setIsBookingOpen(true)}
