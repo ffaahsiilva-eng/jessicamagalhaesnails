@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { Play, Pause, Radio, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -74,26 +73,14 @@ const GospelRadio = () => {
   };
 
   return (
-    <motion.div
-      drag
-      dragMomentum={false}
-      dragElastic={0.1}
-      whileDrag={{ scale: 1.05, cursor: "grabbing" }}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="fixed bottom-4 right-4 z-50 cursor-grab active:cursor-grabbing"
-    >
+    <div className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-bottom duration-500">
       <div className="bg-card/95 backdrop-blur-md border border-border rounded-2xl shadow-card p-3 flex items-center gap-3">
         {/* Indicador de rádio */}
         <div className="flex items-center gap-2">
           <div className="relative">
             <Radio className="h-5 w-5 text-primary" />
             {isPlaying && (
-              <motion.div
-                animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-                className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full"
-              />
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse" />
             )}
           </div>
           <div className="hidden sm:block">
@@ -137,42 +124,30 @@ const GospelRadio = () => {
                 <Volume2 className="h-4 w-4" />
               )}
             </Button>
-
-            <AnimatePresence mode="wait">
-              {showVolume && (
-                <motion.div
-                  key="volume-control"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-card border border-border rounded-lg p-3 shadow-lg"
-                >
-                  <Slider
-                    orientation="vertical"
-                    value={[volume]}
-                    max={1}
-                    step={0.1}
-                    onValueChange={handleVolumeChange}
-                    className="h-20"
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
+          
+          {showVolume && (
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-card border border-border rounded-lg p-3 shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200">
+              <Slider
+                orientation="vertical"
+                value={[volume]}
+                max={1}
+                step={0.1}
+                onValueChange={handleVolumeChange}
+                className="h-20"
+              />
+            </div>
+          )}
           </div>
         </div>
 
         {/* Prompt para interação se autoplay bloqueado */}
         {!hasInteracted && !isPlaying && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-[10px] text-muted-foreground font-body hidden sm:block"
-          >
+        <p className="text-[10px] text-muted-foreground font-body hidden sm:block animate-in fade-in duration-300">
             Clique ▶ para ouvir
-          </motion.p>
+        </p>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 };
 

@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, memo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Menu, X, User, LogOut, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -56,9 +55,7 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
   ];
 
   return (
-    <motion.nav
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
+    <nav
       className={`
         fixed top-0 left-0 right-0 z-50 transition-all duration-300
         ${isScrolled ? "bg-card/90 backdrop-blur-md shadow-soft py-3" : "bg-transparent py-5"}
@@ -72,23 +69,10 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
             alt="Logo"
             className={`transition-all duration-300 ${isScrolled ? "h-10" : "h-14"}`}
           />
-          <motion.img
+          <img
             src={verifiedBadge}
             alt="Verificado"
-            className={`transition-all duration-300 ${isScrolled ? "h-5 w-5" : "h-6 w-6"}`}
-            animate={{
-              filter: [
-                "drop-shadow(0 0 2px rgba(59, 130, 246, 0.5))",
-                "drop-shadow(0 0 8px rgba(59, 130, 246, 0.8))",
-                "drop-shadow(0 0 2px rgba(59, 130, 246, 0.5))",
-              ],
-              scale: [1, 1.1, 1],
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
+            className={`transition-all duration-300 ${isScrolled ? "h-5 w-5" : "h-6 w-6"} animate-pulse`}
           />
         </a>
 
@@ -160,81 +144,74 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
       </div>
 
       {/* Mobile Menu */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-card border-t border-border"
-          >
-            <div className="container mx-auto px-6 py-4 space-y-4">
-              {navLinks.map((link) => (
-                <a
-                  key={link.name}
-                  href={link.href}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="block font-body text-foreground py-2"
-                >
-                  {link.name}
-                </a>
-              ))}
+      {isMobileMenuOpen && (
+        <div className="md:hidden bg-card border-t border-border animate-in slide-in-from-top duration-300">
+          <div className="container mx-auto px-6 py-4 space-y-4">
+            {navLinks.map((link) => (
+              <a
+                key={link.name}
+                href={link.href}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="block font-body text-foreground py-2"
+              >
+                {link.name}
+              </a>
+            ))}
 
-              <div className="pt-4 border-t border-border space-y-3">
-                {user ? (
-                  <>
-                    {isAdmin && (
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setIsMobileMenuOpen(false);
-                          navigate("/admin");
-                        }}
-                        className="w-full border-primary text-primary"
-                      >
-                        <Shield className="h-4 w-4 mr-2" />
-                        Painel Admin
-                      </Button>
-                    )}
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground font-body">
-                        Olá, {user.email?.split("@")[0]}
-                      </span>
-                      <Button size="sm" variant="ghost" onClick={handleLogout}>
-                        <LogOut className="h-4 w-4 mr-2" />
-                        Sair
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setIsMobileMenuOpen(false);
-                      onLoginClick();
-                    }}
-                    className="w-full"
-                  >
-                    <User className="h-4 w-4 mr-2" />
-                    Entrar
-                  </Button>
-                )}
-
+            <div className="pt-4 border-t border-border space-y-3">
+              {user ? (
+                <>
+                  {isAdmin && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        navigate("/admin");
+                      }}
+                      className="w-full border-primary text-primary"
+                    >
+                      <Shield className="h-4 w-4 mr-2" />
+                      Painel Admin
+                    </Button>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground font-body">
+                      Olá, {user.email?.split("@")[0]}
+                    </span>
+                    <Button size="sm" variant="ghost" onClick={handleLogout}>
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Sair
+                    </Button>
+                  </div>
+                </>
+              ) : (
                 <Button
+                  variant="outline"
                   onClick={() => {
                     setIsMobileMenuOpen(false);
-                    onBookClick();
+                    onLoginClick();
                   }}
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                  className="w-full"
                 >
-                  Agendar Horário
+                  <User className="h-4 w-4 mr-2" />
+                  Entrar
                 </Button>
-              </div>
+              )}
+
+              <Button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  onBookClick();
+                }}
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+              >
+                Agendar Horário
+              </Button>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.nav>
+          </div>
+        </div>
+      )}
+    </nav>
   );
 });
 
