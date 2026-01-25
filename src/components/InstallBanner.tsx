@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+ import { motion } from "framer-motion";
 import { X, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
@@ -34,18 +34,20 @@ const InstallBanner = () => {
   if (isDismissed) return null;
 
   return (
-    <AnimatePresence>
+    <>
       {showBanner && (
         <motion.div
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
+          transition={{ duration: 0.3 }}
           className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-40"
         >
           <div className="bg-card border border-border rounded-2xl shadow-card p-4">
             <button
               onClick={handleDismiss}
               className="absolute top-2 right-2 p-1 hover:bg-secondary rounded-full transition-colors"
+              aria-label="Fechar banner"
             >
               <X className="h-4 w-4 text-muted-foreground" />
             </button>
@@ -76,7 +78,7 @@ const InstallBanner = () => {
           </div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </>
   );
 };
 
