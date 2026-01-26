@@ -3,6 +3,8 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Calendar, Phone } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { useAdminEdit } from "@/contexts/AdminEditContext";
+import EditableText from "@/components/admin/EditableText";
 import heroImageDefault from "@/assets/hero-nails.jpg";
 
 interface HeroProps {
@@ -12,10 +14,8 @@ interface HeroProps {
 
 const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
   const { getSetting } = useSiteSettings();
+  const { isEditMode, isAdmin } = useAdminEdit();
   
-  const heroTitle = getSetting("hero_title", "Jéssica Magalhães");
-  const heroSubtitle = getSetting("hero_subtitle", "Nail Designer");
-  const heroDescription = getSetting("hero_description", "Unhas perfeitas com carinho e profissionalismo. Agende seu horário e sinta-se ainda mais linda!");
   const heroImageUrl = getSetting("hero_image_url", "");
   const heroImage = heroImageUrl || heroImageDefault;
 
@@ -46,32 +46,65 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
           transition={{ duration: 0.8 }}
           className="max-w-2xl mx-auto"
         >
-          <motion.span
+          <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2, duration: 0.5 }}
-            className="inline-block uppercase tracking-[0.3em] text-primary font-body font-medium mb-4 text-xs text-center"
+            className="mb-4"
           >
-            {heroSubtitle}
-          </motion.span>
+            {isAdmin && isEditMode ? (
+              <EditableText
+                settingKey="hero_subtitle"
+                defaultValue="Nail Designer"
+                className="inline-block uppercase tracking-[0.3em] text-primary font-body font-medium text-xs text-center"
+              />
+            ) : (
+              <span className="inline-block uppercase tracking-[0.3em] text-primary font-body font-medium text-xs text-center">
+                {getSetting("hero_subtitle", "Nail Designer")}
+              </span>
+            )}
+          </motion.div>
 
-          <motion.h1
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.6 }}
-            className="md:text-7xl font-display font-semibold text-foreground mb-6 leading-tight text-4xl"
+            className="mb-6"
           >
-            {heroTitle}
-          </motion.h1>
+            {isAdmin && isEditMode ? (
+              <EditableText
+                settingKey="hero_title"
+                defaultValue="Jéssica Magalhães"
+                as="h1"
+                className="md:text-7xl font-display font-semibold text-foreground leading-tight text-4xl"
+              />
+            ) : (
+              <h1 className="md:text-7xl font-display font-semibold text-foreground mb-6 leading-tight text-4xl">
+                {getSetting("hero_title", "Jéssica Magalhães")}
+              </h1>
+            )}
+          </motion.div>
 
-          <motion.p
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6, duration: 0.6 }}
-            className="text-lg text-muted-foreground font-body mb-10 max-w-md mx-auto"
+            className="mb-10 max-w-md mx-auto"
           >
-            {heroDescription}
-          </motion.p>
+            {isAdmin && isEditMode ? (
+              <EditableText
+                settingKey="hero_description"
+                defaultValue="Unhas perfeitas com carinho e profissionalismo. Agende seu horário e sinta-se ainda mais linda!"
+                as="p"
+                multiline
+                className="text-lg text-muted-foreground font-body"
+              />
+            ) : (
+              <p className="text-lg text-muted-foreground font-body">
+                {getSetting("hero_description", "Unhas perfeitas com carinho e profissionalismo. Agende seu horário e sinta-se ainda mais linda!")}
+              </p>
+            )}
+          </motion.div>
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}
