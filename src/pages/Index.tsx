@@ -11,6 +11,8 @@ import GospelRadio from "@/components/GospelRadio";
 import InstallBanner from "@/components/InstallBanner";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { AdminEditProvider } from "@/contexts/AdminEditContext";
+import AdminEditToggle from "@/components/admin/AdminEditToggle";
 
 const Index = () => {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
@@ -23,45 +25,49 @@ const Index = () => {
   const facebook = getSetting("facebook_url", "https://facebook.com/glamournails");
 
   return (
-    <div className="min-h-screen bg-background">
-      <ConnectionStatus />
-      <Navigation
-        onLoginClick={() => setIsAuthOpen(true)}
-        onBookClick={() => setIsBookingOpen(true)}
-      />
-      
-      <Hero
-        onBookClick={() => setIsBookingOpen(true)}
-        whatsappNumber={whatsappNumber}
-      />
-      
-      <PriceTable />
-      
-      <Gallery />
-      
-      <SocialLinks
-        instagram={instagram}
-        facebook={facebook}
-        whatsappNumber={whatsappNumber}
-      />
-      
-      <Footer whatsappNumber={whatsappNumber} />
+    <AdminEditProvider>
+      <div className="min-h-screen bg-background">
+        <ConnectionStatus />
+        <Navigation
+          onLoginClick={() => setIsAuthOpen(true)}
+          onBookClick={() => setIsBookingOpen(true)}
+        />
+        
+        <Hero
+          onBookClick={() => setIsBookingOpen(true)}
+          whatsappNumber={whatsappNumber}
+        />
+        
+        <PriceTable />
+        
+        <Gallery />
+        
+        <SocialLinks
+          instagram={instagram}
+          facebook={facebook}
+          whatsappNumber={whatsappNumber}
+        />
+        
+        <Footer whatsappNumber={whatsappNumber} />
 
-      <BookingCalendar
-        isOpen={isBookingOpen}
-        onClose={() => setIsBookingOpen(false)}
-        whatsappNumber={whatsappNumber}
-      />
+        <BookingCalendar
+          isOpen={isBookingOpen}
+          onClose={() => setIsBookingOpen(false)}
+          whatsappNumber={whatsappNumber}
+        />
 
-      <AuthModal
-        isOpen={isAuthOpen}
-        onClose={() => setIsAuthOpen(false)}
-      />
+        <AuthModal
+          isOpen={isAuthOpen}
+          onClose={() => setIsAuthOpen(false)}
+        />
 
-      <GospelRadio />
-      
-      <InstallBanner />
-    </div>
+        <GospelRadio />
+        
+        <InstallBanner />
+        
+        <AdminEditToggle />
+      </div>
+    </AdminEditProvider>
   );
 };
 
