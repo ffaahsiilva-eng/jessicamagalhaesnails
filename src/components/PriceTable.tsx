@@ -1,7 +1,8 @@
 import { memo } from "react";
-import { Sparkles, Clock, Star, Loader2 } from "lucide-react";
+import { Sparkles, Clock, Star } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const PriceTable = memo(() => {
   const { data: services, isLoading } = useQuery({
@@ -37,8 +38,25 @@ const PriceTable = memo(() => {
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="grid md:grid-cols-2 gap-4 max-w-4xl mx-auto">
+            {[...Array(4)].map((_, index) => (
+              <div
+                key={index}
+                className="relative p-6 rounded-2xl bg-card border border-border animate-pulse"
+              >
+                <div className="flex gap-4">
+                  <Skeleton className="w-16 h-16 rounded-xl flex-shrink-0" />
+                  <div className="flex-1 flex justify-between items-start gap-4">
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-6 w-3/4" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-3 w-20 mt-2" />
+                    </div>
+                    <Skeleton className="h-8 w-16" />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           <div className="grid md:grid-cols-2 gap-4 max-w-4xl mx-auto">
