@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -168,7 +167,6 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhoneInput(e.target.value);
     setPhone(formatted);
-    // Clear error when user types
     if (errors.phone) {
       setErrors((prev) => ({ ...prev, phone: "" }));
     }
@@ -198,7 +196,6 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
-      // Clean phone for storage
       const cleanPhone = phone.replace(/\D/g, "");
 
       const { error } = await supabase.from("appointments").insert({
@@ -263,323 +260,289 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
   const availableTimes = getAvailableTimes(selectedDate);
   const isStep3Valid = name.trim().length >= 2 && email.trim().length > 0 && phone.trim().length >= 10;
 
+  if (!isOpen) return null;
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-foreground/40 backdrop-blur-sm p-4"
-          onClick={resetAndClose}
-        >
-          <motion.div
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="bg-card w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-card overflow-hidden max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-foreground/40 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+      onClick={resetAndClose}
+    >
+      <div
+        className="bg-card w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-card overflow-hidden max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-4 duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between z-10">
+          <div>
+            <h2 className="font-display text-2xl font-semibold text-foreground">
+              Agendar Horário
+            </h2>
+            <p className="text-muted-foreground text-sm font-body">
+              Passo {step} de 4
+            </p>
+          </div>
+          <button
+            onClick={resetAndClose}
+            className="p-2 hover:bg-secondary rounded-full transition-colors"
           >
-            {/* Header */}
-            <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between z-10">
-              <div>
-                <h2 className="font-display text-2xl font-semibold text-foreground">
-                  Agendar Horário
-                </h2>
-                <p className="text-muted-foreground text-sm font-body">
-                  Passo {step} de 4
-                </p>
+            <X className="h-5 w-5 text-muted-foreground" />
+          </button>
+        </div>
+
+        {/* Progress */}
+        <div className="px-6 pt-4">
+          <div className="flex gap-1">
+            {[1, 2, 3, 4].map((s) => (
+              <div
+                key={s}
+                className={`h-1 flex-1 rounded-full transition-colors ${
+                  s <= step ? "bg-primary" : "bg-secondary"
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-6">
+          {step === 1 && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-200">
+              <div className="flex items-center gap-2 text-foreground mb-4">
+                <CalendarIcon className="h-5 w-5 text-primary" />
+                <span className="font-body font-medium">Escolha a data</span>
               </div>
-              <button
-                onClick={resetAndClose}
-                className="p-2 hover:bg-secondary rounded-full transition-colors"
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                disabled={(date) => date < new Date() || date > addDays(new Date(), 30)}
+                locale={ptBR}
+                className="rounded-xl border border-border mx-auto"
+              />
+              <Button
+                onClick={() => setStep(2)}
+                disabled={!selectedDate}
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
               >
-                <X className="h-5 w-5 text-muted-foreground" />
-              </button>
+                Continuar
+              </Button>
             </div>
+          )}
 
-            {/* Progress */}
-            <div className="px-6 pt-4">
-              <div className="flex gap-1">
-                {[1, 2, 3, 4].map((s) => (
-                  <div
-                    key={s}
-                    className={`h-1 flex-1 rounded-full transition-colors ${
-                      s <= step ? "bg-primary" : "bg-secondary"
-                    }`}
-                  />
-                ))}
+          {step === 2 && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-200">
+              <div className="flex items-center gap-2 text-foreground mb-4">
+                <Clock className="h-5 w-5 text-primary" />
+                <span className="font-body font-medium">
+                  Escolha o horário - {selectedDate && format(selectedDate, "dd/MM", { locale: ptBR })}
+                </span>
+              </div>
+              
+              {timeSlots.length === 0 ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : availableTimes.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  Sem horários disponíveis nesta data
+                </p>
+              ) : (
+                <div className="grid grid-cols-4 gap-2">
+                  {timeSlots.map((time) => {
+                    const isAvailable = availableTimes.includes(time);
+                    return (
+                      <button
+                        key={time}
+                        onClick={() => isAvailable && setSelectedTime(time)}
+                        disabled={!isAvailable}
+                        className={`
+                          py-3 px-2 rounded-xl font-body text-sm transition-all
+                          ${selectedTime === time
+                            ? "bg-primary text-primary-foreground shadow-button"
+                            : isAvailable
+                              ? "bg-secondary text-secondary-foreground hover:bg-primary/20"
+                              : "bg-muted text-muted-foreground line-through opacity-50 cursor-not-allowed"
+                          }
+                        `}
+                      >
+                        {time}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label className="font-body text-foreground">Serviço</Label>
+                <Select value={selectedService} onValueChange={setSelectedService}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Selecione o serviço" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {services.map((service) => (
+                      <SelectItem key={service} value={service}>
+                        {service}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setStep(1)}
+                  className="flex-1"
+                >
+                  Voltar
+                </Button>
+                <Button
+                  onClick={() => setStep(3)}
+                  disabled={!selectedTime || !selectedService}
+                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                >
+                  Continuar
+                </Button>
               </div>
             </div>
+          )}
 
-            {/* Content */}
-            <div className="p-6">
-              <AnimatePresence mode="wait">
-                {step === 1 && (
-                  <motion.div
-                    key="step1"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    className="space-y-4"
-                  >
-                    <div className="flex items-center gap-2 text-foreground mb-4">
-                      <CalendarIcon className="h-5 w-5 text-primary" />
-                      <span className="font-body font-medium">Escolha a data</span>
-                    </div>
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={setSelectedDate}
-                      disabled={(date) => date < new Date() || date > addDays(new Date(), 30)}
-                      locale={ptBR}
-                      className="rounded-xl border border-border mx-auto"
-                    />
-                    <Button
-                      onClick={() => setStep(2)}
-                      disabled={!selectedDate}
-                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-                    >
-                      Continuar
-                    </Button>
-                  </motion.div>
+          {step === 3 && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-200">
+              <div className="space-y-2">
+                <Label htmlFor="name" className="font-body text-foreground">
+                  Seu nome *
+                </Label>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (errors.name) setErrors((prev) => ({ ...prev, name: "" }));
+                  }}
+                  placeholder="Como posso te chamar?"
+                  className={`bg-secondary/50 ${errors.name ? "border-destructive" : ""}`}
+                  maxLength={100}
+                />
+                {errors.name && (
+                  <p className="text-destructive text-xs flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {errors.name}
+                  </p>
                 )}
+              </div>
 
-                {step === 2 && (
-                  <motion.div
-                    key="step2"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    className="space-y-4"
-                  >
-                    <div className="flex items-center gap-2 text-foreground mb-4">
-                      <Clock className="h-5 w-5 text-primary" />
-                      <span className="font-body font-medium">
-                        Escolha o horário - {selectedDate && format(selectedDate, "dd/MM", { locale: ptBR })}
-                      </span>
-                    </div>
-                    
-                    {timeSlots.length === 0 ? (
-                      <div className="flex justify-center py-8">
-                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                      </div>
-                    ) : availableTimes.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-8">
-                        Sem horários disponíveis nesta data
-                      </p>
-                    ) : (
-                      <div className="grid grid-cols-4 gap-2">
-                        {timeSlots.map((time) => {
-                          const isAvailable = availableTimes.includes(time);
-                          return (
-                            <button
-                              key={time}
-                              onClick={() => isAvailable && setSelectedTime(time)}
-                              disabled={!isAvailable}
-                              className={`
-                                py-3 px-2 rounded-xl font-body text-sm transition-all
-                                ${selectedTime === time
-                                  ? "bg-primary text-primary-foreground shadow-button"
-                                  : isAvailable
-                                    ? "bg-secondary text-secondary-foreground hover:bg-primary/20"
-                                    : "bg-muted text-muted-foreground line-through opacity-50 cursor-not-allowed"
-                                }
-                              `}
-                            >
-                              {time}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    <div className="space-y-2">
-                      <Label className="font-body text-foreground">Serviço</Label>
-                      <Select value={selectedService} onValueChange={setSelectedService}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Selecione o serviço" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {services.map((service) => (
-                            <SelectItem key={service} value={service}>
-                              {service}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => setStep(1)}
-                        className="flex-1"
-                      >
-                        Voltar
-                      </Button>
-                      <Button
-                        onClick={() => setStep(3)}
-                        disabled={!selectedTime || !selectedService}
-                        className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
-                      >
-                        Continuar
-                      </Button>
-                    </div>
-                  </motion.div>
+              <div className="space-y-2">
+                <Label htmlFor="email" className="font-body text-foreground">
+                  Email * (para lembrete)
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (errors.email) setErrors((prev) => ({ ...prev, email: "" }));
+                  }}
+                  placeholder="seu@email.com"
+                  className={`bg-secondary/50 ${errors.email ? "border-destructive" : ""}`}
+                  maxLength={255}
+                />
+                {errors.email && (
+                  <p className="text-destructive text-xs flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {errors.email}
+                  </p>
                 )}
+              </div>
 
-                {step === 3 && (
-                  <motion.div
-                    key="step3"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    className="space-y-4"
-                  >
-                    <div className="space-y-2">
-                      <Label htmlFor="name" className="font-body text-foreground">
-                        Seu nome *
-                      </Label>
-                      <Input
-                        id="name"
-                        value={name}
-                        onChange={(e) => {
-                          setName(e.target.value);
-                          if (errors.name) setErrors((prev) => ({ ...prev, name: "" }));
-                        }}
-                        placeholder="Como posso te chamar?"
-                        className={`bg-secondary/50 ${errors.name ? "border-destructive" : ""}`}
-                        maxLength={100}
-                      />
-                      {errors.name && (
-                        <p className="text-destructive text-xs flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          {errors.name}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="email" className="font-body text-foreground">
-                        Email * (para lembrete)
-                      </Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => {
-                          setEmail(e.target.value);
-                          if (errors.email) setErrors((prev) => ({ ...prev, email: "" }));
-                        }}
-                        placeholder="seu@email.com"
-                        className={`bg-secondary/50 ${errors.email ? "border-destructive" : ""}`}
-                        maxLength={255}
-                      />
-                      {errors.email && (
-                        <p className="text-destructive text-xs flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          {errors.email}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="phone" className="font-body text-foreground">
-                        WhatsApp *
-                      </Label>
-                      <Input
-                        id="phone"
-                        value={phone}
-                        onChange={handlePhoneChange}
-                        placeholder="(91) 91234-5678"
-                        className={`bg-secondary/50 ${errors.phone ? "border-destructive" : ""}`}
-                        maxLength={16}
-                      />
-                      {errors.phone && (
-                        <p className="text-destructive text-xs flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          {errors.phone}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="notes" className="font-body text-foreground">
-                        Observações (opcional)
-                      </Label>
-                      <Textarea
-                        id="notes"
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        placeholder="Algo que devemos saber?"
-                        rows={3}
-                        className="bg-secondary/50 resize-none"
-                        maxLength={500}
-                      />
-                    </div>
-
-                    {/* Summary */}
-                    <div className="bg-secondary/50 rounded-xl p-4 space-y-2">
-                      <h4 className="font-body font-medium text-foreground">Resumo</h4>
-                      <div className="text-sm text-muted-foreground space-y-1">
-                        <p>📅 {selectedDate && format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}</p>
-                        <p>🕐 {selectedTime}</p>
-                        <p>💅 {selectedService}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => setStep(2)}
-                        className="flex-1"
-                      >
-                        Voltar
-                      </Button>
-                      <Button
-                        onClick={handleSendWhatsApp}
-                        disabled={isLoading || !isStep3Valid}
-                        className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
-                      >
-                        <MessageCircle className="mr-2 h-4 w-4" />
-                        Enviar via WhatsApp
-                      </Button>
-                    </div>
-                  </motion.div>
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="font-body text-foreground">
+                  WhatsApp *
+                </Label>
+                <Input
+                  id="phone"
+                  value={phone}
+                  onChange={handlePhoneChange}
+                  placeholder="(91) 91234-5678"
+                  className={`bg-secondary/50 ${errors.phone ? "border-destructive" : ""}`}
+                  maxLength={16}
+                />
+                {errors.phone && (
+                  <p className="text-destructive text-xs flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {errors.phone}
+                  </p>
                 )}
+              </div>
 
-                {step === 4 && (
-                  <motion.div
-                    key="step4"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="text-center py-8 space-y-4"
-                  >
-                    <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
-                      <Check className="h-8 w-8 text-primary" />
-                    </div>
-                    <h3 className="font-display text-xl font-semibold text-foreground">
-                      Agendamento Enviado!
-                    </h3>
-                    <p className="text-muted-foreground font-body text-sm">
-                      Sua solicitação foi enviada pelo WhatsApp. Aguarde a confirmação.
-                    </p>
-                    <Button
-                      onClick={resetAndClose}
-                      className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                    >
-                      Fechar
-                    </Button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <div className="space-y-2">
+                <Label htmlFor="notes" className="font-body text-foreground">
+                  Observações (opcional)
+                </Label>
+                <Textarea
+                  id="notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Algo que devemos saber?"
+                  rows={3}
+                  className="bg-secondary/50 resize-none"
+                  maxLength={500}
+                />
+              </div>
+
+              {/* Summary */}
+              <div className="bg-secondary/50 rounded-xl p-4 space-y-2">
+                <h4 className="font-body font-medium text-foreground">Resumo</h4>
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <p>📅 {selectedDate && format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}</p>
+                  <p>🕐 {selectedTime}</p>
+                  <p>💅 {selectedService}</p>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setStep(2)}
+                  className="flex-1"
+                >
+                  Voltar
+                </Button>
+                <Button
+                  onClick={handleSendWhatsApp}
+                  disabled={isLoading || !isStep3Valid}
+                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                >
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  Enviar via WhatsApp
+                </Button>
+              </div>
             </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          )}
+
+          {step === 4 && (
+            <div className="text-center py-8 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
+                <Check className="h-8 w-8 text-primary" />
+              </div>
+              <h3 className="font-display text-xl font-semibold text-foreground">
+                Agendamento Enviado!
+              </h3>
+              <p className="text-muted-foreground font-body text-sm">
+                Sua solicitação foi enviada pelo WhatsApp. Aguarde a confirmação.
+              </p>
+              <Button
+                onClick={resetAndClose}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground"
+              >
+                Fechar
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 };
 
