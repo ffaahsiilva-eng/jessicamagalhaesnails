@@ -1,5 +1,4 @@
 import { memo } from "react";
-import { motion } from "framer-motion";
 import { Sparkles, Clock, Star, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,13 +24,7 @@ const PriceTable = memo(() => {
   return (
     <section id="precos" className="py-20 bg-secondary/30">
       <div className="container mx-auto px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-16"
-        >
+        <div className="text-center mb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <span className="text-sm uppercase tracking-[0.2em] text-primary font-body font-medium">
             Serviços
           </span>
@@ -41,7 +34,7 @@ const PriceTable = memo(() => {
           <p className="text-muted-foreground font-body mt-4 max-w-md mx-auto">
             Serviços de qualidade com produtos premium para suas unhas
           </p>
-        </motion.div>
+        </div>
 
         {isLoading ? (
           <div className="flex justify-center py-12">
@@ -50,15 +43,13 @@ const PriceTable = memo(() => {
         ) : (
           <div className="grid md:grid-cols-2 gap-4 max-w-4xl mx-auto">
             {services?.map((service, index) => (
-              <motion.div
+              <div
                 key={service.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: index * 0.1 }}
+                style={{ animationDelay: `${index * 50}ms` }}
                 className={`
                   relative p-6 rounded-2xl bg-card border transition-all duration-300
                   hover:shadow-card hover:-translate-y-1
+                  animate-in fade-in slide-in-from-bottom-2 fill-mode-both
                   ${service.is_popular ? "border-primary shadow-soft" : "border-border"}
                 `}
               >
@@ -70,7 +61,6 @@ const PriceTable = memo(() => {
                 )}
 
                 <div className="flex gap-4">
-                  {/* Service Image */}
                   {service.image_url && (
                     <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-muted">
                       <img 
@@ -102,20 +92,14 @@ const PriceTable = memo(() => {
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
         )}
 
-        <motion.p
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.5 }}
-          className="text-center text-muted-foreground text-sm font-body mt-8"
-        >
+        <p className="text-center text-muted-foreground text-sm font-body mt-8 animate-in fade-in duration-500 delay-300">
           * Valores sujeitos a alteração. Consulte disponibilidade.
-        </motion.p>
+        </p>
       </div>
     </section>
   );
