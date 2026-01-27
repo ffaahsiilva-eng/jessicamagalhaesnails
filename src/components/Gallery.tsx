@@ -1,9 +1,10 @@
-import { memo, useState, useCallback } from "react";
+import { memo, useState } from "react";
 import { motion } from "framer-motion";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { X, Loader2, ImageIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import EditableText from "@/components/admin/EditableText";
 
 // Default images (fallback)
 import gallery1 from "@/assets/gallery-1.jpg";
@@ -53,15 +54,24 @@ const Gallery = memo(() => {
           transition={{ duration: 0.6 }}
           className="text-center mb-16"
         >
-          <span className="text-sm uppercase tracking-[0.2em] text-primary font-body font-medium">
-            Portfólio
-          </span>
-          <h2 className="text-4xl md:text-5xl font-display font-semibold text-foreground mt-2">
-            Galeria de Trabalhos
-          </h2>
-          <p className="text-muted-foreground font-body mt-4 max-w-md mx-auto">
-            Confira alguns dos meus trabalhos e inspire-se para sua próxima unha
-          </p>
+          <EditableText
+            settingKey="gallery_label"
+            defaultValue="Portfólio"
+            as="span"
+            className="text-sm uppercase tracking-[0.2em] text-primary font-body font-medium"
+          />
+          <EditableText
+            settingKey="gallery_title"
+            defaultValue="Galeria de Trabalhos"
+            as="h2"
+            className="text-4xl md:text-5xl font-display font-semibold text-foreground mt-2"
+          />
+          <EditableText
+            settingKey="gallery_description"
+            defaultValue="Confira alguns dos meus trabalhos e inspire-se para sua próxima unha"
+            as="p"
+            className="text-muted-foreground font-body mt-4 max-w-md mx-auto"
+          />
         </motion.div>
 
         {isLoading ? (
