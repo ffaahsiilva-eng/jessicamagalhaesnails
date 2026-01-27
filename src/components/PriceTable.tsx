@@ -3,6 +3,7 @@ import { Sparkles, Clock, Star } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import EditableText from "@/components/admin/EditableText";
 
 const PriceTable = memo(() => {
   const { data: services, isLoading } = useQuery({
@@ -26,15 +27,24 @@ const PriceTable = memo(() => {
     <section id="precos" className="py-20 bg-secondary/30">
       <div className="container mx-auto px-6">
         <div className="text-center mb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <span className="text-sm uppercase tracking-[0.2em] text-primary font-body font-medium">
-            Serviços
-          </span>
-          <h2 className="text-4xl md:text-5xl font-display font-semibold text-foreground mt-2">
-            Tabela de Preços
-          </h2>
-          <p className="text-muted-foreground font-body mt-4 max-w-md mx-auto">
-            Serviços de qualidade com produtos premium para suas unhas
-          </p>
+          <EditableText
+            settingKey="prices_label"
+            defaultValue="Serviços"
+            as="span"
+            className="text-sm uppercase tracking-[0.2em] text-primary font-body font-medium"
+          />
+          <EditableText
+            settingKey="prices_title"
+            defaultValue="Tabela de Preços"
+            as="h2"
+            className="text-4xl md:text-5xl font-display font-semibold text-foreground mt-2"
+          />
+          <EditableText
+            settingKey="prices_description"
+            defaultValue="Serviços de qualidade com produtos premium para suas unhas"
+            as="p"
+            className="text-muted-foreground font-body mt-4 max-w-md mx-auto"
+          />
         </div>
 
         {isLoading ? (
