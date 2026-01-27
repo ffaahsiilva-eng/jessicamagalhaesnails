@@ -5,6 +5,7 @@ import { Calendar, Phone } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { useAdminEdit } from "@/contexts/AdminEditContext";
 import EditableText from "@/components/admin/EditableText";
+import EditableImage from "@/components/admin/EditableImage";
 import heroImageDefault from "@/assets/hero-nails.jpg";
 
 interface HeroProps {
@@ -15,9 +16,6 @@ interface HeroProps {
 const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
   const { getSetting } = useSiteSettings();
   const { isEditMode, isAdmin } = useAdminEdit();
-  
-  const heroImageUrl = getSetting("hero_image_url", "");
-  const heroImage = heroImageUrl || heroImageDefault;
 
   const handleWhatsAppClick = useCallback(() => {
     const message = encodeURIComponent("Olá! Gostaria de agendar um horário.");
@@ -28,14 +26,13 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
-        <img
-          src={heroImage}
+        <EditableImage
+          settingKey="hero_image_url"
+          defaultImage={heroImageDefault}
           alt="Manicure profissional"
           className="w-full h-full object-cover"
-          loading="eager"
-          decoding="async"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/50 to-background" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/50 to-background pointer-events-none" />
       </div>
 
       {/* Content */}
