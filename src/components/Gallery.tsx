@@ -1,9 +1,9 @@
 import { memo, useState } from "react";
-import { motion } from "framer-motion";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { X, Loader2, ImageIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
 import EditableText from "@/components/admin/EditableText";
 
 // Default images (fallback)
@@ -21,6 +21,7 @@ const defaultImages = [
 
 const Gallery = memo(() => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set());
 
   const { data: dbImages, isLoading } = useQuery({
     queryKey: ["gallery"],
@@ -44,16 +45,14 @@ const Gallery = memo(() => {
     ? dbImages.map((img) => ({ src: img.image_url, alt: img.alt_text || "Imagem da galeria" }))
     : defaultImages;
 
+  const handleImageLoad = (index: number) => {
+    setLoadedImages((prev) => new Set(prev).add(index));
+  };
+
   return (
     <section id="galeria" className="py-20 bg-background">
       <div className="container mx-auto px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-16"
-        >
+        <div className="text-center mb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <EditableText
             settingKey="gallery_label"
             defaultValue="Portfólio"
@@ -72,11 +71,13 @@ const Gallery = memo(() => {
             as="p"
             className="text-muted-foreground font-body mt-4 max-w-md mx-auto"
           />
-        </motion.div>
+        </div>
 
         {isLoading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto">
+            {[...Array(4)].map((_, index) => (
+              <Skeleton key={index} className="aspect-square rounded-2xl" />
+            ))}
           </div>
         ) : images.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
@@ -86,24 +87,26 @@ const Gallery = memo(() => {
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto">
             {images.map((image, index) => (
-              <motion.div
+              <div
                 key={index}
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: index * 0.1 }}
-                whileHover={{ scale: 1.05 }}
-                className="aspect-square rounded-2xl overflow-hidden cursor-pointer shadow-soft hover:shadow-card transition-all duration-300"
+                className="aspect-square rounded-2xl overflow-hidden cursor-pointer shadow-soft hover:shadow-card transition-all duration-300 hover:scale-105 animate-in fade-in zoom-in-95 duration-400"
+                style={{ animationDelay: `${index * 100}ms` }}
                 onClick={() => setSelectedImage(image.src)}
               >
+                {!loadedImages.has(index) && (
+                  <Skeleton className="w-full h-full absolute inset-0" />
+                )}
                 <img
                   src={image.src}
                   alt={image.alt}
-                  className="w-full h-full object-cover"
+                  className={`w-full h-full object-cover transition-opacity duration-300 ${
+                    loadedImages.has(index) ? "opacity-100" : "opacity-0"
+                  }`}
                   loading="lazy"
                   decoding="async"
+                  onLoad={() => handleImageLoad(index)}
                 />
-              </motion.div>
+              </div>
             ))}
           </div>
         )}

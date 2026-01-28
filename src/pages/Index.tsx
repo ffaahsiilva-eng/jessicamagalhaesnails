@@ -1,18 +1,22 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import Navigation from "@/components/Navigation";
 import Hero from "@/components/Hero";
-import PriceTable from "@/components/PriceTable";
-import Gallery from "@/components/Gallery";
-import SocialLinks from "@/components/SocialLinks";
-import Footer from "@/components/Footer";
-import BookingCalendar from "@/components/BookingCalendar";
 import AuthModal from "@/components/AuthModal";
-import GospelRadio from "@/components/GospelRadio";
 import InstallBanner from "@/components/InstallBanner";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { AdminEditProvider } from "@/contexts/AdminEditContext";
 import AdminEditToggle from "@/components/admin/AdminEditToggle";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import SuspenseFallback from "@/components/SuspenseFallback";
+
+// Lazy load components below the fold for better performance
+const PriceTable = lazy(() => import("@/components/PriceTable"));
+const Gallery = lazy(() => import("@/components/Gallery"));
+const SocialLinks = lazy(() => import("@/components/SocialLinks"));
+const Footer = lazy(() => import("@/components/Footer"));
+const BookingCalendar = lazy(() => import("@/components/BookingCalendar"));
+const GospelRadio = lazy(() => import("@/components/GospelRadio"));
 
 const Index = () => {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
@@ -28,40 +32,67 @@ const Index = () => {
     <AdminEditProvider>
       <div className="min-h-screen bg-background">
         <ConnectionStatus />
-        <Navigation
-          onLoginClick={() => setIsAuthOpen(true)}
-          onBookClick={() => setIsBookingOpen(true)}
-        />
         
-        <Hero
-          onBookClick={() => setIsBookingOpen(true)}
-          whatsappNumber={whatsappNumber}
-        />
+        <ErrorBoundary>
+          <Navigation
+            onLoginClick={() => setIsAuthOpen(true)}
+            onBookClick={() => setIsBookingOpen(true)}
+          />
+        </ErrorBoundary>
         
-        <PriceTable />
+        <ErrorBoundary>
+          <Hero
+            onBookClick={() => setIsBookingOpen(true)}
+            whatsappNumber={whatsappNumber}
+          />
+        </ErrorBoundary>
         
-        <Gallery />
+        <ErrorBoundary>
+          <Suspense fallback={<SuspenseFallback type="section" />}>
+            <PriceTable />
+          </Suspense>
+        </ErrorBoundary>
         
-        <SocialLinks
-          instagram={instagram}
-          facebook={facebook}
-          whatsappNumber={whatsappNumber}
-        />
+        <ErrorBoundary>
+          <Suspense fallback={<SuspenseFallback type="section" />}>
+            <Gallery />
+          </Suspense>
+        </ErrorBoundary>
         
-        <Footer whatsappNumber={whatsappNumber} />
+        <ErrorBoundary>
+          <Suspense fallback={<SuspenseFallback type="component" />}>
+            <SocialLinks
+              instagram={instagram}
+              facebook={facebook}
+              whatsappNumber={whatsappNumber}
+            />
+          </Suspense>
+        </ErrorBoundary>
+        
+        <ErrorBoundary>
+          <Suspense fallback={<SuspenseFallback type="component" />}>
+            <Footer whatsappNumber={whatsappNumber} />
+          </Suspense>
+        </ErrorBoundary>
 
-        <BookingCalendar
-          isOpen={isBookingOpen}
-          onClose={() => setIsBookingOpen(false)}
-          whatsappNumber={whatsappNumber}
-        />
+        <Suspense fallback={null}>
+          <BookingCalendar
+            isOpen={isBookingOpen}
+            onClose={() => setIsBookingOpen(false)}
+            whatsappNumber={whatsappNumber}
+          />
+        </Suspense>
 
         <AuthModal
           isOpen={isAuthOpen}
           onClose={() => setIsAuthOpen(false)}
         />
 
-        <GospelRadio />
+        <ErrorBoundary fallback={null}>
+          <Suspense fallback={null}>
+            <GospelRadio />
+          </Suspense>
+        </ErrorBoundary>
         
         <InstallBanner />
         

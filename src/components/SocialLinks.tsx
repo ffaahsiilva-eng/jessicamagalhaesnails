@@ -1,5 +1,4 @@
 import { memo, useMemo } from "react";
-import { motion } from "framer-motion";
 import { Instagram, Facebook, Phone } from "lucide-react";
 
 interface SocialLinksProps {
@@ -33,13 +32,7 @@ const SocialLinks = memo(({ instagram, facebook, whatsappNumber }: SocialLinksPr
   return (
     <section id="contato" className="py-20 bg-secondary/30">
       <div className="container mx-auto px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-12"
-        >
+        <div className="text-center mb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <span className="text-sm uppercase tracking-[0.2em] text-primary font-body font-medium">
             Conecte-se
           </span>
@@ -49,28 +42,25 @@ const SocialLinks = memo(({ instagram, facebook, whatsappNumber }: SocialLinksPr
           <p className="text-muted-foreground font-body mt-4 max-w-md mx-auto">
             Siga-me para ver novos trabalhos, promoções e novidades!
           </p>
-        </motion.div>
+        </div>
 
         <div className="flex justify-center gap-6">
           {socials.map((social, index) => (
-            <motion.a
+            <a
               key={social.name}
               href={social.href}
               target="_blank"
               rel="noopener noreferrer"
-              initial={{ opacity: 0, scale: 0.8 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: index * 0.1 }}
-              whileHover={{ scale: 1.1, y: -5 }}
               className={`
                 w-16 h-16 bg-card rounded-2xl shadow-soft flex items-center justify-center
-                text-muted-foreground transition-colors ${social.color}
-                hover:shadow-card
+                text-muted-foreground transition-all duration-300 ${social.color}
+                hover:shadow-card hover:scale-110 hover:-translate-y-1
+                animate-in fade-in zoom-in-95 duration-400
               `}
+              style={{ animationDelay: `${index * 100}ms` }}
             >
               <social.icon className="h-7 w-7" />
-            </motion.a>
+            </a>
           ))}
         </div>
       </div>
