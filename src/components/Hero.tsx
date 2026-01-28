@@ -1,5 +1,4 @@
 import { memo, useCallback } from "react";
-import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Calendar, Phone } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
@@ -37,18 +36,8 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
 
       {/* Content */}
       <div className="relative z-10 container mx-auto px-6 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className="max-w-2xl mx-auto"
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2, duration: 0.5 }}
-            className="mb-4"
-          >
+        <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="mb-4 animate-in fade-in zoom-in-95 duration-500 delay-150">
             {isAdmin && isEditMode ? (
               <EditableText
                 settingKey="hero_subtitle"
@@ -60,14 +49,9 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
                 {getSetting("hero_subtitle", "Nail Designer")}
               </span>
             )}
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.6 }}
-            className="mb-6"
-          >
+          <div className="mb-6 animate-in fade-in slide-in-from-bottom-2 duration-600 delay-300">
             {isAdmin && isEditMode ? (
               <EditableText
                 settingKey="hero_title"
@@ -80,14 +64,9 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
                 {getSetting("hero_title", "Jéssica Magalhães")}
               </h1>
             )}
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6, duration: 0.6 }}
-            className="mb-10 max-w-md mx-auto"
-          >
+          <div className="mb-10 max-w-md mx-auto animate-in fade-in duration-600 delay-500">
             {isAdmin && isEditMode ? (
               <EditableText
                 settingKey="hero_description"
@@ -101,14 +80,9 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
                 {getSetting("hero_description", "Unhas perfeitas com carinho e profissionalismo. Agende seu horário e sinta-se ainda mais linda!")}
               </p>
             )}
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8, duration: 0.5 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center"
-          >
+          <div className="flex flex-col sm:flex-row gap-4 justify-center animate-in fade-in slide-in-from-bottom-2 duration-500 delay-700">
             <Button
               size="lg"
               onClick={onBookClick}
@@ -127,24 +101,16 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
               <Phone className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
               WhatsApp
             </Button>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       </div>
 
-      {/* Decorative Elements */}
-      <motion.div
-        animate={{ y: [0, -10, 0] }}
-        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10"
-      >
+      {/* Decorative Scroll Indicator - Pure CSS Animation */}
+      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10 animate-bounce">
         <div className="w-6 h-10 border-2 border-primary/50 rounded-full flex justify-center pt-2">
-          <motion.div
-            animate={{ y: [0, 12, 0] }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-            className="w-1.5 h-3 bg-primary rounded-full"
-          />
+          <div className="w-1.5 h-3 bg-primary rounded-full animate-pulse" />
         </div>
-      </motion.div>
+      </div>
     </section>
   );
 });
