@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "robots.txt", "placeholder.svg"],
+      includeAssets: ["favicon.ico", "robots.txt", "placeholder.svg", "pwa-icon-192.png", "pwa-icon-512.png", "apple-touch-icon.png"],
       manifest: {
         name: "Jessica Magalhães - Nail Designer",
         short_name: "JM Nails",
@@ -34,10 +34,22 @@ export default defineConfig(({ mode }) => ({
         categories: ["beauty", "lifestyle"],
         icons: [
           {
-            src: "/favicon.ico",
-            sizes: "64x64 32x32 24x24 16x16",
-            type: "image/x-icon",
-            purpose: "any maskable",
+            src: "/pwa-icon-192.png",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "any",
+          },
+          {
+            src: "/pwa-icon-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "any",
+          },
+          {
+            src: "/pwa-icon-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
           },
         ],
       },
