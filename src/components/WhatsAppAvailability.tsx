@@ -58,7 +58,7 @@ const WhatsAppAvailability = memo(({ whatsappNumber }: WhatsAppAvailabilityProps
 
   const handleClick = () => {
     const message = buildMessage();
-    window.open(`https://wa.me/${whatsappNumber}?text=${message}`, "_blank");
+    window.open(`https://wa.me/?text=${message}`, "_blank");
   };
 
   return (
