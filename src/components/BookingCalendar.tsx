@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { format, addDays } from "date-fns";
+import { format, addDays, isWeekend } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar as CalendarIcon, Clock, Check, MessageCircle, X, Loader2, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -66,20 +66,27 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
   const { toast } = useToast();
 
   // Fetch available time slots from database
-  const { data: timeSlots = [] } = useQuery({
+  const { data: allTimeSlots = [] } = useQuery({
     queryKey: ["available-times"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("available_times")
-        .select("time_slot")
+        .select("time_slot, day_type")
         .eq("is_active", true)
         .order("display_order", { ascending: true });
 
       if (error) throw error;
-      return data.map((t) => t.time_slot.slice(0, 5));
+      return data as { time_slot: string; day_type: string }[];
     },
     enabled: isOpen,
   });
+
+  // Filter time slots based on selected date's day type
+  const timeSlots = selectedDate
+    ? allTimeSlots
+        .filter((t) => t.day_type === (isWeekend(selectedDate) ? "weekend" : "weekday"))
+        .map((t) => t.time_slot.slice(0, 5))
+    : allTimeSlots.map((t) => t.time_slot.slice(0, 5));
 
   // Fetch services from database
   const { data: services = [] } = useQuery({

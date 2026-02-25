@@ -1,0 +1,1 @@
+ALTER TABLE public.available_times ADD COLUMN day_type text NOT NULL DEFAULT 'weekday' CHECK (day_type IN ('weekday', 'weekend'));
