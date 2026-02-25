@@ -74,7 +74,7 @@ const WhatsAppAvailability = memo(({ whatsappNumber }: WhatsAppAvailabilityProps
         ) : (
           <MessageCircle className="h-5 w-5" />
         )}
-        Ver Horários pelo WhatsApp
+        Enviar horários disponíveis para cliente
       </Button>
     </div>
   );
