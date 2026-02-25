@@ -397,25 +397,25 @@ const Admin = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-4">
       {/* Header */}
       <header className="sticky top-0 bg-card/95 backdrop-blur-md border-b border-border z-40">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate("/")}
-                className="text-muted-foreground"
+                className="text-muted-foreground h-9 w-9"
               >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div>
-                <h1 className="font-display text-xl font-semibold text-foreground">
+                <h1 className="font-display text-lg sm:text-xl font-semibold text-foreground">
                   Painel Admin
                 </h1>
-                <p className="text-sm text-muted-foreground font-body">
+                <p className="text-xs sm:text-sm text-muted-foreground font-body">
                   Gerenciar agendamentos
                 </p>
               </div>
@@ -424,21 +424,21 @@ const Admin = () => {
               variant="outline"
               size="sm"
               onClick={fetchData}
-              className="gap-2"
+              className="gap-1.5 h-8 text-xs sm:text-sm"
             >
-              <RefreshCw className="h-4 w-4" />
-              Atualizar
+              <RefreshCw className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Atualizar</span>
             </Button>
           </div>
         </div>
       </header>
 
       {/* Filters */}
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center gap-3 flex-wrap">
-          <Filter className="h-4 w-4 text-muted-foreground" />
+      <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" />
           <Select value={filter} onValueChange={setFilter}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-32 sm:w-40 h-9">
               <SelectValue placeholder="Filtrar por" />
             </SelectTrigger>
             <SelectContent>
@@ -448,10 +448,10 @@ const Admin = () => {
               <SelectItem value="cancelled">Cancelados</SelectItem>
             </SelectContent>
           </Select>
-          <Badge variant="secondary" className="font-body">
+          <Badge variant="secondary" className="font-body text-xs">
             {appointments.length} agendamento{appointments.length !== 1 ? "s" : ""}
           </Badge>
-          <Badge variant="outline" className="font-body text-muted-foreground">
+          <Badge variant="outline" className="font-body text-xs text-muted-foreground">
             <Lock className="h-3 w-3 mr-1" />
             {blockedSlots.length} bloqueado{blockedSlots.length !== 1 ? "s" : ""}
           </Badge>
@@ -459,14 +459,14 @@ const Admin = () => {
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 pb-8">
+      <div className="container mx-auto px-3 sm:px-4 pb-8">
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
           <>
-          <div className="grid lg:grid-cols-2 gap-6 mb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6">
             {/* Calendar Section */}
             <Card>
               <CardHeader className="pb-3">
@@ -475,13 +475,13 @@ const Admin = () => {
                   Calendário de Agendamentos
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-2 sm:px-6">
                 <Calendar
                   mode="single"
                   selected={selectedDate}
                   onSelect={setSelectedDate}
                   locale={ptBR}
-                  className="rounded-xl border border-border mx-auto pointer-events-auto"
+                  className="rounded-xl border border-border mx-auto pointer-events-auto w-full [&_.rdp-table]:w-full"
                   modifiers={{
                     hasConfirmed: (date) => {
                       const dateStr = format(date, "yyyy-MM-dd");
@@ -571,7 +571,7 @@ const Admin = () => {
                                 Todos os horários já estão ocupados ou bloqueados.
                               </p>
                             ) : (
-                              <div className="grid grid-cols-4 gap-2">
+                              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                                 {availableTimesToBlock.map((time) => (
                                   <button
                                     key={time}
@@ -635,7 +635,7 @@ const Admin = () => {
                     <p>Nenhum agendamento ou bloqueio nesta data</p>
                   </div>
                 ) : (
-                  <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                  <div className="space-y-3 max-h-[60vh] sm:max-h-[400px] overflow-y-auto pr-1">
                     <AnimatePresence>
                       {/* Blocked Slots */}
                       {selectedDateEvents.blocked.map((slot, index) => (
@@ -777,9 +777,9 @@ const Admin = () => {
                               <Button
                                 size="sm"
                                 onClick={() => sendWhatsAppMessage(appointment)}
-                                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs"
+                                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-9 sm:h-8 text-xs"
                               >
-                                <MessageCircle className="h-3 w-3 mr-1" />
+                                <MessageCircle className="h-3.5 w-3.5 mr-1" />
                                 Enviar WhatsApp
                               </Button>
                               <Button
@@ -787,7 +787,7 @@ const Admin = () => {
                                 variant="outline"
                                 onClick={() => updateStatus(appointment.id, "cancelled")}
                                 disabled={isUpdating === appointment.id}
-                                className="border-rose-200 text-rose-600 hover:bg-rose-50 h-8 text-xs"
+                                className="border-rose-200 text-rose-600 hover:bg-rose-50 h-9 sm:h-8 text-xs"
                               >
                                 {isUpdating === appointment.id ? (
                                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -838,7 +838,7 @@ const Admin = () => {
           </div>
 
           {/* Time Slots, Services & WhatsApp */}
-          <div className="grid lg:grid-cols-2 gap-6 mt-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mt-6">
             <div className="space-y-4">
               <TimeSlotsManager />
               <WhatsAppAvailability whatsappNumber={whatsappNumber} />
@@ -852,7 +852,7 @@ const Admin = () => {
           </div>
 
           {/* Site Settings & Theme Manager */}
-          <div className="grid lg:grid-cols-2 gap-6 mt-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mt-6">
             <SiteSettingsManager />
             <ThemeColorManager />
           </div>
