@@ -153,8 +153,11 @@ const WhatsAppAvailability = memo(({ whatsappNumber }: WhatsAppAvailabilityProps
       msg += `😔 Sem horários disponíveis no momento.\n\n`;
     }
 
+    const instagramUrl = getSetting("instagram_url", "https://www.instagram.com/cantinho_da_je/");
+
     msg += `━━━━━━━━━━━━━━━\n`;
     msg += `🔗 *Agende online:*\n${window.location.origin}\n\n`;
+    msg += `📸 *Instagram:*\n${instagramUrl}\n\n`;
 
     const verse = bibleVerses[Math.floor(Math.random() * bibleVerses.length)];
     msg += `🙏 _"${verse}"_\n\n`;
