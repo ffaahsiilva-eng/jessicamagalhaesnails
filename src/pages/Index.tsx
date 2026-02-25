@@ -26,7 +26,7 @@ const Index = () => {
   // Get settings from database with fallbacks
   const whatsappNumber = getSetting("whatsapp_number", "559191837179");
   const instagram = getSetting("instagram_url", "https://www.instagram.com/cantinho_da_je/");
-  const facebook = getSetting("facebook_url", "https://facebook.com/glamournails");
+  
 
   return (
     <AdminEditProvider>
@@ -63,7 +63,6 @@ const Index = () => {
           <Suspense fallback={<SuspenseFallback type="component" />}>
             <SocialLinks
               instagram={instagram}
-              facebook={facebook}
               whatsappNumber={whatsappNumber}
             />
           </Suspense>
