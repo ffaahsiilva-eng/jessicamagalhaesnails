@@ -45,9 +45,9 @@ const SocialLinks = memo(({ instagram, whatsappNumber }: SocialLinksProps) => {
               target="_blank"
               rel="noopener noreferrer"
               className={`
-                w-16 h-16 bg-card rounded-2xl shadow-soft flex items-center justify-center
+                w-16 h-16 sm:w-16 sm:h-16 bg-card rounded-2xl shadow-soft flex items-center justify-center
                 text-muted-foreground transition-all duration-300 ${social.color}
-                hover:shadow-card hover:scale-110 hover:-translate-y-1
+                hover:shadow-card hover:scale-110 hover:-translate-y-1 active:scale-95
                 animate-in fade-in zoom-in-95 duration-400
               `}
               style={{ animationDelay: `${index * 100}ms` }}

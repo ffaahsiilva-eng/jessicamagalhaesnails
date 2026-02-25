@@ -3,6 +3,7 @@ import Navigation from "@/components/Navigation";
 import Hero from "@/components/Hero";
 import AuthModal from "@/components/AuthModal";
 import InstallBanner from "@/components/InstallBanner";
+import MobileBottomNav from "@/components/MobileBottomNav";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { AdminEditProvider } from "@/contexts/AdminEditContext";
@@ -94,6 +95,11 @@ const Index = () => {
         </ErrorBoundary>
         
         <InstallBanner />
+        
+        <MobileBottomNav
+          onBookClick={() => setIsBookingOpen(true)}
+          whatsappNumber={whatsappNumber}
+        />
         
         <AdminEditToggle />
       </div>

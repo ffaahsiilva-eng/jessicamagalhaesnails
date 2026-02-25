@@ -19,7 +19,7 @@ const Footer = memo(({ whatsappNumber }: FooterProps) => {
   };
 
   return (
-    <footer className="bg-foreground text-background py-12">
+    <footer className="bg-foreground text-background py-12 pb-24 md:pb-12">
       <div className="container mx-auto px-6">
         <div className="grid md:grid-cols-3 gap-8 mb-8">
           {/* Brand */}
