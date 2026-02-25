@@ -17,7 +17,6 @@ const SocialLinks = lazy(() => import("@/components/SocialLinks"));
 const Footer = lazy(() => import("@/components/Footer"));
 const BookingCalendar = lazy(() => import("@/components/BookingCalendar"));
 const GospelRadio = lazy(() => import("@/components/GospelRadio"));
-const WhatsAppAvailability = lazy(() => import("@/components/WhatsAppAvailability"));
 
 const Index = () => {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
@@ -51,7 +50,6 @@ const Index = () => {
         <ErrorBoundary>
           <Suspense fallback={<SuspenseFallback type="section" />}>
             <PriceTable />
-            <WhatsAppAvailability whatsappNumber={whatsappNumber} />
           </Suspense>
         </ErrorBoundary>
         

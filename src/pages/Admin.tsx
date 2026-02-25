@@ -43,6 +43,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminRole } from "@/hooks/useAdminRole";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { useToast } from "@/hooks/use-toast";
 import ServicesManager from "@/components/admin/ServicesManager";
 import TimeSlotsManager from "@/components/admin/TimeSlotsManager";
@@ -50,6 +51,7 @@ import GalleryManager from "@/components/admin/GalleryManager";
 import SiteSettingsManager from "@/components/admin/SiteSettingsManager";
 import ThemeColorManager from "@/components/admin/ThemeColorManager";
 import FontManager from "@/components/admin/FontManager";
+import WhatsAppAvailability from "@/components/WhatsAppAvailability";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Appointment = Tables<"appointments">;
@@ -78,6 +80,8 @@ const Admin = () => {
   const navigate = useNavigate();
   const { isAdmin, isLoading: isCheckingRole } = useAdminRole();
   const { toast } = useToast();
+  const { getSetting } = useSiteSettings();
+  const whatsappNumber = getSetting("whatsapp_number", "559191837179");
   
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
@@ -833,9 +837,12 @@ const Admin = () => {
             </Card>
           </div>
 
-          {/* Time Slots & Services Managers */}
+          {/* Time Slots, Services & WhatsApp */}
           <div className="grid lg:grid-cols-2 gap-6 mt-6">
-            <TimeSlotsManager />
+            <div className="space-y-4">
+              <TimeSlotsManager />
+              <WhatsAppAvailability whatsappNumber={whatsappNumber} />
+            </div>
             <ServicesManager />
           </div>
 
