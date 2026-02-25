@@ -1,10 +1,13 @@
-import { memo, useState } from "react";
+import { memo, useState, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { X, Loader2, ImageIcon } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { X, Loader2, ImageIcon, Camera, Plus, Trash2 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import EditableText from "@/components/admin/EditableText";
+import { useAdminEdit } from "@/contexts/AdminEditContext";
+import { useToast } from "@/hooks/use-toast";
 
 // Default images (fallback)
 import gallery1 from "@/assets/gallery-1.jpg";
@@ -22,6 +25,14 @@ const defaultImages = [
 const Gallery = memo(() => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set());
+  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
+  const [isAddingImage, setIsAddingImage] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const addFileInputRef = useRef<HTMLInputElement>(null);
+  const { isEditMode, isAdmin } = useAdminEdit();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: dbImages, isLoading } = useQuery({
     queryKey: ["gallery"],
@@ -40,14 +51,112 @@ const Gallery = memo(() => {
     refetchOnWindowFocus: false,
   });
 
-  // Use database images if available, otherwise use default images
-  const images = dbImages && dbImages.length > 0
-    ? dbImages.map((img) => ({ src: img.image_url, alt: img.alt_text || "Imagem da galeria" }))
-    : defaultImages;
+  const hasDbImages = dbImages && dbImages.length > 0;
+  const images = hasDbImages
+    ? dbImages.map((img) => ({ id: img.id, src: img.image_url, alt: img.alt_text || "Imagem da galeria" }))
+    : defaultImages.map((img, i) => ({ id: `default-${i}`, ...img }));
 
   const handleImageLoad = (index: number) => {
     setLoadedImages((prev) => new Set(prev).add(index));
   };
+
+  const handleReplaceImage = async (file: File, imageId: string) => {
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Selecione uma imagem válida", variant: "destructive" });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Imagem deve ter no máximo 5MB", variant: "destructive" });
+      return;
+    }
+
+    setUploadingIndex(images.findIndex((img) => img.id === imageId));
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `gallery-${Date.now()}.${fileExt}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("gallery-images")
+        .upload(fileName, file);
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("gallery-images")
+        .getPublicUrl(uploadData.path);
+
+      const { error } = await supabase
+        .from("gallery_images")
+        .update({ image_url: urlData.publicUrl })
+        .eq("id", imageId);
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ["gallery"] });
+      toast({ title: "Imagem atualizada!" });
+    } catch (error: any) {
+      toast({ title: "Erro ao trocar imagem", description: error.message, variant: "destructive" });
+    } finally {
+      setUploadingIndex(null);
+    }
+  };
+
+  const handleAddImage = async (file: File) => {
+    if (!file.type.startsWith("image/") || file.size > 5 * 1024 * 1024) {
+      toast({ title: "Imagem inválida ou muito grande (max 5MB)", variant: "destructive" });
+      return;
+    }
+
+    setIsAddingImage(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `gallery-${Date.now()}.${fileExt}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("gallery-images")
+        .upload(fileName, file);
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("gallery-images")
+        .getPublicUrl(uploadData.path);
+
+      const maxOrder = dbImages?.reduce((max, img) => Math.max(max, img.display_order), 0) || 0;
+
+      const { error } = await supabase.from("gallery_images").insert({
+        image_url: urlData.publicUrl,
+        display_order: maxOrder + 1,
+        is_active: true,
+      });
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ["gallery"] });
+      toast({ title: "Imagem adicionada!" });
+    } catch (error: any) {
+      toast({ title: "Erro ao adicionar", description: error.message, variant: "destructive" });
+    } finally {
+      setIsAddingImage(false);
+      if (addFileInputRef.current) addFileInputRef.current.value = "";
+    }
+  };
+
+  const handleDeleteImage = async (imageId: string) => {
+    if (!confirm("Remover esta imagem da galeria?")) return;
+    setDeletingId(imageId);
+    try {
+      const { error } = await supabase
+        .from("gallery_images")
+        .update({ is_active: false })
+        .eq("id", imageId);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["gallery"] });
+      toast({ title: "Imagem removida!" });
+    } catch (error: any) {
+      toast({ title: "Erro ao remover", description: error.message, variant: "destructive" });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const isEditing = isAdmin && isEditMode;
 
   return (
     <section id="galeria" className="py-20 bg-background">
@@ -88,10 +197,10 @@ const Gallery = memo(() => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto">
             {images.map((image, index) => (
               <div
-                key={index}
-                className="aspect-square rounded-2xl overflow-hidden cursor-pointer shadow-soft hover:shadow-card transition-all duration-300 hover:scale-105 animate-in fade-in zoom-in-95 duration-400"
+                key={image.id}
+                className="relative aspect-square rounded-2xl overflow-hidden cursor-pointer shadow-soft hover:shadow-card transition-all duration-300 hover:scale-105 animate-in fade-in zoom-in-95 duration-400 group"
                 style={{ animationDelay: `${index * 100}ms` }}
-                onClick={() => setSelectedImage(image.src)}
+                onClick={() => !isEditing && setSelectedImage(image.src)}
               >
                 {!loadedImages.has(index) && (
                   <Skeleton className="w-full h-full absolute inset-0" />
@@ -106,8 +215,85 @@ const Gallery = memo(() => {
                   decoding="async"
                   onLoad={() => handleImageLoad(index)}
                 />
+
+                {/* Admin edit overlay */}
+                {isEditing && hasDbImages && (
+                  <>
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 z-10">
+                      {uploadingIndex === index ? (
+                        <Loader2 className="h-8 w-8 animate-spin text-white" />
+                      ) : (
+                        <>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              fileInputRefs.current[image.id]?.click();
+                            }}
+                            className="p-2.5 rounded-full bg-primary/80 text-white backdrop-blur-sm hover:bg-primary transition-colors"
+                            title="Trocar imagem"
+                          >
+                            <Camera className="h-5 w-5" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteImage(image.id);
+                            }}
+                            disabled={deletingId === image.id}
+                            className="p-2.5 rounded-full bg-destructive/80 text-white backdrop-blur-sm hover:bg-destructive transition-colors"
+                            title="Remover imagem"
+                          >
+                            {deletingId === image.id ? (
+                              <Loader2 className="h-5 w-5 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-5 w-5" />
+                            )}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    <input
+                      ref={(el) => { fileInputRefs.current[image.id] = el; }}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleReplaceImage(file, image.id);
+                        e.target.value = "";
+                      }}
+                    />
+                  </>
+                )}
               </div>
             ))}
+
+            {/* Add new image card (admin only) */}
+            {isEditing && (
+              <div
+                className="aspect-square rounded-2xl border-2 border-dashed border-primary/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/60 hover:bg-primary/5 transition-all"
+                onClick={() => addFileInputRef.current?.click()}
+              >
+                {isAddingImage ? (
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                ) : (
+                  <>
+                    <Plus className="h-8 w-8 text-primary/50 mb-2" />
+                    <span className="text-xs text-muted-foreground font-body">Adicionar</span>
+                  </>
+                )}
+                <input
+                  ref={addFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleAddImage(file);
+                  }}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>
