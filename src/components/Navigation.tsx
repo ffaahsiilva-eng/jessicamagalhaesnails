@@ -137,7 +137,8 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
         {/* Mobile Menu Button */}
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="md:hidden p-2 text-foreground rounded-xl shadow-lg opacity-100"
+          className="md:hidden p-3 text-foreground rounded-xl active:scale-95 transition-transform"
+          aria-label={isMobileMenuOpen ? "Fechar menu" : "Abrir menu"}
         >
           {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
@@ -152,7 +153,7 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
                 key={link.name}
                 href={link.href}
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="block font-body text-foreground py-2"
+                className="block font-body text-foreground py-3 text-lg active:text-primary transition-colors"
               >
                 {link.name}
               </a>
