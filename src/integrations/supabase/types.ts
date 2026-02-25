@@ -62,6 +62,7 @@ export type Database = {
       available_times: {
         Row: {
           created_at: string
+          day_type: string
           display_order: number
           id: string
           is_active: boolean
@@ -69,6 +70,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          day_type?: string
           display_order?: number
           id?: string
           is_active?: boolean
@@ -76,6 +78,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          day_type?: string
           display_order?: number
           id?: string
           is_active?: boolean
