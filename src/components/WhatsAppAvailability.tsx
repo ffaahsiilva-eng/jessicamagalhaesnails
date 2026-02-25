@@ -123,6 +123,8 @@ const WhatsAppAvailability = memo(({ whatsappNumber }: WhatsAppAvailabilityProps
       msg += "Sem horários disponíveis no momento.\n\n";
     }
 
+    const siteUrl = window.location.origin;
+    msg += `Agende direto pelo link:\n${siteUrl}\n\n`;
     msg += "Gostaria de agendar um horário?";
     return encodeURIComponent(msg);
   };
