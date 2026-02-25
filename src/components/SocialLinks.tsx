@@ -16,18 +16,12 @@ const SocialLinks = memo(({ instagram, facebook, whatsappNumber }: SocialLinksPr
       color: "hover:text-pink-500",
     },
     {
-      name: "Facebook",
-      icon: Facebook,
-      href: facebook || "https://facebook.com",
-      color: "hover:text-blue-600",
-    },
-    {
       name: "WhatsApp",
       icon: Phone,
       href: `https://wa.me/${whatsappNumber}`,
       color: "hover:text-green-500",
     },
-  ], [instagram, facebook, whatsappNumber]);
+  ], [instagram, whatsappNumber]);
 
   return (
     <section id="contato" className="py-20 bg-secondary/30">
