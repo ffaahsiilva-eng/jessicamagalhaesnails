@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, Clock, Loader2, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, Trash2, Clock, Loader2, ToggleLeft, ToggleRight, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,7 +56,42 @@ const TimeSlotsManager = () => {
   });
 
   const weekdaySlots = timeSlots?.filter((s) => s.day_type === "weekday") || [];
-  const weekendSlots = timeSlots?.filter((s) => s.day_type === "weekend") || [];
+  const saturdaySlots = timeSlots?.filter((s) => s.day_type === "weekend") || [];
+
+  const handleCopyWeekdayToSaturday = async () => {
+    if (weekdaySlots.length === 0) {
+      toast({ title: "Nenhum horário de semana para copiar", variant: "destructive" });
+      return;
+    }
+    if (!confirm("Copiar todos os horários da semana para o Sábado? Horários duplicados serão ignorados.")) return;
+
+    setIsSubmitting(true);
+    try {
+      const existingSatTimes = new Set(saturdaySlots.map((s) => s.time_slot));
+      const newSlots = weekdaySlots
+        .filter((s) => !existingSatTimes.has(s.time_slot))
+        .map((s, i) => ({
+          time_slot: s.time_slot,
+          display_order: (saturdaySlots.length + i + 1),
+          day_type: "weekend",
+          is_active: s.is_active,
+        }));
+
+      if (newSlots.length === 0) {
+        toast({ title: "Todos os horários já estão cadastrados no Sábado" });
+      } else {
+        const { error } = await supabase.from("available_times").insert(newSlots);
+        if (error) throw error;
+        toast({ title: `${newSlots.length} horário(s) copiado(s) para Sábado!` });
+        queryClient.invalidateQueries({ queryKey: ["admin-time-slots"] });
+        queryClient.invalidateQueries({ queryKey: ["available-times"] });
+      }
+    } catch (error: any) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleAddTimeSlot = async () => {
     if (!newTime) {
@@ -236,7 +271,7 @@ const TimeSlotsManager = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="weekday">Dias da Semana (Seg–Sex)</SelectItem>
-                      <SelectItem value="weekend">Fins de Semana (Sáb–Dom)</SelectItem>
+                      <SelectItem value="weekend">Sábado</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -272,14 +307,26 @@ const TimeSlotsManager = () => {
                 Seg–Sex ({weekdaySlots.length})
               </TabsTrigger>
               <TabsTrigger value="weekend" className="flex-1">
-                Sáb–Dom ({weekendSlots.length})
+                Sábado ({saturdaySlots.length})
               </TabsTrigger>
             </TabsList>
             <TabsContent value="weekday">
               {renderSlotGrid(weekdaySlots)}
             </TabsContent>
             <TabsContent value="weekend">
-              {renderSlotGrid(weekendSlots)}
+              <div className="space-y-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopyWeekdayToSaturday}
+                  disabled={isSubmitting || weekdaySlots.length === 0}
+                  className="gap-1.5 w-full"
+                >
+                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+                  Copiar horários da semana para Sábado
+                </Button>
+                {renderSlotGrid(saturdaySlots)}
+              </div>
             </TabsContent>
           </Tabs>
         )}
