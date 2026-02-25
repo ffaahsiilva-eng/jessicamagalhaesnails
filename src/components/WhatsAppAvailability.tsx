@@ -24,6 +24,21 @@ const DAY_OPTIONS = [
   { value: "30", label: "30 dias" },
 ];
 
+const bibleVerses = [
+  "O Senhor é o meu pastor, nada me faltará. - Salmos 23:1",
+  "Tudo posso naquele que me fortalece. - Filipenses 4:13",
+  "Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito. - João 3:16",
+  "O Senhor é a minha luz e a minha salvação; a quem temerei? - Salmos 27:1",
+  "Confie no Senhor de todo o seu coração. - Provérbios 3:5",
+  "Alegrem-se sempre no Senhor. Novamente direi: alegrem-se! - Filipenses 4:4",
+  "Deus é o nosso refúgio e fortaleza, socorro bem presente na angústia. - Salmos 46:1",
+  "Entrega o teu caminho ao Senhor; confia nele, e ele tudo fará. - Salmos 37:5",
+  "Porque sou eu que conheço os planos que tenho para vocês, planos de prosperidade. - Jeremias 29:11",
+  "Mas os que esperam no Senhor renovarão as suas forças. - Isaías 40:31",
+  "Seja forte e corajoso! Não se apavore, nem desanime, pois o Senhor estará com você. - Josué 1:9",
+  "A paz vos deixo, a minha paz vos dou. - João 14:27",
+];
+
 const WhatsAppAvailability = memo(({ whatsappNumber }: WhatsAppAvailabilityProps) => {
   const { getSetting } = useSiteSettings();
   const siteName = getSetting("site_name", "Jéssica Magalhães");
@@ -88,14 +103,16 @@ const WhatsAppAvailability = memo(({ whatsappNumber }: WhatsAppAvailabilityProps
   const formatTime = (t: string) => t.slice(0, 5);
 
   const buildMessage = () => {
-    let msg = `*${siteName} - Horários Disponíveis (${daysAhead} dias)*\n\n`;
-
     const bookedSet = new Set(
       (appointments || []).map((a) => `${a.appointment_date}_${a.appointment_time.slice(0, 5)}`)
     );
     const blockedSet = new Set(
       (blockedSlots || []).map((b) => `${b.blocked_date}_${b.blocked_time.slice(0, 5)}`)
     );
+
+    let msg = `💅 *${siteName}*\n`;
+    msg += `📋 *Horários Disponíveis (${daysAhead} dias)*\n`;
+    msg += `━━━━━━━━━━━━━━━\n\n`;
 
     let hasAny = false;
 
@@ -104,28 +121,46 @@ const WhatsAppAvailability = memo(({ whatsappNumber }: WhatsAppAvailabilityProps
       const dayType = isSaturday(date) ? "weekend" : "weekday";
       const daySlots = timeSlots?.filter((t) => t.day_type === dayType) || [];
 
-      const available = daySlots
-        .map((s) => formatTime(s.time_slot))
-        .filter((time) => {
-          const key = `${dateStr}_${time}`;
-          return !bookedSet.has(key) && !blockedSet.has(key);
-        });
+      const allTimes = daySlots.map((s) => formatTime(s.time_slot));
+      const available: string[] = [];
+      const occupied: string[] = [];
 
-      if (available.length > 0) {
+      for (const time of allTimes) {
+        const key = `${dateStr}_${time}`;
+        if (bookedSet.has(key) || blockedSet.has(key)) {
+          occupied.push(`~${time}~`);
+        } else {
+          available.push(time);
+        }
+      }
+
+      if (allTimes.length > 0) {
         hasAny = true;
         const dayLabel = format(date, "EEEE, dd/MM", { locale: ptBR });
         const capitalizedDay = dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1);
-        msg += `*${capitalizedDay}:*\n${available.join(" | ")}\n\n`;
+        const dayEmoji = isSaturday(date) ? "🌟" : "📅";
+
+        msg += `${dayEmoji} *${capitalizedDay}:*\n`;
+        msg += `✅ ${available.length > 0 ? available.join(" | ") : "Sem horários livres"}\n`;
+        if (occupied.length > 0) {
+          msg += `❌ ${occupied.join(" | ")}\n`;
+        }
+        msg += `\n`;
       }
     }
 
     if (!hasAny) {
-      msg += "Sem horários disponíveis no momento.\n\n";
+      msg += `😔 Sem horários disponíveis no momento.\n\n`;
     }
 
-    const siteUrl = window.location.origin;
-    msg += `Agende direto pelo link:\n${siteUrl}\n\n`;
-    msg += "Gostaria de agendar um horário?";
+    msg += `━━━━━━━━━━━━━━━\n`;
+    msg += `🔗 *Agende online:*\n${window.location.origin}\n\n`;
+
+    const verse = bibleVerses[Math.floor(Math.random() * bibleVerses.length)];
+    msg += `🙏 _"${verse}"_\n\n`;
+
+    msg += `💬 Gostaria de agendar um horário?`;
+
     return encodeURIComponent(msg);
   };
 
