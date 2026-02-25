@@ -1,6 +1,13 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import { MessageCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
@@ -11,21 +18,27 @@ interface WhatsAppAvailabilityProps {
   whatsappNumber: string;
 }
 
+const DAY_OPTIONS = [
+  { value: "7", label: "7 dias" },
+  { value: "14", label: "14 dias" },
+  { value: "30", label: "30 dias" },
+];
+
 const WhatsAppAvailability = memo(({ whatsappNumber }: WhatsAppAvailabilityProps) => {
   const { getSetting } = useSiteSettings();
   const siteName = getSetting("site_name", "Jéssica Magalhães");
+  const [daysAhead, setDaysAhead] = useState("7");
 
-  // Próximos 7 dias
   const dateRange = useMemo(() => {
     const today = startOfDay(new Date());
+    const count = parseInt(daysAhead);
     const dates: Date[] = [];
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < count; i++) {
       const d = addDays(today, i);
-      // Exclui domingo
       if (!isSunday(d)) dates.push(d);
     }
     return dates;
-  }, []);
+  }, [daysAhead]);
 
   const startDate = format(dateRange[0], "yyyy-MM-dd");
   const endDate = format(dateRange[dateRange.length - 1], "yyyy-MM-dd");
@@ -38,14 +51,13 @@ const WhatsAppAvailability = memo(({ whatsappNumber }: WhatsAppAvailabilityProps
         .select("time_slot, day_type")
         .eq("is_active", true)
         .order("display_order", { ascending: true });
-
       if (error) throw error;
       return data as { time_slot: string; day_type: string }[];
     },
   });
 
   const { data: appointments, isLoading: loadingAppts } = useQuery({
-    queryKey: ["appointments-week", startDate, endDate],
+    queryKey: ["appointments-range", startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("appointments")
@@ -53,21 +65,19 @@ const WhatsAppAvailability = memo(({ whatsappNumber }: WhatsAppAvailabilityProps
         .gte("appointment_date", startDate)
         .lte("appointment_date", endDate)
         .in("status", ["pending", "confirmed"]);
-
       if (error) throw error;
       return data as { appointment_date: string; appointment_time: string; status: string }[];
     },
   });
 
   const { data: blockedSlots, isLoading: loadingBlocked } = useQuery({
-    queryKey: ["blocked-slots-week", startDate, endDate],
+    queryKey: ["blocked-slots-range", startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("blocked_slots")
         .select("blocked_date, blocked_time")
         .gte("blocked_date", startDate)
         .lte("blocked_date", endDate);
-
       if (error) throw error;
       return data as { blocked_date: string; blocked_time: string }[];
     },
@@ -78,7 +88,7 @@ const WhatsAppAvailability = memo(({ whatsappNumber }: WhatsAppAvailabilityProps
   const formatTime = (t: string) => t.slice(0, 5);
 
   const buildMessage = () => {
-    let msg = `*${siteName} - Horários Disponíveis*\n\n`;
+    let msg = `*${siteName} - Horários Disponíveis (${daysAhead} dias)*\n\n`;
 
     const bookedSet = new Set(
       (appointments || []).map((a) => `${a.appointment_date}_${a.appointment_time.slice(0, 5)}`)
@@ -114,7 +124,6 @@ const WhatsAppAvailability = memo(({ whatsappNumber }: WhatsAppAvailabilityProps
     }
 
     msg += "Gostaria de agendar um horário?";
-
     return encodeURIComponent(msg);
   };
 
@@ -124,7 +133,20 @@ const WhatsAppAvailability = memo(({ whatsappNumber }: WhatsAppAvailabilityProps
   };
 
   return (
-    <div className="flex justify-center mt-6 animate-in fade-in duration-500 delay-500">
+    <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-6 animate-in fade-in duration-500 delay-500">
+      <Select value={daysAhead} onValueChange={setDaysAhead}>
+        <SelectTrigger className="w-[130px] bg-card">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {DAY_OPTIONS.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
       <Button
         size="lg"
         onClick={handleClick}
@@ -136,7 +158,7 @@ const WhatsAppAvailability = memo(({ whatsappNumber }: WhatsAppAvailabilityProps
         ) : (
           <MessageCircle className="h-5 w-5" />
         )}
-        Enviar horários disponíveis para cliente
+        Enviar horários disponíveis
       </Button>
     </div>
   );
