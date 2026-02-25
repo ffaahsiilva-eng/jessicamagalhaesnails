@@ -112,7 +112,7 @@ const WhatsAppAvailability = memo(({ whatsappNumber }: WhatsAppAvailabilityProps
 
     let msg = `💅 *${siteName}*\n`;
     msg += `📋 *Horários Disponíveis (${daysAhead} dias)*\n`;
-    msg += `━━━━━━━━━━━━━━━\n\n`;
+    msg += `——————————————\n\n`;
 
     let hasAny = false;
 
@@ -155,7 +155,7 @@ const WhatsAppAvailability = memo(({ whatsappNumber }: WhatsAppAvailabilityProps
 
     const instagramUrl = getSetting("instagram_url", "https://www.instagram.com/cantinho_da_je/");
 
-    msg += `━━━━━━━━━━━━━━━\n`;
+    msg += `——————————————\n`;
     msg += `🔗 *Agende online:*\n${window.location.origin}\n\n`;
     msg += `📸 *Instagram:*\n${instagramUrl}\n\n`;
 
@@ -164,12 +164,13 @@ const WhatsAppAvailability = memo(({ whatsappNumber }: WhatsAppAvailabilityProps
 
     msg += `💬 Gostaria de agendar um horário?`;
 
-    return encodeURIComponent(msg);
+    return msg;
   };
 
   const handleClick = () => {
     const message = buildMessage();
-    window.open(`https://wa.me/?text=${message}`, "_blank");
+    const encoded = encodeURIComponent(message);
+    window.open(`https://wa.me/?text=${encoded}`, "_blank");
   };
 
   return (
