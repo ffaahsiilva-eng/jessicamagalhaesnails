@@ -1,13 +1,12 @@
 import { memo, useMemo } from "react";
-import { Instagram, Facebook, Phone } from "lucide-react";
+import { Instagram, Phone } from "lucide-react";
 
 interface SocialLinksProps {
   instagram?: string;
-  facebook?: string;
   whatsappNumber: string;
 }
 
-const SocialLinks = memo(({ instagram, facebook, whatsappNumber }: SocialLinksProps) => {
+const SocialLinks = memo(({ instagram, whatsappNumber }: SocialLinksProps) => {
   const socials = useMemo(() => [
     {
       name: "Instagram",
