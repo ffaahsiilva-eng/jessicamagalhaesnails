@@ -11,7 +11,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
-import { format, addDays, startOfDay, isSaturday, isSunday } from "date-fns";
+import { format, addDays, startOfDay, isSaturday, isSunday, getDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface WhatsAppAvailabilityProps {
@@ -19,6 +19,7 @@ interface WhatsAppAvailabilityProps {
 }
 
 const DAY_OPTIONS = [
+  { value: "week", label: "Restante da semana" },
   { value: "7", label: "7 dias" },
   { value: "14", label: "14 dias" },
   { value: "30", label: "30 dias" },
@@ -46,17 +47,28 @@ const WhatsAppAvailability = memo(({ whatsappNumber }: WhatsAppAvailabilityProps
 
   const dateRange = useMemo(() => {
     const today = startOfDay(new Date());
-    const count = parseInt(daysAhead);
     const dates: Date[] = [];
-    for (let i = 0; i < count; i++) {
-      const d = addDays(today, i);
-      if (!isSunday(d)) dates.push(d);
+
+    if (daysAhead === "week") {
+      // From today until Saturday (day 6). If today is Sunday (0), start from Monday.
+      const todayDay = getDay(today); // 0=Sun, 1=Mon, ..., 6=Sat
+      if (todayDay === 0) return dates; // Sunday, no days left
+      const daysUntilSat = 6 - todayDay; // e.g., Thu(4) -> 2 days
+      for (let i = 0; i <= daysUntilSat; i++) {
+        dates.push(addDays(today, i));
+      }
+    } else {
+      const count = parseInt(daysAhead);
+      for (let i = 0; i < count; i++) {
+        const d = addDays(today, i);
+        if (!isSunday(d)) dates.push(d);
+      }
     }
     return dates;
   }, [daysAhead]);
 
-  const startDate = format(dateRange[0], "yyyy-MM-dd");
-  const endDate = format(dateRange[dateRange.length - 1], "yyyy-MM-dd");
+  const startDate = dateRange.length > 0 ? format(dateRange[0], "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
+  const endDate = dateRange.length > 0 ? format(dateRange[dateRange.length - 1], "yyyy-MM-dd") : startDate;
 
   const { data: timeSlots, isLoading: loadingSlots } = useQuery({
     queryKey: ["available-times-all"],
@@ -110,8 +122,9 @@ const WhatsAppAvailability = memo(({ whatsappNumber }: WhatsAppAvailabilityProps
       (blockedSlots || []).map((b) => `${b.blocked_date}_${b.blocked_time.slice(0, 5)}`)
     );
 
+    const periodLabel = daysAhead === "week" ? "Restante da Semana" : `${daysAhead} dias`;
     let msg = `💅 *${siteName}*\n`;
-    msg += `📋 *Horários Disponíveis (${daysAhead} dias)*\n`;
+    msg += `📋 *Horários Disponíveis (${periodLabel})*\n`;
     msg += `——————————————\n\n`;
 
     let hasAny = false;
