@@ -43,7 +43,7 @@ const bibleVerses = [
 const WhatsAppAvailability = memo(({ whatsappNumber }: WhatsAppAvailabilityProps) => {
   const { getSetting } = useSiteSettings();
   const siteName = getSetting("site_name", "Jéssica Magalhães");
-  const [daysAhead, setDaysAhead] = useState("7");
+  const [daysAhead, setDaysAhead] = useState("week");
 
   const dateRange = useMemo(() => {
     const today = startOfDay(new Date());
