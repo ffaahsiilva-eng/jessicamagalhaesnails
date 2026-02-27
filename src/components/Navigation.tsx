@@ -63,7 +63,7 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
     >
       <div className="container mx-auto px-6 flex items-center justify-between">
         {/* Logo */}
-        <a href="/" className="flex-shrink-0 flex items-center gap-2">
+        <a href="/" className="flex-shrink-0 flex items-center gap-0.5">
           <img
             src={logo}
             alt="Logo"
@@ -72,7 +72,7 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
           <img
             src={verifiedBadge}
             alt="Verificado"
-            className={`transition-all duration-300 ${isScrolled ? "h-5 w-5" : "h-6 w-6"} animate-pulse`}
+            className={`transition-all duration-300 ${isScrolled ? "h-3.5 w-3.5" : "h-4 w-4"} animate-[pulse_4s_cubic-bezier(0.4,0,0.6,1)_infinite]`}
           />
         </a>
 
