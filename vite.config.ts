@@ -89,25 +89,18 @@ export default defineConfig(({ mode }) => ({
             },
           },
           {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/.*/i,
-            handler: "NetworkOnly",
-          },
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/auth\/.*/i,
-            handler: "NetworkOnly",
-          },
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/.*/i,
-            handler: "CacheFirst",
+            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+            handler: "NetworkFirst",
             options: {
-              cacheName: "supabase-storage-cache",
+              cacheName: "supabase-cache",
               expiration: {
-                maxEntries: 60,
-                maxAgeSeconds: 60 * 60 * 24,
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60, // 1 hour
               },
               cacheableResponse: {
                 statuses: [0, 200],
               },
+              networkTimeoutSeconds: 3,
             },
           },
           {
@@ -129,7 +122,7 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
-    dedupe: ["react", "react-dom", "react/jsx-runtime"],
+    dedupe: ["react", "react-dom"],
   },
   optimizeDeps: {
     include: ["react", "react-dom"],

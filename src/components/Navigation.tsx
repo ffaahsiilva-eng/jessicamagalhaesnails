@@ -44,16 +44,8 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
   }, []);
 
   const handleLogout = useCallback(async () => {
-    try {
-      await supabase.auth.signOut();
-      setUser(null);
-      window.location.reload();
-    } catch (err) {
-      console.error("Logout error:", err);
-      // Force cleanup even on error
-      setUser(null);
-      window.location.reload();
-    }
+    await supabase.auth.signOut();
+    setUser(null);
   }, []);
 
   const navLinks = [
@@ -80,8 +72,7 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
           <img
             src={verifiedBadge}
             alt="Verificado"
-            className={`transition-all duration-300 ${isScrolled ? "h-3.5 w-3.5" : "h-4 w-4"} -ml-1`}
-            style={{ animation: "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite" }}
+            className={`transition-all duration-300 ${isScrolled ? "h-5 w-5" : "h-6 w-6"} animate-pulse`}
           />
         </a>
 
