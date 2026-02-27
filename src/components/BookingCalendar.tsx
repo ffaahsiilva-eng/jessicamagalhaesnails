@@ -206,7 +206,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
       
       const cleanPhone = phone.replace(/\D/g, "");
 
-      const { error } = await supabase.from("appointments").insert({
+      const { data: insertedData, error } = await supabase.from("appointments").insert({
         user_id: user?.id || null,
         client_name: name.trim(),
         client_email: email.trim() || null,
@@ -216,7 +216,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         appointment_time: selectedTime,
         notes: notes.trim() || null,
         status: "pending",
-      });
+      }).select("id").single();
 
       if (error) throw error;
 
@@ -231,7 +231,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         `*Horário:* ${selectedTime}\n` +
         `${notes.trim() ? `*Observações:* ${notes.trim()}\n` : ""}\n` +
         `Você pode confirmar meu agendamento?\n\n` +
-        `📋 Painel de agendamentos:\nhttps://jessicamagalhaes.lovable.app/admin`
+        `✅ Confirmar agendamento:\nhttps://jessicamagalhaes.lovable.app/admin/appointment/${insertedData?.id}`
       );
 
       const url = `https://wa.me/${whatsappNumber}?text=${message}`;
