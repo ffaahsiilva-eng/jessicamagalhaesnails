@@ -63,6 +63,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [whatsappUrl, setWhatsappUrl] = useState<string>("");
   const { toast } = useToast();
 
   // Fetch available time slots from database
@@ -233,14 +234,13 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         `📋 Painel de agendamentos:\nhttps://jessicamagalhaes.lovable.app/admin`
       );
 
+      const url = `https://wa.me/${whatsappNumber}?text=${message}`;
+      setWhatsappUrl(url);
       setStep(4);
 
-      // Open WhatsApp in new tab so confirmation screen stays visible
-      window.open(`https://wa.me/${whatsappNumber}?text=${message}`, "_blank");
-
       toast({
-        title: "Agendamento enviado!",
-        description: "Aguarde a confirmação pelo WhatsApp.",
+        title: "Agendamento salvo!",
+        description: "Clique no botão para enviar pelo WhatsApp.",
       });
     } catch (error: unknown) {
       console.error("Erro ao criar agendamento:", error);
@@ -544,17 +544,29 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                 <Check className="h-8 w-8 text-primary" />
               </div>
               <h3 className="font-display text-xl font-semibold text-foreground">
-                Agendamento Enviado!
+                Agendamento Salvo!
               </h3>
               <p className="text-muted-foreground font-body text-sm">
-                Sua solicitação foi enviada pelo WhatsApp. Aguarde a confirmação.
+                Agora envie a mensagem pelo WhatsApp para confirmar seu horário.
               </p>
-              <Button
-                onClick={resetAndClose}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground"
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-[#25D366] hover:bg-[#1da851] text-white font-medium px-6 py-3 transition-colors"
               >
-                Fechar
-              </Button>
+                <MessageCircle className="h-5 w-5" />
+                Enviar pelo WhatsApp
+              </a>
+              <div>
+                <Button
+                  variant="outline"
+                  onClick={resetAndClose}
+                  size="sm"
+                >
+                  Fechar
+                </Button>
+              </div>
             </div>
           )}
         </div>
