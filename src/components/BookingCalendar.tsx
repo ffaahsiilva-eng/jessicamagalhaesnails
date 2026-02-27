@@ -229,7 +229,8 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         `*Data:* ${formattedDate}\n` +
         `*Horário:* ${selectedTime}\n` +
         `${notes.trim() ? `*Observações:* ${notes.trim()}\n` : ""}\n` +
-        `Você pode confirmar meu agendamento?`
+        `Você pode confirmar meu agendamento?\n\n` +
+        `📋 Painel de agendamentos:\nhttps://jessicamagalhaes.lovable.app/admin`
       );
 
       setStep(4);
