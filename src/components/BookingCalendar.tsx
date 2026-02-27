@@ -279,9 +279,6 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
   return (
     <div
       className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-foreground/40 backdrop-blur-sm p-4 animate-in fade-in duration-200"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) resetAndClose();
-      }}
     >
       <div
         className="bg-card w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-card overflow-hidden max-h-[92vh] overflow-y-auto animate-in slide-in-from-bottom-4 duration-300"
@@ -340,8 +337,10 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                 className="rounded-xl border border-border mx-auto"
               />
               <Button
-                onClick={() => setStep(2)}
-                disabled={!selectedDate}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setStep(2);
+                }}
                 className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
               >
                 Continuar
@@ -417,7 +416,10 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                   Voltar
                 </Button>
                 <Button
-                  onClick={() => setStep(3)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setStep(3);
+                  }}
                   disabled={!selectedTime || !selectedService}
                   className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
