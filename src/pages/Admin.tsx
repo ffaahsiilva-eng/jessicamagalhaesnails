@@ -52,6 +52,7 @@ import SiteSettingsManager from "@/components/admin/SiteSettingsManager";
 import ThemeColorManager from "@/components/admin/ThemeColorManager";
 import FontManager from "@/components/admin/FontManager";
 import WhatsAppAvailability from "@/components/WhatsAppAvailability";
+import AppointmentsManager from "@/components/admin/AppointmentsManager";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Appointment = Tables<"appointments">;
@@ -835,6 +836,11 @@ const Admin = () => {
                 )}
               </CardContent>
             </Card>
+          </div>
+
+          {/* All Appointments Manager */}
+          <div className="mt-6">
+            <AppointmentsManager />
           </div>
 
           {/* Time Slots, Services & WhatsApp */}
