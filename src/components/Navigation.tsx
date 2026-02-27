@@ -72,7 +72,7 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
           <img
             src={verifiedBadge}
             alt="Verificado"
-            className={`transition-all duration-300 ${isScrolled ? "h-2.5 w-2.5" : "h-3 w-3"} animate-[pulse_10s_cubic-bezier(0.4,0,0.6,1)_infinite] self-start mt-1 -ml-1`}
+            className={`transition-all duration-300 ${isScrolled ? "h-2.5 w-2.5" : "h-3 w-3"} self-start mt-1 -ml-1`}
           />
         </a>
 
