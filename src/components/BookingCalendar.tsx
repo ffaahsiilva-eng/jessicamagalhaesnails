@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { format, addDays, isWeekend } from "date-fns";
+import { format, addDays, isSaturday, isSunday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar as CalendarIcon, Clock, Check, MessageCircle, X, Loader2, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,7 +38,7 @@ interface BlockedSlot {
 // Validation schema
 const bookingSchema = z.object({
   name: z.string().trim().min(2, "Nome deve ter pelo menos 2 caracteres").max(100, "Nome muito longo"),
-  email: z.string().trim().email("Email inválido").max(255, "Email muito longo"),
+  email: z.string().trim().email("Email inválido").max(255, "Email muito longo").or(z.literal("")),
   phone: z.string().trim().regex(/^\(\d{2}\)\s?\d{4,5}-?\d{4}$|^\d{10,11}$/, "Telefone inválido (ex: (91) 91234-5678)"),
 });
 
@@ -84,9 +84,9 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
   // Filter time slots based on selected date's day type
   const timeSlots = selectedDate
     ? allTimeSlots
-        .filter((t) => t.day_type === (isWeekend(selectedDate) ? "weekend" : "weekday"))
+        .filter((t) => t.day_type === (isSaturday(selectedDate) ? "weekend" : "weekday"))
         .map((t) => t.time_slot.slice(0, 5))
-    : allTimeSlots.map((t) => t.time_slot.slice(0, 5));
+    : allTimeSlots.filter((t) => t.day_type === "weekday").map((t) => t.time_slot.slice(0, 5));
 
   // Fetch services from database
   const { data: services = [] } = useQuery({
@@ -208,7 +208,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
       const { error } = await supabase.from("appointments").insert({
         user_id: user?.id || null,
         client_name: name.trim(),
-        client_email: email.trim(),
+        client_email: email.trim() || null,
         client_phone: cleanPhone,
         service_type: selectedService,
         appointment_date: format(selectedDate, "yyyy-MM-dd"),
@@ -265,7 +265,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
   };
 
   const availableTimes = getAvailableTimes(selectedDate);
-  const isStep3Valid = name.trim().length >= 2 && email.trim().length > 0 && phone.trim().length >= 10;
+  const isStep3Valid = name.trim().length >= 2 && phone.trim().length >= 10;
 
   if (!isOpen) return null;
 
@@ -322,7 +322,11 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                 mode="single"
                 selected={selectedDate}
                 onSelect={setSelectedDate}
-                disabled={(date) => date < new Date() || date > addDays(new Date(), 30)}
+                disabled={(date) => {
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  return date < today || date > addDays(new Date(), 30) || isSunday(date);
+                }}
                 locale={ptBR}
                 className="rounded-xl border border-border mx-auto"
               />
