@@ -44,8 +44,16 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
   }, []);
 
   const handleLogout = useCallback(async () => {
-    await supabase.auth.signOut();
-    setUser(null);
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      window.location.reload();
+    } catch (err) {
+      console.error("Logout error:", err);
+      // Force cleanup even on error
+      setUser(null);
+      window.location.reload();
+    }
   }, []);
 
   const navLinks = [
