@@ -75,13 +75,15 @@ const Index = () => {
           </Suspense>
         </ErrorBoundary>
 
-        <Suspense fallback={null}>
-          <BookingCalendar
-            isOpen={isBookingOpen}
-            onClose={() => setIsBookingOpen(false)}
-            whatsappNumber={whatsappNumber}
-          />
-        </Suspense>
+        <ErrorBoundary>
+          <Suspense fallback={null}>
+            <BookingCalendar
+              isOpen={isBookingOpen}
+              onClose={() => setIsBookingOpen(false)}
+              whatsappNumber={whatsappNumber}
+            />
+          </Suspense>
+        </ErrorBoundary>
 
         <AuthModal
           isOpen={isAuthOpen}
