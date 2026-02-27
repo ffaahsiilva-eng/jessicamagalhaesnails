@@ -1,6 +1,26 @@
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { useEffect } from "react";
 
+const CACHE_VERSION_KEY = "app_cache_version";
+const CURRENT_VERSION = "2026-02-27-v2";
+
+const clearAllCaches = async () => {
+  // Clear CacheStorage
+  if ("caches" in window) {
+    const cacheNames = await caches.keys();
+    await Promise.all(cacheNames.map((name) => caches.delete(name)));
+  }
+  // Clear cookies
+  document.cookie.split(";").forEach((c) => {
+    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+  });
+  // Unregister old service workers
+  if ("serviceWorker" in navigator) {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map((r) => r.unregister()));
+  }
+};
+
 const UpdatePrompt = () => {
   const {
     needRefresh: [needRefresh],
@@ -8,7 +28,6 @@ const UpdatePrompt = () => {
   } = useRegisterSW({
     onRegisteredSW(_swUrl, registration) {
       if (registration) {
-        // Check for updates every 30 seconds
         setInterval(() => {
           registration.update();
         }, 30 * 1000);
@@ -19,23 +38,26 @@ const UpdatePrompt = () => {
     },
   });
 
+  // Force clear caches on version change
+  useEffect(() => {
+    const storedVersion = localStorage.getItem(CACHE_VERSION_KEY);
+    if (storedVersion !== CURRENT_VERSION) {
+      clearAllCaches().then(() => {
+        localStorage.setItem(CACHE_VERSION_KEY, CURRENT_VERSION);
+        window.location.reload();
+      });
+    }
+  }, []);
+
   useEffect(() => {
     if (needRefresh) {
-      // Auto-update: clear caches and reload immediately
       (async () => {
-        if ("caches" in window) {
-          const cacheNames = await caches.keys();
-          await Promise.all(cacheNames.map((name) => caches.delete(name)));
-        }
-        document.cookie.split(";").forEach((c) => {
-          document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-        });
+        await clearAllCaches();
         await updateServiceWorker(true);
       })();
     }
   }, [needRefresh, updateServiceWorker]);
 
-  // No UI needed — updates happen automatically
   return null;
 };
 
