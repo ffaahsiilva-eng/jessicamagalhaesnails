@@ -51,7 +51,7 @@ import GalleryManager from "@/components/admin/GalleryManager";
 import SiteSettingsManager from "@/components/admin/SiteSettingsManager";
 import ThemeColorManager from "@/components/admin/ThemeColorManager";
 import FontManager from "@/components/admin/FontManager";
-
+import WhatsAppAvailability from "@/components/WhatsAppAvailability";
 import AppointmentsManager from "@/components/admin/AppointmentsManager";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -82,7 +82,7 @@ const Admin = () => {
   const { isAdmin, isLoading: isCheckingRole } = useAdminRole();
   const { toast } = useToast();
   const { getSetting } = useSiteSettings();
-  
+  const whatsappNumber = getSetting("whatsapp_number", "559191837179");
   
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
@@ -847,6 +847,7 @@ const Admin = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mt-6">
             <div className="space-y-4">
               <TimeSlotsManager />
+              <WhatsAppAvailability whatsappNumber={whatsappNumber} />
             </div>
             <ServicesManager />
           </div>
