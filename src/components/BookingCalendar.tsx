@@ -232,14 +232,15 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         `Você pode confirmar meu agendamento?`
       );
 
-      window.location.href = `https://wa.me/${whatsappNumber}?text=${message}`;
+      setStep(4);
+
+      // Open WhatsApp in new tab so confirmation screen stays visible
+      window.open(`https://wa.me/${whatsappNumber}?text=${message}`, "_blank");
 
       toast({
         title: "Agendamento enviado!",
         description: "Aguarde a confirmação pelo WhatsApp.",
       });
-
-      setStep(4);
     } catch (error) {
       toast({
         title: "Erro ao agendar",
@@ -445,7 +446,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
 
               <div className="space-y-2">
                 <Label htmlFor="email" className="font-body text-foreground">
-                  Email * (para lembrete)
+                  Email (opcional)
                 </Label>
                 <Input
                   id="email"
