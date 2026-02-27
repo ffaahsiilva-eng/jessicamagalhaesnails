@@ -90,7 +90,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
 
   // Fetch services from database
   const { data: services = [] } = useQuery({
-    queryKey: ["services"],
+    queryKey: ["services-names"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("services")
@@ -337,11 +337,8 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                 className="rounded-xl border border-border mx-auto"
               />
               <Button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setStep(2);
-                }}
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                onClick={() => setStep(2)}
+                disabled={!selectedDate}
               >
                 Continuar
               </Button>
@@ -416,10 +413,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                   Voltar
                 </Button>
                 <Button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setStep(3);
-                  }}
+                  onClick={() => setStep(3)}
                   disabled={!selectedTime || !selectedService}
                   className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
