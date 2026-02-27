@@ -394,7 +394,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Selecione o serviço" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[80]">
                     {services.map((service) => (
                       <SelectItem key={service} value={service}>
                         {service}
