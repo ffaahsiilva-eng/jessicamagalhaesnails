@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Check, X, Calendar, Clock, User, Phone, Mail, Sparkles, Loader2, ShieldAlert, ArrowLeft } from "lucide-react";
+import { Check, X, Calendar, Clock, User, Phone, Mail, Sparkles, Loader2, ShieldAlert, ArrowLeft, Ban } from "lucide-react";
 
 const AppointmentConfirm = () => {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +16,8 @@ const AppointmentConfirm = () => {
   const [appointment, setAppointment] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isBlocking, setIsBlocking] = useState(false);
+  const [isSlotBlocked, setIsSlotBlocked] = useState(false);
 
   useEffect(() => {
     if (!isAdminLoading && !isAdmin) return;
@@ -37,6 +39,18 @@ const AppointmentConfirm = () => {
         });
       }
       setAppointment(data);
+
+      // Check if this slot is already blocked
+      if (data) {
+        const { data: blocked } = await supabase
+          .from("blocked_slots")
+          .select("id")
+          .eq("blocked_date", data.appointment_date)
+          .eq("blocked_time", data.appointment_time)
+          .maybeSingle();
+        setIsSlotBlocked(!!blocked);
+      }
+
       setIsLoading(false);
     };
 
@@ -73,6 +87,44 @@ const AppointmentConfirm = () => {
       });
     }
     setIsUpdating(false);
+  };
+
+  const handleToggleBlockSlot = async () => {
+    if (!appointment) return;
+    setIsBlocking(true);
+
+    if (isSlotBlocked) {
+      // Unblock
+      const { error } = await supabase
+        .from("blocked_slots")
+        .delete()
+        .eq("blocked_date", appointment.appointment_date)
+        .eq("blocked_time", appointment.appointment_time);
+
+      if (error) {
+        toast({ title: "Erro ao desbloquear", description: error.message, variant: "destructive" });
+      } else {
+        setIsSlotBlocked(false);
+        toast({ title: "🔓 Horário desbloqueado", description: "O horário está disponível novamente para clientes." });
+      }
+    } else {
+      // Block
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase.from("blocked_slots").insert({
+        blocked_date: appointment.appointment_date,
+        blocked_time: appointment.appointment_time,
+        created_by: user?.id || null,
+        reason: `Bloqueado via confirmação - ${appointment.client_name}`,
+      });
+
+      if (error) {
+        toast({ title: "Erro ao bloquear", description: error.message, variant: "destructive" });
+      } else {
+        setIsSlotBlocked(true);
+        toast({ title: "🔒 Horário bloqueado", description: "Este horário não aparecerá mais para os clientes." });
+      }
+    }
+    setIsBlocking(false);
   };
 
   if (isAdminLoading || isLoading) {
@@ -234,6 +286,24 @@ const AppointmentConfirm = () => {
               </Button>
             </div>
           )}
+
+          {/* Block/Unblock slot */}
+          <div className="pt-1 border-t">
+            <Button
+              onClick={handleToggleBlockSlot}
+              disabled={isBlocking}
+              variant="ghost"
+              size="sm"
+              className={`w-full text-xs ${isSlotBlocked ? "text-green-600 hover:text-green-700" : "text-muted-foreground hover:text-destructive"}`}
+            >
+              {isBlocking ? (
+                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+              ) : (
+                <Ban className="h-3 w-3 mr-1" />
+              )}
+              {isSlotBlocked ? "Desbloquear este horário" : "Bloquear este horário para clientes"}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
