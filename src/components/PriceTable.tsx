@@ -59,10 +59,10 @@ const PriceTable = memo(() => {
               onClick={() => {
                 if (!services?.length) return;
                 const lines = services.map(s => 
-                  `${s.is_popular ? '⭐ ' : ''}*${s.name}* - ${s.price}\n⏱ ${s.duration}${s.description ? `\n${s.description}` : ''}`
+                  `${s.is_popular ? '\u2B50 ' : ''}*${s.name}* - ${s.price}\n\u23F1 ${s.duration}${s.description ? `\n${s.description}` : ''}`
                 );
-                const msg = `✨ *Tabela de Preços* ✨\n\n${lines.join('\n\n')}\n\n📋 _Valores sujeitos a alteração._`;
-                window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+                const msg = `\u2728 *Tabela de Precos* \u2728\n\n${lines.join('\n\n')}\n\n\uD83D\uDCCB _Valores sujeitos a alteracao._`;
+                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, "_blank");
               }}
             >
               <Send className="mr-2 h-4 w-4 group-hover:scale-110 transition-transform" />
