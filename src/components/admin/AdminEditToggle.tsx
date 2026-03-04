@@ -16,7 +16,7 @@ const AdminEditToggle = () => {
       size="sm"
       onClick={toggleEditMode}
       className={cn(
-        "fixed bottom-20 right-4 z-50 shadow-lg gap-2 transition-all",
+        "fixed bottom-36 right-4 z-50 shadow-lg gap-2 transition-all",
         isEditMode
           ? "bg-primary hover:bg-primary/90 text-primary-foreground"
           : "bg-card hover:bg-accent border-border"
