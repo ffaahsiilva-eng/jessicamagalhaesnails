@@ -1,11 +1,17 @@
-import { memo } from "react";
-import { Sparkles, Clock, Star } from "lucide-react";
+import { memo, useCallback } from "react";
+import { Sparkles, Clock, Star, Send } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import EditableText from "@/components/admin/EditableText";
+import { useAdminEdit } from "@/contexts/AdminEditContext";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 const PriceTable = memo(() => {
+  const { isAdmin } = useAdminEdit();
+  const { getSetting } = useSiteSettings();
+  const whatsappNumber = getSetting("whatsapp_number", "559191837179");
   const { data: services, isLoading } = useQuery({
     queryKey: ["services"],
     queryFn: async () => {
@@ -45,8 +51,25 @@ const PriceTable = memo(() => {
             as="p"
             className="text-muted-foreground font-body mt-4 max-w-md mx-auto"
           />
+          {isAdmin && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="mt-4 border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-950 font-body group"
+              onClick={() => {
+                if (!services?.length) return;
+                const lines = services.map(s => 
+                  `${s.is_popular ? '⭐ ' : ''}*${s.name}* - ${s.price}\n⏱ ${s.duration}${s.description ? `\n${s.description}` : ''}`
+                );
+                const msg = `✨ *Tabela de Preços* ✨\n\n${lines.join('\n\n')}\n\n📋 _Valores sujeitos a alteração._`;
+                window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+              }}
+            >
+              <Send className="mr-2 h-4 w-4 group-hover:scale-110 transition-transform" />
+              Enviar Tabela via WhatsApp
+            </Button>
+          )}
         </div>
-
         {isLoading ? (
           <div className="grid md:grid-cols-2 gap-4 max-w-4xl mx-auto">
             {[...Array(4)].map((_, index) => (
