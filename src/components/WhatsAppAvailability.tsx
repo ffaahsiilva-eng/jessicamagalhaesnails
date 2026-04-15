@@ -131,7 +131,8 @@ const WhatsAppAvailability = memo(({ whatsappNumber }: WhatsAppAvailabilityProps
 
     for (const date of dateRange) {
       const dateStr = format(date, "yyyy-MM-dd");
-      const dayType = isSaturday(date) ? "weekend" : "weekday";
+      const dayMap = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+      const dayType = dayMap[date.getDay()];
       const daySlots = timeSlots?.filter((t) => t.day_type === dayType) || [];
 
       const allTimes = daySlots.map((s) => formatTime(s.time_slot));
