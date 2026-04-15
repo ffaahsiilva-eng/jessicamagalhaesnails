@@ -45,12 +45,30 @@ interface BlockedSlot {
   reason: string | null;
 }
 
+const DAY_KEYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const;
+const DAY_LABELS: Record<string, string> = {
+  monday: "Segunda",
+  tuesday: "Terça",
+  wednesday: "Quarta",
+  thursday: "Quinta",
+  friday: "Sexta",
+  saturday: "Sábado",
+};
+const DAY_SHORT: Record<string, string> = {
+  monday: "Seg",
+  tuesday: "Ter",
+  wednesday: "Qua",
+  thursday: "Qui",
+  friday: "Sex",
+  saturday: "Sáb",
+};
+
 const TimeSlotsManager = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newTime, setNewTime] = useState("");
-  const [newDayType, setNewDayType] = useState<string>("weekday");
+  const [newDayType, setNewDayType] = useState<string>("monday");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
@@ -86,12 +104,17 @@ const TimeSlotsManager = () => {
     },
   });
 
-  const weekdaySlots = timeSlots?.filter((s) => s.day_type === "weekday") || [];
-  const saturdaySlots = timeSlots?.filter((s) => s.day_type === "weekend") || [];
+  const slotsByDay = (day: string) => timeSlots?.filter((s) => s.day_type === day) || [];
+
+  // Map JS getDay() to day_type for blocked slots
+  const getDayTypeForDate = (date: Date): string => {
+    const jsDay = date.getDay(); // 0=Sun,1=Mon,...,6=Sat
+    return DAY_KEYS[jsDay === 0 ? 5 : jsDay - 1]; // Sun shouldn't happen, fallback to saturday
+  };
 
   // Get available slots for selected block date
   const slotsForSelectedDate = selectedBlockDate
-    ? (isSaturday(selectedBlockDate) ? saturdaySlots : weekdaySlots).filter((s) => s.is_active)
+    ? slotsByDay(getDayTypeForDate(selectedBlockDate)).filter((s) => s.is_active)
     : [];
 
   const blockedForSelectedDate = selectedBlockDate
@@ -102,7 +125,6 @@ const TimeSlotsManager = () => {
 
   const blockedTimesSet = new Set(blockedForSelectedDate.map((b) => b.blocked_time));
 
-  // Get dates that have blocked slots for calendar highlighting
   const datesWithBlocks = new Set(
     (blockedSlots || []).map((b) => b.blocked_date)
   );
@@ -171,31 +193,33 @@ const TimeSlotsManager = () => {
     }
   };
 
-  const handleCopyWeekdayToSaturday = async () => {
-    if (weekdaySlots.length === 0) {
-      toast({ title: "Nenhum horário de semana para copiar", variant: "destructive" });
+  const handleCopyToDay = async (fromDay: string, toDay: string) => {
+    const fromSlots = slotsByDay(fromDay);
+    if (fromSlots.length === 0) {
+      toast({ title: `Nenhum horário em ${DAY_LABELS[fromDay]} para copiar`, variant: "destructive" });
       return;
     }
-    if (!confirm("Copiar todos os horários da semana para o Sábado? Horários duplicados serão ignorados.")) return;
+    if (!confirm(`Copiar horários de ${DAY_LABELS[fromDay]} para ${DAY_LABELS[toDay]}? Duplicados serão ignorados.`)) return;
 
     setIsSubmitting(true);
     try {
-      const existingSatTimes = new Set(saturdaySlots.map((s) => s.time_slot));
-      const newSlots = weekdaySlots
-        .filter((s) => !existingSatTimes.has(s.time_slot))
+      const existingTimes = new Set(slotsByDay(toDay).map((s) => s.time_slot));
+      const toSlotCount = slotsByDay(toDay).length;
+      const newSlots = fromSlots
+        .filter((s) => !existingTimes.has(s.time_slot))
         .map((s, i) => ({
           time_slot: s.time_slot,
-          display_order: (saturdaySlots.length + i + 1),
-          day_type: "weekend",
+          display_order: toSlotCount + i + 1,
+          day_type: toDay,
           is_active: s.is_active,
         }));
 
       if (newSlots.length === 0) {
-        toast({ title: "Todos os horários já estão cadastrados no Sábado" });
+        toast({ title: `Todos os horários já existem em ${DAY_LABELS[toDay]}` });
       } else {
         const { error } = await supabase.from("available_times").insert(newSlots);
         if (error) throw error;
-        toast({ title: `${newSlots.length} horário(s) copiado(s) para Sábado!` });
+        toast({ title: `${newSlots.length} horário(s) copiado(s) para ${DAY_LABELS[toDay]}!` });
         queryClient.invalidateQueries({ queryKey: ["admin-time-slots"] });
         queryClient.invalidateQueries({ queryKey: ["available-times"] });
       }
@@ -224,7 +248,7 @@ const TimeSlotsManager = () => {
 
       if (error) {
         if (error.code === "23505") {
-          toast({ title: "Horário já existe", description: "Este horário já está cadastrado.", variant: "destructive" });
+          toast({ title: "Horário já existe", description: "Este horário já está cadastrado neste dia.", variant: "destructive" });
         } else {
           throw error;
         }
@@ -346,6 +370,27 @@ const TimeSlotsManager = () => {
     );
   };
 
+  const renderDayTab = (day: string) => {
+    const slots = slotsByDay(day);
+    return (
+      <div className="space-y-3">
+        {day !== "monday" && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleCopyToDay("monday", day)}
+            disabled={isSubmitting || slotsByDay("monday").length === 0}
+            className="gap-1.5 w-full"
+          >
+            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+            Copiar horários de Segunda
+          </Button>
+        )}
+        {renderSlotGrid(slots)}
+      </div>
+    );
+  };
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -377,14 +422,17 @@ const TimeSlotsManager = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="font-body">Tipo de dia</Label>
+                  <Label className="font-body">Dia da semana</Label>
                   <Select value={newDayType} onValueChange={setNewDayType}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="weekday">Dias da Semana (Seg–Sex)</SelectItem>
-                      <SelectItem value="weekend">Sábado</SelectItem>
+                      {DAY_KEYS.map((day) => (
+                        <SelectItem key={day} value={day}>
+                          {DAY_LABELS[day]}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -405,7 +453,7 @@ const TimeSlotsManager = () => {
           </Dialog>
         </div>
         <p className="text-xs text-muted-foreground font-body mt-1">
-          Gerencie os horários disponíveis para agendamento
+          Gerencie os horários disponíveis para cada dia da semana
         </p>
       </CardHeader>
       <CardContent>
@@ -414,37 +462,23 @@ const TimeSlotsManager = () => {
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
         ) : (
-          <Tabs defaultValue="weekday" className="w-full">
-            <TabsList className="w-full mb-4">
-              <TabsTrigger value="weekday" className="flex-1">
-                Seg–Sex ({weekdaySlots.length})
-              </TabsTrigger>
-              <TabsTrigger value="weekend" className="flex-1">
-                Sábado ({saturdaySlots.length})
-              </TabsTrigger>
-              <TabsTrigger value="block" className="flex-1">
+          <Tabs defaultValue="monday" className="w-full">
+            <TabsList className="w-full mb-4 flex-wrap h-auto gap-1">
+              {DAY_KEYS.map((day) => (
+                <TabsTrigger key={day} value={day} className="flex-1 min-w-0 text-xs px-2">
+                  {DAY_SHORT[day]} ({slotsByDay(day).length})
+                </TabsTrigger>
+              ))}
+              <TabsTrigger value="block" className="flex-1 min-w-0 text-xs px-2">
                 <CalendarOff className="h-3.5 w-3.5 mr-1" />
                 Bloqueios
               </TabsTrigger>
             </TabsList>
-            <TabsContent value="weekday">
-              {renderSlotGrid(weekdaySlots)}
-            </TabsContent>
-            <TabsContent value="weekend">
-              <div className="space-y-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCopyWeekdayToSaturday}
-                  disabled={isSubmitting || weekdaySlots.length === 0}
-                  className="gap-1.5 w-full"
-                >
-                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
-                  Copiar horários da semana para Sábado
-                </Button>
-                {renderSlotGrid(saturdaySlots)}
-              </div>
-            </TabsContent>
+            {DAY_KEYS.map((day) => (
+              <TabsContent key={day} value={day}>
+                {renderDayTab(day)}
+              </TabsContent>
+            ))}
             <TabsContent value="block">
               <div className="space-y-4">
                 <div className="flex flex-col items-center gap-3">
@@ -462,8 +496,8 @@ const TimeSlotsManager = () => {
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {selectedBlockDate
-                          ? format(selectedBlockDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
-                          : "Escolha uma data"}
+                          ? format(selectedBlockDate, "PPP", { locale: ptBR })
+                          : "Selecionar data"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="center">
@@ -471,18 +505,18 @@ const TimeSlotsManager = () => {
                         mode="single"
                         selected={selectedBlockDate}
                         onSelect={setSelectedBlockDate}
+                        locale={ptBR}
                         disabled={(date) => {
                           const today = new Date();
                           today.setHours(0, 0, 0, 0);
                           return date < today || date.getDay() === 0;
                         }}
-                        locale={ptBR}
-                        className={cn("p-3 pointer-events-auto")}
                         modifiers={{
-                          blocked: (date) => datesWithBlocks.has(format(date, "yyyy-MM-dd")),
+                          blocked: (date) =>
+                            datesWithBlocks.has(format(date, "yyyy-MM-dd")),
                         }}
                         modifiersClassNames={{
-                          blocked: "bg-destructive/20 text-destructive font-bold",
+                          blocked: "bg-destructive/20 text-destructive",
                         }}
                       />
                     </PopoverContent>
@@ -490,104 +524,97 @@ const TimeSlotsManager = () => {
                 </div>
 
                 {selectedBlockDate && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="space-y-3"
-                  >
+                  <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <h4 className="font-display text-sm font-semibold">
-                        {format(selectedBlockDate, "dd/MM/yyyy")} — {isSaturday(selectedBlockDate) ? "Sábado" : "Dia de semana"}
+                      <h4 className="font-body font-medium text-sm text-foreground">
+                        {format(selectedBlockDate, "EEEE, dd/MM/yyyy", { locale: ptBR })}
                       </h4>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleBlockAllDay}
-                        disabled={isSubmitting || slotsForSelectedDate.length === 0}
-                        className="gap-1 text-xs"
-                      >
-                        {isSubmitting ? <Loader2 className="h-3 w-3 animate-spin" /> : <CalendarOff className="h-3 w-3" />}
-                        Bloquear dia todo
-                      </Button>
+                      {slotsForSelectedDate.length > 0 && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={handleBlockAllDay}
+                          disabled={isSubmitting}
+                          className="gap-1 text-xs"
+                        >
+                          {isSubmitting ? <Loader2 className="h-3 w-3 animate-spin" /> : <CalendarOff className="h-3 w-3" />}
+                          Bloquear dia inteiro
+                        </Button>
+                      )}
                     </div>
 
                     {slotsForSelectedDate.length === 0 ? (
                       <p className="text-sm text-muted-foreground text-center py-4">
-                        Nenhum horário disponível para este tipo de dia
+                        Nenhum horário ativo para este dia
                       </p>
                     ) : (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {slotsForSelectedDate.map((slot) => {
                           const isBlocked = blockedTimesSet.has(slot.time_slot);
-                          const blockedEntry = blockedForSelectedDate.find((b) => b.blocked_time === slot.time_slot);
+                          const blockedEntry = blockedForSelectedDate.find(
+                            (b) => b.blocked_time === slot.time_slot
+                          );
 
                           return (
-                            <motion.button
+                            <div
                               key={slot.id}
-                              initial={{ opacity: 0, scale: 0.9 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              onClick={() => {
-                                if (isBlocked && blockedEntry) {
-                                  handleUnblockSlot(blockedEntry.id);
-                                } else {
-                                  handleBlockSlot(slot.time_slot);
-                                }
-                              }}
-                              disabled={blockingSlot === slot.time_slot || unblockingId === blockedEntry?.id}
                               className={cn(
-                                "relative flex items-center justify-center p-3 rounded-xl border transition-all text-sm font-semibold",
+                                "flex items-center justify-between p-2.5 rounded-lg border text-sm",
                                 isBlocked
-                                  ? "bg-destructive/15 border-destructive/40 text-destructive line-through"
-                                  : "bg-secondary/30 border-border text-foreground hover:bg-primary/10 hover:border-primary/40"
+                                  ? "bg-destructive/10 border-destructive/30"
+                                  : "bg-secondary/30 border-border"
                               )}
                             >
-                              {(blockingSlot === slot.time_slot || unblockingId === blockedEntry?.id) ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <>
-                                  {formatTimeDisplay(slot.time_slot)}
-                                  {isBlocked && (
-                                    <CalendarOff className="h-3 w-3 ml-1.5 inline" />
+                              <span className={cn("font-display font-semibold", isBlocked && "line-through text-muted-foreground")}>
+                                {formatTimeDisplay(slot.time_slot)}
+                              </span>
+                              {isBlocked ? (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => blockedEntry && handleUnblockSlot(blockedEntry.id)}
+                                  disabled={unblockingId === blockedEntry?.id}
+                                  className="h-7 w-7 text-destructive hover:text-destructive"
+                                  title="Desbloquear"
+                                >
+                                  {unblockingId === blockedEntry?.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <ToggleLeft className="h-4 w-4" />
                                   )}
-                                </>
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => handleBlockSlot(slot.time_slot)}
+                                  disabled={blockingSlot === slot.time_slot}
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                  title="Bloquear"
+                                >
+                                  {blockingSlot === slot.time_slot ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <CalendarOff className="h-4 w-4" />
+                                  )}
+                                </Button>
                               )}
-                            </motion.button>
+                            </div>
                           );
                         })}
                       </div>
                     )}
 
                     {blockedForSelectedDate.length > 0 && (
-                      <p className="text-xs text-muted-foreground text-center mt-2">
-                        {blockedForSelectedDate.length} horário(s) bloqueado(s) — clique para desbloquear
-                      </p>
+                      <div className="flex flex-wrap gap-1.5 pt-2">
+                        <span className="text-xs text-muted-foreground">Bloqueados:</span>
+                        {blockedForSelectedDate.map((b) => (
+                          <Badge key={b.id} variant="destructive" className="text-xs">
+                            {formatTimeDisplay(b.blocked_time)}
+                          </Badge>
+                        ))}
+                      </div>
                     )}
-                  </motion.div>
-                )}
-
-                {/* Summary of upcoming blocked dates */}
-                {(blockedSlots || []).length > 0 && !selectedBlockDate && (
-                  <div className="space-y-2 mt-4">
-                    <h4 className="font-display text-sm font-semibold text-muted-foreground">Bloqueios futuros</h4>
-                    <div className="flex flex-wrap gap-1.5">
-                      {[...datesWithBlocks]
-                        .filter((d) => d >= format(new Date(), "yyyy-MM-dd"))
-                        .sort()
-                        .slice(0, 10)
-                        .map((dateStr) => {
-                          const count = (blockedSlots || []).filter((b) => b.blocked_date === dateStr).length;
-                          return (
-                            <Badge
-                              key={dateStr}
-                              variant="secondary"
-                              className="cursor-pointer hover:bg-destructive/20"
-                              onClick={() => setSelectedBlockDate(new Date(dateStr + "T12:00:00"))}
-                            >
-                              {dateStr.split("-").reverse().join("/")} ({count})
-                            </Badge>
-                          );
-                        })}
-                    </div>
                   </div>
                 )}
               </div>
