@@ -82,12 +82,17 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
     enabled: isOpen,
   });
 
+  const getDayType = (date: Date): string => {
+    const dayMap = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+    return dayMap[date.getDay()];
+  };
+
   // Filter time slots based on selected date's day type
   const timeSlots = selectedDate
     ? allTimeSlots
-        .filter((t) => t.day_type === (isSaturday(selectedDate) ? "weekend" : "weekday"))
+        .filter((t) => t.day_type === getDayType(selectedDate))
         .map((t) => t.time_slot.slice(0, 5))
-    : allTimeSlots.filter((t) => t.day_type === "weekday").map((t) => t.time_slot.slice(0, 5));
+    : allTimeSlots.filter((t) => t.day_type === "monday").map((t) => t.time_slot.slice(0, 5));
 
   // Fetch services from database
   const { data: services = [] } = useQuery({
