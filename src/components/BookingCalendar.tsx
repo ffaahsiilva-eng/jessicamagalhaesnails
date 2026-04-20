@@ -118,14 +118,17 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
   }, [isOpen]);
 
   const fetchBookedSlots = async () => {
-    const { data, error } = await supabase
-      .from("appointments")
-      .select("appointment_date, appointment_time")
-      .gte("appointment_date", format(new Date(), "yyyy-MM-dd"))
-      .in("status", ["confirmed", "pending"]);
+    const { data, error } = await supabase.rpc("get_booked_slots", {
+      _from_date: format(new Date(), "yyyy-MM-dd"),
+    });
 
     if (!error && data) {
-      setBookedSlots(data);
+      setBookedSlots(
+        data.map((d: { appointment_date: string; appointment_time: string }) => ({
+          appointment_date: d.appointment_date,
+          appointment_time: d.appointment_time,
+        }))
+      );
     }
   };
 
