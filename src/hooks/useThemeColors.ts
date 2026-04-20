@@ -2,14 +2,14 @@ import { useEffect } from "react";
 import { useSiteSettings } from "./useSiteSettings";
 
 const defaultTheme = {
-  theme_primary_h: "350",
-  theme_primary_s: "60",
-  theme_primary_l: "65",
-  theme_accent_h: "15",
+  theme_primary_h: "42",
+  theme_primary_s: "65",
+  theme_primary_l: "52",
+  theme_accent_h: "38",
   theme_accent_s: "70",
-  theme_accent_l: "75",
-  theme_background_h: "20",
-  theme_background_s: "33",
+  theme_accent_l: "65",
+  theme_background_h: "40",
+  theme_background_s: "30",
   theme_background_l: "98",
 };
 
