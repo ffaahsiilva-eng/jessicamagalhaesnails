@@ -30,10 +30,12 @@ export const useSiteSettings = () => {
       
       return settingsMap;
     },
-    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
-    gcTime: 1000 * 60 * 30, // Keep in cache for 30 minutes
+    staleTime: 0,
+    gcTime: 1000 * 60 * 5,
     retry: 2,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
+    refetchOnMount: "always",
+    refetchOnReconnect: true,
   });
 
   const getSetting = useCallback(

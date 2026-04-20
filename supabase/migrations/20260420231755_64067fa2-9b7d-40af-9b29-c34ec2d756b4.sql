@@ -1,0 +1,9 @@
+UPDATE public.site_settings SET value = '42', updated_at = now() WHERE key = 'theme_primary_h';
+UPDATE public.site_settings SET value = '65', updated_at = now() WHERE key = 'theme_primary_s';
+UPDATE public.site_settings SET value = '52', updated_at = now() WHERE key = 'theme_primary_l';
+UPDATE public.site_settings SET value = '38', updated_at = now() WHERE key = 'theme_accent_h';
+UPDATE public.site_settings SET value = '70', updated_at = now() WHERE key = 'theme_accent_s';
+UPDATE public.site_settings SET value = '65', updated_at = now() WHERE key = 'theme_accent_l';
+UPDATE public.site_settings SET value = '40', updated_at = now() WHERE key = 'theme_background_h';
+UPDATE public.site_settings SET value = '30', updated_at = now() WHERE key = 'theme_background_s';
+UPDATE public.site_settings SET value = '98', updated_at = now() WHERE key = 'theme_background_l';
