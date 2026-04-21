@@ -109,7 +109,7 @@ const PriceTable = memo(() => {
                 `}
               >
                 {service.is_popular && (
-                  <div className="absolute -top-3 right-4 bg-primary text-primary-foreground text-xs font-body font-medium px-3 py-1 rounded-full flex items-center gap-1">
+                  <div className="btn-shine absolute -top-3 right-4 bg-primary text-primary-foreground text-xs font-body font-medium px-3 py-1 rounded-full flex items-center gap-1">
                     <Star className="h-3 w-3 fill-current" />
                     Popular
                   </div>
