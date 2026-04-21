@@ -8,68 +8,68 @@
 
 @layer base {
   :root {
-    /* Main Colors - Elegant Gold & White Theme */
-    --background: 40 30% 98%;
-    --foreground: 38 35% 12%;
+    /* Main Colors - Elegant Terracotta & White Theme */
+    --background: 30 25% 98%;
+    --foreground: 14 35% 14%;
 
     --card: 0 0% 100%;
-    --card-foreground: 38 35% 12%;
+    --card-foreground: 14 35% 14%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 38 35% 12%;
+    --popover-foreground: 14 35% 14%;
 
-    /* Gold Primary */
-    --primary: 42 65% 52%;
+    /* Terracotta Primary */
+    --primary: 14 55% 48%;
     --primary-foreground: 0 0% 100%;
 
-    /* Champagne Secondary */
-    --secondary: 40 35% 94%;
-    --secondary-foreground: 38 40% 20%;
+    /* Warm Sand Secondary */
+    --secondary: 25 35% 94%;
+    --secondary-foreground: 14 40% 22%;
 
     /* Soft Muted Tones */
-    --muted: 40 25% 96%;
-    --muted-foreground: 38 15% 40%;
+    --muted: 25 25% 96%;
+    --muted-foreground: 14 15% 40%;
 
-    /* Warm Gold Accent */
-    --accent: 38 70% 65%;
-    --accent-foreground: 38 40% 15%;
+    /* Light Terracotta Accent */
+    --accent: 18 60% 60%;
+    --accent-foreground: 14 40% 15%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 40 25% 88%;
-    --input: 40 25% 88%;
-    --ring: 42 65% 52%;
+    --border: 25 25% 88%;
+    --input: 25 25% 88%;
+    --ring: 14 55% 48%;
 
     --radius: 1rem;
 
-    /* Custom Glamour Variables - Gold palette */
-    --rose-gold: 38 70% 65%;
-    --blush: 42 60% 92%;
-    --nude: 40 30% 88%;
-    --champagne: 42 55% 88%;
-    --deep-rose: 38 55% 30%;
+    /* Custom Glamour Variables - Terracotta palette */
+    --rose-gold: 18 60% 60%;
+    --blush: 14 60% 92%;
+    --nude: 25 30% 88%;
+    --champagne: 18 55% 88%;
+    --deep-rose: 14 55% 32%;
 
-    /* Gradients - White to Gold elegance */
-    --gradient-hero: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(42 60% 92%) 50%, hsl(38 70% 78%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(40 30% 98%) 100%);
-    --gradient-button: linear-gradient(135deg, hsl(42 70% 55%) 0%, hsl(38 75% 65%) 50%, hsl(45 80% 75%) 100%);
-    --gradient-gold: linear-gradient(135deg, hsl(45 75% 70%) 0%, hsl(42 70% 60%) 50%, hsl(38 65% 50%) 100%);
+    /* Gradients - White to Terracotta elegance */
+    --gradient-hero: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(18 60% 92%) 50%, hsl(14 65% 78%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(30 25% 98%) 100%);
+    --gradient-button: linear-gradient(135deg, hsl(14 60% 45%) 0%, hsl(18 65% 58%) 50%, hsl(20 70% 70%) 100%);
+    --gradient-gold: linear-gradient(135deg, hsl(20 70% 70%) 0%, hsl(18 65% 58%) 50%, hsl(14 60% 45%) 100%);
 
     /* Shadows */
-    --shadow-soft: 0 4px 20px -4px hsl(42 50% 50% / 0.15);
-    --shadow-card: 0 8px 32px -8px hsl(38 50% 40% / 0.12);
-    --shadow-button: 0 4px 16px -4px hsl(42 65% 50% / 0.35);
-    --shadow-glow: 0 0 40px -10px hsl(42 75% 60% / 0.45);
+    --shadow-soft: 0 4px 20px -4px hsl(14 50% 45% / 0.18);
+    --shadow-card: 0 8px 32px -8px hsl(14 50% 35% / 0.14);
+    --shadow-button: 0 4px 16px -4px hsl(14 55% 45% / 0.40);
+    --shadow-glow: 0 0 40px -10px hsl(18 65% 55% / 0.45);
 
-    --sidebar-background: 40 30% 98%;
-    --sidebar-foreground: 38 35% 20%;
-    --sidebar-primary: 42 65% 52%;
+    --sidebar-background: 30 25% 98%;
+    --sidebar-foreground: 14 35% 20%;
+    --sidebar-primary: 14 55% 48%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 40 35% 94%;
-    --sidebar-accent-foreground: 38 40% 20%;
-    --sidebar-border: 40 25% 88%;
-    --sidebar-ring: 42 65% 52%;
+    --sidebar-accent: 25 35% 94%;
+    --sidebar-accent-foreground: 14 40% 22%;
+    --sidebar-border: 25 25% 88%;
+    --sidebar-ring: 14 55% 48%;
   }
 
   .dark {
@@ -183,11 +183,44 @@
   .animate-pulse-soft {
     animation: pulse-soft 3s ease-in-out infinite;
   }
+
+  /* Shimmer/Reflection effect for terracotta buttons */
+  .btn-shine {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .btn-shine::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -150%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(
+      120deg,
+      transparent 0%,
+      hsl(0 0% 100% / 0.05) 30%,
+      hsl(0 0% 100% / 0.55) 50%,
+      hsl(0 0% 100% / 0.05) 70%,
+      transparent 100%
+    );
+    transform: skewX(-20deg);
+    animation: btn-shine 3.2s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .btn-shine > * {
+    position: relative;
+    z-index: 2;
+  }
 }
 
 @layer utilities {
   .text-shadow-soft {
-    text-shadow: 0 2px 10px hsl(350 30% 50% / 0.2);
+    text-shadow: 0 2px 10px hsl(14 30% 35% / 0.2);
   }
 
   .safe-area-bottom {
@@ -196,33 +229,21 @@
 }
 
 @keyframes float {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
 }
 
 @keyframes shimmer {
-  0% {
-    opacity: 0.7;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0.7;
-  }
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
 }
 
 @keyframes pulse-soft {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.02);
-    opacity: 0.9;
-  }
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.02); opacity: 0.9; }
+}
+
+@keyframes btn-shine {
+  0% { left: -150%; }
+  60%, 100% { left: 150%; }
 }
