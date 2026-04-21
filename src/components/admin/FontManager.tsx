@@ -24,6 +24,21 @@ const displayFonts = [
   { value: "Crimson Text", label: "Crimson Text", style: "Editorial" },
   { value: "DM Serif Display", label: "DM Serif Display", style: "Contemporânea" },
   { value: "Bodoni Moda", label: "Bodoni Moda", style: "Luxuosa" },
+  { value: "Cinzel", label: "Cinzel", style: "Romana & Premium" },
+  { value: "Marcellus", label: "Marcellus", style: "Refinada" },
+  { value: "Italiana", label: "Italiana", style: "Delicada" },
+  { value: "Cormorant Infant", label: "Cormorant Infant", style: "Suave" },
+  { value: "EB Garamond", label: "EB Garamond", style: "Clássica" },
+  { value: "Prata", label: "Prata", style: "Minimalista" },
+  { value: "Tenor Sans", label: "Tenor Sans", style: "Moderna" },
+  { value: "Cardo", label: "Cardo", style: "Acadêmica" },
+  { value: "Spectral", label: "Spectral", style: "Versátil" },
+  { value: "Yeseva One", label: "Yeseva One", style: "Decorativa" },
+  { value: "Abril Fatface", label: "Abril Fatface", style: "Display Forte" },
+  { value: "Great Vibes", label: "Great Vibes", style: "Caligráfica" },
+  { value: "Dancing Script", label: "Dancing Script", style: "Manuscrita" },
+  { value: "Pinyon Script", label: "Pinyon Script", style: "Cursiva Fina" },
+  { value: "Allura", label: "Allura", style: "Romântica" },
 ];
 
 const bodyFonts = [
@@ -35,6 +50,18 @@ const bodyFonts = [
   { value: "Poppins", label: "Poppins", style: "Geométrica" },
   { value: "Raleway", label: "Raleway", style: "Elegante" },
   { value: "Work Sans", label: "Work Sans", style: "Profissional" },
+  { value: "Inter", label: "Inter", style: "Tech Moderno" },
+  { value: "DM Sans", label: "DM Sans", style: "Minimalista" },
+  { value: "Manrope", label: "Manrope", style: "Suave" },
+  { value: "Karla", label: "Karla", style: "Limpa" },
+  { value: "Quicksand", label: "Quicksand", style: "Casual" },
+  { value: "Mulish", label: "Mulish", style: "Equilibrada" },
+  { value: "Source Sans 3", label: "Source Sans 3", style: "Editorial" },
+  { value: "Noto Sans", label: "Noto Sans", style: "Universal" },
+  { value: "PT Sans", label: "PT Sans", style: "Confortável" },
+  { value: "Rubik", label: "Rubik", style: "Amigável Geométrica" },
+  { value: "Barlow", label: "Barlow", style: "Industrial" },
+  { value: "Outfit", label: "Outfit", style: "Contemporânea" },
 ];
 
 const headingSizes = [
