@@ -8,20 +8,20 @@ import { useToast } from "@/hooks/use-toast";
 import { useSiteSettingsAdmin, SiteSetting } from "@/hooks/useSiteSettings";
 
 const defaultTheme = {
-  theme_primary_h: "42",
-  theme_primary_s: "65",
-  theme_primary_l: "52",
-  theme_accent_h: "38",
-  theme_accent_s: "70",
-  theme_accent_l: "65",
-  theme_background_h: "40",
-  theme_background_s: "30",
+  theme_primary_h: "14",
+  theme_primary_s: "55",
+  theme_primary_l: "48",
+  theme_accent_h: "18",
+  theme_accent_s: "60",
+  theme_accent_l: "60",
+  theme_background_h: "30",
+  theme_background_s: "25",
   theme_background_l: "98",
 };
 
 const colorLabels: Record<string, string> = {
-  theme_primary: "Cor Primária (Dourado dos botões e links)",
-  theme_accent: "Cor de Destaque (Dourado claro)",
+  theme_primary: "Cor Primária (Terracota dos botões e links)",
+  theme_accent: "Cor de Destaque (Terracota claro)",
   theme_background: "Cor de Fundo (Branco elegante)",
 };
 

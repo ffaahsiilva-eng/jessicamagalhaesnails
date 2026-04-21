@@ -133,13 +133,17 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
   };
 
   const fetchBlockedSlots = async () => {
-    const { data, error } = await supabase
-      .from("blocked_slots")
-      .select("blocked_date, blocked_time")
-      .gte("blocked_date", format(new Date(), "yyyy-MM-dd"));
+    const { data, error } = await supabase.rpc("get_blocked_slots", {
+      _from_date: format(new Date(), "yyyy-MM-dd"),
+    });
 
     if (!error && data) {
-      setBlockedSlots(data);
+      setBlockedSlots(
+        data.map((d: { blocked_date: string; blocked_time: string }) => ({
+          blocked_date: d.blocked_date,
+          blocked_time: d.blocked_time,
+        }))
+      );
     }
   };
 

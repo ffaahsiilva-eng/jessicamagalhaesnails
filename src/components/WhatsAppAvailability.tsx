@@ -100,13 +100,13 @@ const WhatsAppAvailability = memo(({ whatsappNumber }: WhatsAppAvailabilityProps
   const { data: blockedSlots, isLoading: loadingBlocked } = useQuery({
     queryKey: ["blocked-slots-range", startDate, endDate],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("blocked_slots")
-        .select("blocked_date, blocked_time")
-        .gte("blocked_date", startDate)
-        .lte("blocked_date", endDate);
+      const { data, error } = await supabase.rpc("get_blocked_slots", {
+        _from_date: startDate,
+      });
       if (error) throw error;
-      return data as { blocked_date: string; blocked_time: string }[];
+      return (data as { blocked_date: string; blocked_time: string }[]).filter(
+        (b) => b.blocked_date <= endDate
+      );
     },
   });
 
