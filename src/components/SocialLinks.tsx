@@ -11,7 +11,7 @@ const SocialLinks = memo(({ instagram, whatsappNumber }: SocialLinksProps) => {
     {
       name: "Instagram",
       icon: Instagram,
-      href: instagram || "https://instagram.com",
+      href: instagram || "https://www.instagram.com/jessica_magalhaes_nail",
       color: "hover:text-pink-500",
     },
     {

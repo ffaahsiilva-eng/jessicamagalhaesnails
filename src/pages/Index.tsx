@@ -26,7 +26,7 @@ const Index = () => {
 
   // Get settings from database with fallbacks
   const whatsappNumber = getSetting("whatsapp_number", "559191837179");
-  const instagram = getSetting("instagram_url", "https://www.instagram.com/cantinho_da_je/");
+  const instagram = getSetting("instagram_url", "https://www.instagram.com/jessica_magalhaes_nail");
   
 
   return (
