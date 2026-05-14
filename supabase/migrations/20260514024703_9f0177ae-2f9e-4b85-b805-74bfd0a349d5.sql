@@ -1,0 +1,1 @@
+UPDATE public.site_settings SET value='https://www.instagram.com/jessica_magalhaes_nail', updated_at=now() WHERE key='instagram_url';

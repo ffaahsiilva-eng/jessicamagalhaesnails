@@ -167,7 +167,7 @@ const WhatsAppAvailability = memo(({ whatsappNumber }: WhatsAppAvailabilityProps
       msg += `😔 Sem horários disponíveis no momento.\n\n`;
     }
 
-    const instagramUrl = getSetting("instagram_url", "https://www.instagram.com/cantinho_da_je/");
+    const instagramUrl = getSetting("instagram_url", "https://www.instagram.com/jessica_magalhaes_nail");
 
     msg += `——————————————\n`;
     msg += `🔗 *Agende online:*\n${window.location.origin}\n\n`;
