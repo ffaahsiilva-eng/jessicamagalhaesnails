@@ -257,6 +257,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         `*Horário:* ${selectedTime}\n` +
         `${notes.trim() ? `*Observações:* ${notes.trim()}\n` : ""}\n` +
         `Você pode confirmar meu agendamento?\n\n` +
+        `⏰ *Tolerância de 15 minutos para chegada.*\n\n` +
         `📸 *Instagram:* https://www.instagram.com/jessica_magalhaes_nail\n\n` +
         `📋 Painel de agendamentos:\nhttps://jessicamagalhaes.lovable.app/admin`
       );

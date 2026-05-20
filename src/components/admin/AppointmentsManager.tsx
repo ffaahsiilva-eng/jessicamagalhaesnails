@@ -125,6 +125,7 @@ const AppointmentsManager = () => {
       `🕐 *Horário:* ${apt.appointment_time.slice(0, 5)}\n` +
       `💅 *Serviço:* ${apt.service_type}\n\n` +
       `📖 ${getRandomVerse()}\n\n` +
+      `⏰ *Tolerância de 15 minutos para chegada.*\n\n` +
       `📸 *Instagram:* https://www.instagram.com/jessica_magalhaes_nail\n\n` +
       `🙏 Te espero! 💕`
     );
