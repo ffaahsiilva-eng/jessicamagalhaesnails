@@ -151,6 +151,8 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
     if (!date) return timeSlots;
     
     const dateStr = format(date, "yyyy-MM-dd");
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    const isToday = dateStr === todayStr;
     
     const bookedTimes = bookedSlots
       .filter((slot) => slot.appointment_date === dateStr)
@@ -162,7 +164,19 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
 
     const unavailableTimes = [...bookedTimes, ...blockedTimes];
     
-    return timeSlots.filter((time) => !unavailableTimes.includes(time));
+    // Same-day bookings require at least 4 hours of lead time
+    const minBookingTime = isToday ? new Date(Date.now() + 4 * 60 * 60 * 1000) : null;
+    
+    return timeSlots.filter((time) => {
+      if (unavailableTimes.includes(time)) return false;
+      if (minBookingTime) {
+        const [h, m] = time.split(":").map(Number);
+        const slotDate = new Date();
+        slotDate.setHours(h, m, 0, 0);
+        if (slotDate < minBookingTime) return false;
+      }
+      return true;
+    });
   };
 
   const validateForm = () => {
