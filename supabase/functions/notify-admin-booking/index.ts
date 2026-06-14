@@ -57,8 +57,8 @@ Deno.serve(async (req) => {
       `📅 *Data:* ${formattedDate}\n` +
       `🕐 *Horário:* ${time}\n` +
       (body.notes ? `📝 *Obs:* ${body.notes}\n` : '') +
-      `\n❓ *Confirma este agendamento?*\n` +
-      `Responda *SIM* para confirmar ou *NÃO* para cancelar.\n\n` +
+      `\n❓ *Confirma este agendamento?*\n\n` +
+      `Entre no link para Confirmar ou Cancelar:\n` +
       `📋 Painel: https://jessicamagalhaes.lovable.app/admin`;
 
     const adminNumber = config.admin_number.replace(/\D/g, '');
