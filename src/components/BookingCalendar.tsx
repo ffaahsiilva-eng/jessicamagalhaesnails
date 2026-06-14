@@ -426,10 +426,14 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                   </SelectTrigger>
                   <SelectContent className="z-[80]">
                     {services.map((service) => (
-                      <SelectItem key={service} value={service}>
-                        {service}
+                      <SelectItem key={service.name} value={service.name}>
+                        <span className="flex items-center justify-between gap-3 w-full">
+                          <span>{service.name}</span>
+                          <span className="text-primary font-semibold text-sm">{service.price}</span>
+                        </span>
                       </SelectItem>
                     ))}
+
                   </SelectContent>
                 </Select>
               </div>
