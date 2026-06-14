@@ -49,8 +49,23 @@ Deno.serve(async (req) => {
     const formattedDate = `${d}/${m}/${y}`;
     const time = body.appointment_time.slice(0, 5);
 
+    const action = body.action ?? 'new';
+    const header =
+      action === 'confirmed'
+        ? '✅ *AGENDAMENTO CONFIRMADO*'
+        : action === 'cancelled'
+          ? '❌ *AGENDAMENTO CANCELADO*'
+          : '🔔 *NOVO AGENDAMENTO*';
+
+    const footer =
+      action === 'new'
+        ? `\n❓ *Confirma este agendamento?*\n\n` +
+          `Entre no link para Confirmar ou Cancelar:\n` +
+          `📋 Painel: https://jessicamagalhaes.lovable.app/admin`
+        : `\n📋 Painel: https://jessicamagalhaes.lovable.app/admin`;
+
     const text =
-      `🔔 *NOVO AGENDAMENTO*\n\n` +
+      `${header}\n\n` +
       `👤 *Cliente:* ${body.client_name}\n` +
       `📱 *Telefone:* ${body.client_phone}\n` +
       (body.client_email ? `✉️ *Email:* ${body.client_email}\n` : '') +
@@ -58,9 +73,7 @@ Deno.serve(async (req) => {
       `📅 *Data:* ${formattedDate}\n` +
       `🕐 *Horário:* ${time}\n` +
       (body.notes ? `📝 *Obs:* ${body.notes}\n` : '') +
-      `\n❓ *Confirma este agendamento?*\n\n` +
-      `Entre no link para Confirmar ou Cancelar:\n` +
-      `📋 Painel: https://jessicamagalhaes.lovable.app/admin`;
+      footer;
 
     const adminNumber = config.admin_number.replace(/\D/g, '');
 
