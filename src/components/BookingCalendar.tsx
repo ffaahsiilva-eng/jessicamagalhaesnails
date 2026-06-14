@@ -100,15 +100,16 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
     queryFn: async () => {
       const { data, error } = await supabase
         .from("services")
-        .select("name")
+        .select("name, price")
         .eq("is_active", true)
         .order("display_order", { ascending: true });
 
       if (error) throw error;
-      return data.map((s) => s.name);
+      return data as { name: string; price: string }[];
     },
     enabled: isOpen,
   });
+
 
   useEffect(() => {
     if (isOpen) {
