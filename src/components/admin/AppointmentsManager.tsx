@@ -426,7 +426,7 @@ const AppointmentsManager = () => {
                           <Button size="sm" className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs" onClick={() => updateStatus(apt.id, "confirmed", apt)} disabled={isUpdating === apt.id}>
                             <Check className="h-3 w-3 mr-1" /> Confirmar
                           </Button>
-                          <Button size="sm" variant="outline" className="border-rose-200 text-rose-600 h-8 text-xs" onClick={() => updateStatus(apt.id, "cancelled")} disabled={isUpdating === apt.id}>
+                          <Button size="sm" variant="outline" className="border-rose-200 text-rose-600 h-8 text-xs" onClick={() => updateStatus(apt.id, "cancelled", apt)} disabled={isUpdating === apt.id}>
                             <X className="h-3 w-3" />
                           </Button>
                         </>
