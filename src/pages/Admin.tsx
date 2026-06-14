@@ -51,6 +51,7 @@ import GalleryManager from "@/components/admin/GalleryManager";
 import SiteSettingsManager from "@/components/admin/SiteSettingsManager";
 import ThemeColorManager from "@/components/admin/ThemeColorManager";
 import FontManager from "@/components/admin/FontManager";
+import WhatsAppApiManager from "@/components/admin/WhatsAppApiManager";
 import WhatsAppAvailability from "@/components/WhatsAppAvailability";
 import AppointmentsManager from "@/components/admin/AppointmentsManager";
 import type { Tables } from "@/integrations/supabase/types";
