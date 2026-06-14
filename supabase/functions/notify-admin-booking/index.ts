@@ -9,6 +9,7 @@ interface BookingPayload {
   appointment_date: string;
   appointment_time: string;
   notes?: string | null;
+  action?: 'new' | 'confirmed' | 'cancelled';
 }
 
 Deno.serve(async (req) => {
