@@ -263,6 +263,36 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_config: {
+        Row: {
+          admin_number: string
+          created_at: string
+          enabled: boolean
+          id: string
+          instance_id: string
+          instance_token: string
+          updated_at: string
+        }
+        Insert: {
+          admin_number?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          instance_id?: string
+          instance_token?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_number?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          instance_id?: string
+          instance_token?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
