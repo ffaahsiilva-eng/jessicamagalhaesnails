@@ -249,10 +249,17 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
 
       if (error) throw error;
 
-      // Fire-and-forget: notify admin via WhatsApp API (if configured)
-      supabase.functions
-        .invoke("notify-admin-booking", { body: appointmentPayload })
-        .catch((err) => console.warn("notify-admin-booking failed:", err));
+      // Notify admin via WhatsApp API (if configured) — await so the request isn't aborted
+      try {
+        const { data: notifyData, error: notifyErr } = await supabase.functions.invoke(
+          "notify-admin-booking",
+          { body: { ...appointmentPayload, action: "new" } },
+        );
+        if (notifyErr) console.warn("notify-admin-booking error:", notifyErr);
+        else console.log("notify-admin-booking result:", notifyData);
+      } catch (err) {
+        console.warn("notify-admin-booking failed:", err);
+      }
 
 
       const formattedDate = format(selectedDate, "dd/MM/yyyy", { locale: ptBR });
