@@ -340,7 +340,7 @@ const AppointmentsManager = () => {
                                   size="icon"
                                   variant="ghost"
                                   className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50"
-                                  onClick={() => updateStatus(apt.id, "cancelled")}
+                                  onClick={() => updateStatus(apt.id, "cancelled", apt)}
                                   disabled={isUpdating === apt.id}
                                   title="Cancelar"
                                 >
