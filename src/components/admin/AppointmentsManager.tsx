@@ -133,6 +133,25 @@ const AppointmentsManager = () => {
     window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
   };
 
+  const notifyAdmin = async (apt: Appointment, action: "confirmed" | "cancelled") => {
+    try {
+      await supabase.functions.invoke("notify-admin-booking", {
+        body: {
+          client_name: apt.client_name,
+          client_phone: apt.client_phone,
+          client_email: apt.client_email,
+          service_type: apt.service_type,
+          appointment_date: apt.appointment_date,
+          appointment_time: apt.appointment_time,
+          notes: apt.notes,
+          action,
+        },
+      });
+    } catch (e) {
+      console.error("notify-admin-booking failed", e);
+    }
+  };
+
   const updateStatus = async (id: string, status: string, apt?: Appointment) => {
     setIsUpdating(id);
     const { error } = await supabase.from("appointments").update({ status }).eq("id", id);
@@ -140,6 +159,9 @@ const AppointmentsManager = () => {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
       toast({ title: `Status: ${statusLabels[status]}` });
+      if (apt && (status === "confirmed" || status === "cancelled")) {
+        notifyAdmin(apt, status);
+      }
       if (status === "confirmed" && apt) sendWhatsAppConfirmation(apt);
       fetchAppointments();
     }
@@ -318,7 +340,7 @@ const AppointmentsManager = () => {
                                   size="icon"
                                   variant="ghost"
                                   className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50"
-                                  onClick={() => updateStatus(apt.id, "cancelled")}
+                                  onClick={() => updateStatus(apt.id, "cancelled", apt)}
                                   disabled={isUpdating === apt.id}
                                   title="Cancelar"
                                 >
@@ -404,7 +426,7 @@ const AppointmentsManager = () => {
                           <Button size="sm" className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs" onClick={() => updateStatus(apt.id, "confirmed", apt)} disabled={isUpdating === apt.id}>
                             <Check className="h-3 w-3 mr-1" /> Confirmar
                           </Button>
-                          <Button size="sm" variant="outline" className="border-rose-200 text-rose-600 h-8 text-xs" onClick={() => updateStatus(apt.id, "cancelled")} disabled={isUpdating === apt.id}>
+                          <Button size="sm" variant="outline" className="border-rose-200 text-rose-600 h-8 text-xs" onClick={() => updateStatus(apt.id, "cancelled", apt)} disabled={isUpdating === apt.id}>
                             <X className="h-3 w-3" />
                           </Button>
                         </>
