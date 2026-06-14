@@ -133,6 +133,25 @@ const AppointmentsManager = () => {
     window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
   };
 
+  const notifyAdmin = async (apt: Appointment, action: "confirmed" | "cancelled") => {
+    try {
+      await supabase.functions.invoke("notify-admin-booking", {
+        body: {
+          client_name: apt.client_name,
+          client_phone: apt.client_phone,
+          client_email: apt.client_email,
+          service_type: apt.service_type,
+          appointment_date: apt.appointment_date,
+          appointment_time: apt.appointment_time,
+          notes: apt.notes,
+          action,
+        },
+      });
+    } catch (e) {
+      console.error("notify-admin-booking failed", e);
+    }
+  };
+
   const updateStatus = async (id: string, status: string, apt?: Appointment) => {
     setIsUpdating(id);
     const { error } = await supabase.from("appointments").update({ status }).eq("id", id);
@@ -140,6 +159,9 @@ const AppointmentsManager = () => {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
       toast({ title: `Status: ${statusLabels[status]}` });
+      if (apt && (status === "confirmed" || status === "cancelled")) {
+        notifyAdmin(apt, status);
+      }
       if (status === "confirmed" && apt) sendWhatsAppConfirmation(apt);
       fetchAppointments();
     }
