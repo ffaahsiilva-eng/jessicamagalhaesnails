@@ -44,7 +44,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const apiUrl = Deno.env.get('ORBSOFTY_API_URL') ?? 'https://nova.orbsofty.com';
+    const rawApiUrl = (Deno.env.get('ORBSOFTY_API_URL') ?? 'https://nova.orbsofty.com').trim();
+    const apiUrl = /^https?:\/\//i.test(rawApiUrl) ? rawApiUrl : `https://${rawApiUrl}`;
 
     const [y, m, d] = body.appointment_date.split('-');
     const formattedDate = `${d}/${m}/${y}`;
