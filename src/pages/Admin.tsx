@@ -51,6 +51,7 @@ import GalleryManager from "@/components/admin/GalleryManager";
 import SiteSettingsManager from "@/components/admin/SiteSettingsManager";
 import ThemeColorManager from "@/components/admin/ThemeColorManager";
 import FontManager from "@/components/admin/FontManager";
+import WhatsAppApiManager from "@/components/admin/WhatsAppApiManager";
 import WhatsAppAvailability from "@/components/WhatsAppAvailability";
 import AppointmentsManager from "@/components/admin/AppointmentsManager";
 import type { Tables } from "@/integrations/supabase/types";
@@ -864,8 +865,10 @@ const Admin = () => {
           </div>
 
           {/* Font Manager */}
-          <div className="mt-6">
+          {/* Font Manager & WhatsApp API */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mt-6">
             <FontManager />
+            <WhatsAppApiManager />
           </div>
         </>
         )}

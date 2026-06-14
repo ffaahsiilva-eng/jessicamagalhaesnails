@@ -233,7 +233,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
       
       const cleanPhone = phone.replace(/\D/g, "");
 
-      const { error } = await supabase.from("appointments").insert({
+      const appointmentPayload = {
         user_id: user?.id || null,
         client_name: name.trim(),
         client_email: email.trim() || null,
@@ -243,9 +243,17 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         appointment_time: selectedTime,
         notes: notes.trim() || null,
         status: "pending",
-      });
+      };
+
+      const { error } = await supabase.from("appointments").insert(appointmentPayload);
 
       if (error) throw error;
+
+      // Fire-and-forget: notify admin via WhatsApp API (if configured)
+      supabase.functions
+        .invoke("notify-admin-booking", { body: appointmentPayload })
+        .catch((err) => console.warn("notify-admin-booking failed:", err));
+
 
       const formattedDate = format(selectedDate, "dd/MM/yyyy", { locale: ptBR });
       const message = encodeURIComponent(
