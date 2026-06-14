@@ -44,9 +44,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    const rawApiUrl = (Deno.env.get('ORBSOFTY_API_URL') ?? 'https://nova.orbsofty.com').trim();
-    const apiUrl = /^https?:\/\//i.test(rawApiUrl) ? rawApiUrl : `https://${rawApiUrl}`;
-
     const [y, m, d] = body.appointment_date.split('-');
     const formattedDate = `${d}/${m}/${y}`;
     const time = body.appointment_time.slice(0, 5);
@@ -64,19 +61,20 @@ Deno.serve(async (req) => {
       `Responda *SIM* para confirmar ou *NÃO* para cancelar.\n\n` +
       `📋 Painel: https://jessicamagalhaes.lovable.app/admin`;
 
-    const endpoint = `${apiUrl.replace(/\/$/, '')}/send/text`;
     const adminNumber = config.admin_number.replace(/\D/g, '');
+
+    // W-API format: https://api.w-api.app/v1/message/send-text?instanceId=XXX
+    const endpoint = `https://api.w-api.app/v1/message/send-text?instanceId=${encodeURIComponent(config.instance_id)}`;
 
     const sendRes = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        token: config.instance_token,
+        Authorization: `Bearer ${config.instance_token}`,
       },
       body: JSON.stringify({
-        instance: config.instance_id,
-        number: adminNumber,
-        text,
+        phone: adminNumber,
+        message: text,
       }),
     });
 
