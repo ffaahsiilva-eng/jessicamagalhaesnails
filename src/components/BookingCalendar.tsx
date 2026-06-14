@@ -100,15 +100,16 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
     queryFn: async () => {
       const { data, error } = await supabase
         .from("services")
-        .select("name")
+        .select("name, price")
         .eq("is_active", true)
         .order("display_order", { ascending: true });
 
       if (error) throw error;
-      return data.map((s) => s.name);
+      return data as { name: string; price: string }[];
     },
     enabled: isOpen,
   });
+
 
   useEffect(() => {
     if (isOpen) {
@@ -425,10 +426,14 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                   </SelectTrigger>
                   <SelectContent className="z-[80]">
                     {services.map((service) => (
-                      <SelectItem key={service} value={service}>
-                        {service}
+                      <SelectItem key={service.name} value={service.name}>
+                        <span className="flex items-center justify-between gap-3 w-full">
+                          <span>{service.name}</span>
+                          <span className="text-primary font-semibold text-sm">{service.price}</span>
+                        </span>
                       </SelectItem>
                     ))}
+
                   </SelectContent>
                 </Select>
               </div>
