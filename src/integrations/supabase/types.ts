@@ -140,6 +140,32 @@ export type Database = {
         }
         Relationships: []
       }
+      maintenance_reminders_sent: {
+        Row: {
+          appointment_id: string
+          id: string
+          sent_at: string
+        }
+        Insert: {
+          appointment_id: string
+          id?: string
+          sent_at?: string
+        }
+        Update: {
+          appointment_id?: string
+          id?: string
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_reminders_sent_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: true
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
