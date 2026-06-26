@@ -16,12 +16,24 @@ Deno.serve(async (req) => {
     brt.setUTCDate(brt.getUTCDate() - 20);
     const targetDate = brt.toISOString().split('T')[0];
 
-    const { data: appts, error } = await supabase
+    const { data: allAppts, error } = await supabase
       .from('appointments')
-      .select('client_name, client_phone, service_type, appointment_time, appointment_date')
+      .select('id, client_name, client_phone, service_type, appointment_time, appointment_date')
       .eq('appointment_date', targetDate)
       .eq('status', 'confirmed')
       .order('appointment_time', { ascending: true });
+
+    // Dedup: skip appointments that already received a reminder
+    const apptIds = (allAppts ?? []).map((a) => a.id);
+    let alreadySent = new Set<string>();
+    if (apptIds.length > 0) {
+      const { data: sentRows } = await supabase
+        .from('maintenance_reminders_sent')
+        .select('appointment_id')
+        .in('appointment_id', apptIds);
+      alreadySent = new Set((sentRows ?? []).map((r) => r.appointment_id as string));
+    }
+    const appts = (allAppts ?? []).filter((a) => !alreadySent.has(a.id));
 
     if (error) throw error;
 
@@ -89,6 +101,14 @@ Deno.serve(async (req) => {
         status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // Mark these appointments as reminded so we don't send again in this cycle
+    await supabase
+      .from('maintenance_reminders_sent')
+      .upsert(
+        appts.map((a) => ({ appointment_id: a.id })),
+        { onConflict: 'appointment_id', ignoreDuplicates: true },
+      );
 
     return new Response(JSON.stringify({ success: true, count: appts.length, date: targetDate }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
