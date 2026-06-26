@@ -102,6 +102,14 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Mark these appointments as reminded so we don't send again in this cycle
+    await supabase
+      .from('maintenance_reminders_sent')
+      .upsert(
+        appts.map((a) => ({ appointment_id: a.id })),
+        { onConflict: 'appointment_id', ignoreDuplicates: true },
+      );
+
     return new Response(JSON.stringify({ success: true, count: appts.length, date: targetDate }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
