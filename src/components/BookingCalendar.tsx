@@ -263,12 +263,14 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
 
 
       const formattedDate = format(selectedDate, "dd/MM/yyyy", { locale: ptBR });
+      const selectedServiceData = services.find((s) => s.name === selectedService);
+      const servicePrice = selectedServiceData?.price ? ` — ${selectedServiceData.price}` : "";
       const message = encodeURIComponent(
         `Olá! Gostaria de agendar um horário:\n\n` +
         `*Nome:* ${name.trim()}\n` +
         `*Telefone:* ${phone}\n` +
         `*Email:* ${email.trim()}\n` +
-        `*Serviço:* ${selectedService}\n` +
+        `*Serviço:* ${selectedService}${servicePrice}\n` +
         `*Data:* ${formattedDate}\n` +
         `*Horário:* ${selectedTime}\n` +
         `${notes.trim() ? `*Observações:* ${notes.trim()}\n` : ""}\n` +
