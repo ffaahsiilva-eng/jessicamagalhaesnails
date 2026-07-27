@@ -85,7 +85,18 @@ const GospelRadio = () => {
 
   return (
     <div className="fixed bottom-20 md:bottom-4 right-4 z-40 animate-in slide-in-from-bottom duration-500">
-      <div className="bg-card/95 backdrop-blur-md border border-border rounded-2xl shadow-card p-3 flex items-center gap-3">
+      <div className="relative bg-card/95 backdrop-blur-md border border-border rounded-2xl shadow-card p-3 flex items-center gap-3">
+        {/* Botão fechar */}
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={handleClose}
+          className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-card border border-border text-muted-foreground hover:text-foreground p-0"
+          aria-label="Fechar rádio"
+        >
+          <X className="h-3 w-3" />
+        </Button>
+
         {/* Indicador de rádio */}
         <div className="flex items-center gap-2">
           <div className="relative">
