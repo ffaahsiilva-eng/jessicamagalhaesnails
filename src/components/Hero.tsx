@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Calendar, Phone } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
@@ -7,7 +7,8 @@ import EditableText from "@/components/admin/EditableText";
 import EditableImage from "@/components/admin/EditableImage";
 import heroImageDefault from "@/assets/hero-nails.jpg";
 import portraitAsset from "@/assets/jessica-portrait.png.asset.json";
-import heroVideoAsset from "@/assets/hero-bg.mp4.asset.json";
+import heroVideoOptimized from "@/assets/hero-bg-optimized.mp4";
+import heroVideoPoster from "@/assets/hero-bg-poster.jpg";
 
 interface HeroProps {
   onBookClick: () => void;
@@ -17,25 +18,80 @@ interface HeroProps {
 const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
   const { getSetting } = useSiteSettings();
   const { isEditMode, isAdmin } = useAdminEdit();
-  const [scrollY, setScrollY] = useState(0);
+  const portraitRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    const onScroll = () => setScrollY(window.scrollY);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    let rafId: number | null = null;
+
+    const updatePortrait = () => {
+      const portrait = portraitRef.current;
+      if (!portrait) {
+        rafId = null;
+        return;
+      }
+
+      const vh = window.innerHeight || 800;
+      const progress = Math.min(1, Math.max(0, window.scrollY / (vh * 0.6)));
+      portrait.style.opacity = `${1 - progress}`;
+      portrait.style.transform = `translateZ(0) scale(${1 - progress * 0.05})`;
+      rafId = null;
+    };
+
+    const requestUpdate = () => {
+      if (rafId === null) {
+        rafId = window.requestAnimationFrame(updatePortrait);
+      }
+    };
+
+    requestUpdate();
+    window.addEventListener("scroll", requestUpdate, { passive: true });
+    window.addEventListener("resize", requestUpdate);
+    return () => {
+      window.removeEventListener("scroll", requestUpdate);
+      window.removeEventListener("resize", requestUpdate);
+      if (rafId !== null) window.cancelAnimationFrame(rafId);
+    };
+  }, []);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    video.muted = true;
+    video.defaultMuted = true;
+    video.playsInline = true;
+
+    const playVideo = () => {
+      if (!video.paused && !video.ended) return;
+      const playPromise = video.play();
+      if (playPromise) playPromise.catch(() => undefined);
+    };
+
+    const handleVisibility = () => {
+      if (!document.hidden) playVideo();
+    };
+
+    if (video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+      playVideo();
+    } else {
+      video.addEventListener("canplay", playVideo, { once: true });
+    }
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("pageshow", playVideo);
+
+    return () => {
+      video.removeEventListener("canplay", playVideo);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("pageshow", playVideo);
+    };
   }, []);
 
   const handleWhatsAppClick = useCallback(() => {
     const message = encodeURIComponent("Olá! Gostaria de agendar um horário.");
     window.open(`https://wa.me/${whatsappNumber}?text=${message}`, "_blank");
   }, [whatsappNumber]);
-
-  // Fade the portrait out over the first ~60% of the viewport scroll
-  const vh = typeof window !== "undefined" ? window.innerHeight : 800;
-  const progress = Math.min(1, Math.max(0, scrollY / (vh * 0.6)));
-  const portraitOpacity = 1 - progress;
-  const portraitScale = 1 - progress * 0.05;
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
@@ -50,14 +106,18 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
           />
         ) : (
           <video
-            src={heroVideoAsset.url}
-            className="w-full h-full object-cover"
+            ref={videoRef}
+            className="w-full h-full object-cover motion-safe:transform-gpu"
             autoPlay
             muted
             loop
             playsInline
             preload="auto"
-          />
+            poster={heroVideoPoster}
+            disablePictureInPicture
+          >
+            <source src={heroVideoOptimized} type="video/mp4" />
+          </video>
         )}
         <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/50 to-background pointer-events-none" />
       </div>
@@ -66,11 +126,8 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
       <div className="relative z-10 container mx-auto px-6 text-center">
         <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div
+            ref={portraitRef}
             className="mb-6 flex justify-center animate-in fade-in zoom-in-95 duration-700 will-change-transform"
-            style={{
-              opacity: portraitOpacity,
-              transform: `scale(${portraitScale})`,
-            }}
           >
             <div className="relative w-72 h-72 sm:w-80 sm:h-80 md:w-96 md:h-96">
               <img
