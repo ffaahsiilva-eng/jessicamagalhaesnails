@@ -123,11 +123,12 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
     <section
       ref={sectionRef}
       className={pinned ? "relative w-full" : "relative min-h-screen flex items-center justify-center overflow-hidden"}
-      style={pinned ? { height: "300vh" } : undefined}
+      style={pinned ? { height: "200vh" } : undefined}
     >
       <div
         ref={pinnedRef}
-        className={pinned ? "sticky top-0 h-screen w-full overflow-hidden flex items-center justify-center" : "contents"}
+        className={pinned ? "sticky top-0 w-full overflow-hidden flex items-center justify-center" : "contents"}
+        style={pinned ? { height: "100dvh" } : undefined}
       >
         {/* Background: scrubbed video (admin edit mode falls back to editable image) */}
         <div className="absolute inset-0 z-0">
@@ -147,9 +148,7 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
               preload="auto"
               poster={heroVideoPoster}
               disablePictureInPicture
-            >
-              <source src={heroVideoOptimized} type="video/mp4" />
-            </video>
+            />
           )}
           <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/50 to-background pointer-events-none" />
         </div>
