@@ -26,14 +26,21 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Background Image */}
+      {/* Background: scroll-scrubbed video (admin edit mode falls back to editable image) */}
       <div className="absolute inset-0 z-0">
-        <EditableImage
-          settingKey="hero_image_url"
-          defaultImage={heroImageDefault}
-          alt="Manicure profissional"
-          className="w-full h-full object-cover"
-        />
+        {isAdmin && isEditMode ? (
+          <EditableImage
+            settingKey="hero_image_url"
+            defaultImage={heroImageDefault}
+            alt="Manicure profissional"
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <ScrollScrubVideo
+            src={heroVideoAsset.url}
+            className="w-full h-full object-cover"
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/50 to-background pointer-events-none" />
       </div>
 
