@@ -25,12 +25,35 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const pinned = !(isAdmin && isEditMode);
 
-  // Scrub video + fade overlay content based on scroll while section is pinned
+  // Load the video as a Blob URL so the browser has the full file in memory —
+  // the dev server doesn't support HTTP Range requests, and without them
+  // `currentTime = t` seeks silently fail, breaking the scrub.
+  useEffect(() => {
+    if (!pinned) return;
+    const video = videoRef.current;
+    if (!video) return;
+    let cancelled = false;
+    let blobUrl: string | null = null;
+    fetch(heroVideoOptimized)
+      .then((r) => r.blob())
+      .then((blob) => {
+        if (cancelled) return;
+        blobUrl = URL.createObjectURL(blob);
+        video.src = blobUrl;
+        video.load();
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, [pinned]);
+
+  // Scrub video based on scroll while section is pinned
   useEffect(() => {
     if (!pinned) return;
     const section = sectionRef.current;
     const video = videoRef.current;
-    const content = contentRef.current;
     const indicator = scrollIndicatorRef.current;
     if (!section || !video) return;
 
@@ -44,9 +67,8 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
       duration = video.duration && isFinite(video.duration) ? video.duration : 0;
       update();
     };
-    if (!duration) {
-      video.addEventListener("loadedmetadata", onMeta, { once: true });
-    }
+    video.addEventListener("loadedmetadata", onMeta);
+    video.addEventListener("durationchange", onMeta);
 
     const clamp = (v: number, min = 0, max = 1) => Math.min(max, Math.max(min, v));
 
@@ -87,6 +109,7 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
       window.removeEventListener("scroll", request);
       window.removeEventListener("resize", request);
       video.removeEventListener("loadedmetadata", onMeta);
+      video.removeEventListener("durationchange", onMeta);
       if (rafId !== null) window.cancelAnimationFrame(rafId);
     };
   }, [pinned]);
@@ -100,11 +123,12 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
     <section
       ref={sectionRef}
       className={pinned ? "relative w-full" : "relative min-h-screen flex items-center justify-center overflow-hidden"}
-      style={pinned ? { height: "300vh" } : undefined}
+      style={pinned ? { height: "200vh" } : undefined}
     >
       <div
         ref={pinnedRef}
-        className={pinned ? "sticky top-0 h-screen w-full overflow-hidden flex items-center justify-center" : "contents"}
+        className={pinned ? "sticky top-0 w-full overflow-hidden flex items-center justify-center" : "contents"}
+        style={pinned ? { height: "100dvh" } : undefined}
       >
         {/* Background: scrubbed video (admin edit mode falls back to editable image) */}
         <div className="absolute inset-0 z-0">
@@ -124,9 +148,7 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
               preload="auto"
               poster={heroVideoPoster}
               disablePictureInPicture
-            >
-              <source src={heroVideoOptimized} type="video/mp4" />
-            </video>
+            />
           )}
           <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/50 to-background pointer-events-none" />
         </div>
