@@ -6,6 +6,7 @@ import { useAdminEdit } from "@/contexts/AdminEditContext";
 import EditableText from "@/components/admin/EditableText";
 import EditableImage from "@/components/admin/EditableImage";
 import heroImageDefault from "@/assets/hero-nails.jpg";
+import portraitAsset from "@/assets/jessica-portrait.png.asset.json";
 
 interface HeroProps {
   onBookClick: () => void;
