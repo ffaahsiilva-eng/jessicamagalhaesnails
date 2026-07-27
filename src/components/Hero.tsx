@@ -6,6 +6,7 @@ import { useAdminEdit } from "@/contexts/AdminEditContext";
 import EditableText from "@/components/admin/EditableText";
 import EditableImage from "@/components/admin/EditableImage";
 import heroImageDefault from "@/assets/hero-nails.jpg";
+import portraitAsset from "@/assets/jessica-portrait.png.asset.json";
 
 interface HeroProps {
   onBookClick: () => void;
@@ -37,6 +38,29 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
       {/* Content */}
       <div className="relative z-10 container mx-auto px-6 text-center">
         <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="mb-6 flex justify-center animate-in fade-in zoom-in-95 duration-700">
+            <div className="relative w-48 h-48 md:w-56 md:h-56">
+              <img
+                src={portraitAsset.url}
+                alt="Jéssica Magalhães"
+                className="w-full h-full object-cover object-top rounded-full"
+                style={{
+                  WebkitMaskImage:
+                    "radial-gradient(ellipse at center, black 55%, transparent 78%)",
+                  maskImage:
+                    "radial-gradient(ellipse at center, black 55%, transparent 78%)",
+                }}
+              />
+              <div
+                className="absolute inset-x-0 bottom-0 h-2/3 pointer-events-none rounded-full"
+                style={{
+                  background:
+                    "linear-gradient(to bottom, transparent 0%, hsl(var(--background) / 0.6) 55%, hsl(var(--background)) 100%)",
+                }}
+              />
+            </div>
+          </div>
+
           <div className="mb-4 animate-in fade-in zoom-in-95 duration-500 delay-150">
             {isAdmin && isEditMode ? (
               <EditableText
