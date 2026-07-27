@@ -113,10 +113,10 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
             loop
             playsInline
             preload="auto"
-            poster={heroVideoPoster}
+            poster={heroVideoPoster.url}
             disablePictureInPicture
           >
-            <source src={heroVideoOptimized} type="video/mp4" />
+            <source src={heroVideoOptimized.url} type="video/mp4" />
           </video>
         )}
         <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/50 to-background pointer-events-none" />
