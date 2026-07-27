@@ -107,7 +107,7 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
         ) : (
           <video
             ref={videoRef}
-            className="w-full h-full object-cover motion-safe:transform-gpu"
+            className="w-full h-full object-cover"
             autoPlay
             muted
             loop
@@ -116,7 +116,6 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
             poster={heroVideoPoster}
             disablePictureInPicture
           >
-            <source src={heroVideoWebm} type="video/webm" />
             <source src={heroVideoOptimized} type="video/mp4" />
           </video>
         )}
