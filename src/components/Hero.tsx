@@ -109,6 +109,7 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
       window.removeEventListener("scroll", request);
       window.removeEventListener("resize", request);
       video.removeEventListener("loadedmetadata", onMeta);
+      video.removeEventListener("durationchange", onMeta);
       if (rafId !== null) window.cancelAnimationFrame(rafId);
     };
   }, [pinned]);
