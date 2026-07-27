@@ -129,8 +129,9 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
         <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div
             ref={portraitRef}
-            className="mb-6 flex justify-center animate-in fade-in zoom-in-95 duration-700 will-change-transform"
+            className="mb-6 flex justify-center will-change-transform opacity-0 animate-portrait-fade-in"
           >
+
             <div className="relative w-72 h-72 sm:w-80 sm:h-80 md:w-96 md:h-96">
               <img
                 src={portraitAsset.url}
