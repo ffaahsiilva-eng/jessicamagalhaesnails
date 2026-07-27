@@ -25,12 +25,35 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const pinned = !(isAdmin && isEditMode);
 
-  // Scrub video + fade overlay content based on scroll while section is pinned
+  // Load the video as a Blob URL so the browser has the full file in memory —
+  // the dev server doesn't support HTTP Range requests, and without them
+  // `currentTime = t` seeks silently fail, breaking the scrub.
+  useEffect(() => {
+    if (!pinned) return;
+    const video = videoRef.current;
+    if (!video) return;
+    let cancelled = false;
+    let blobUrl: string | null = null;
+    fetch(heroVideoOptimized)
+      .then((r) => r.blob())
+      .then((blob) => {
+        if (cancelled) return;
+        blobUrl = URL.createObjectURL(blob);
+        video.src = blobUrl;
+        video.load();
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, [pinned]);
+
+  // Scrub video based on scroll while section is pinned
   useEffect(() => {
     if (!pinned) return;
     const section = sectionRef.current;
     const video = videoRef.current;
-    const content = contentRef.current;
     const indicator = scrollIndicatorRef.current;
     if (!section || !video) return;
 
@@ -44,9 +67,8 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
       duration = video.duration && isFinite(video.duration) ? video.duration : 0;
       update();
     };
-    if (!duration) {
-      video.addEventListener("loadedmetadata", onMeta, { once: true });
-    }
+    video.addEventListener("loadedmetadata", onMeta);
+    video.addEventListener("durationchange", onMeta);
 
     const clamp = (v: number, min = 0, max = 1) => Math.min(max, Math.max(min, v));
 
