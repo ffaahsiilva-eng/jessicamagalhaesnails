@@ -48,19 +48,28 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
       video.addEventListener("loadedmetadata", onMeta, { once: true });
     }
 
+    const pinnedEl = pinnedRef.current;
+
+    // easing helpers for a smoother, non-linear feel
+    const clamp = (v: number, min = 0, max = 1) => Math.min(max, Math.max(min, v));
+    const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+    const range = (p: number, a: number, b: number) => clamp((p - a) / (b - a));
+
     let rafId: number | null = null;
     const update = () => {
       rafId = null;
       const vh = window.innerHeight || 800;
       const rect = section.getBoundingClientRect();
-      // pinDistance = section height - vh (from HTML: 300vh - 100vh = 200vh)
+      // pinDistance = section height - vh
       const pinDistance = section.offsetHeight - vh;
       const scrolled = Math.min(Math.max(-rect.top, 0), pinDistance);
       const progress = pinDistance > 0 ? scrolled / pinDistance : 0;
 
+      // scrub the video across a slightly compressed window so it finishes
+      // just before the unpin, leaving room for a clean handoff
       if (duration) {
-        const t = progress * duration;
-        // avoid tiny redundant seeks
+        const videoProgress = clamp(progress / 0.9);
+        const t = videoProgress * duration;
         if (Math.abs(video.currentTime - t) > 0.03) {
           try {
             video.currentTime = t;
@@ -69,12 +78,20 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
       }
 
       if (content) {
-        const fade = Math.min(1, progress / 0.85);
+        // fade content out gently between 5% and 65% of the pin
+        const fade = easeInOut(range(progress, 0.05, 0.65));
         content.style.opacity = `${1 - fade}`;
         content.style.transform = `translate3d(0, ${-fade * 40}px, 0) scale(${1 - fade * 0.04})`;
       }
       if (indicator) {
-        indicator.style.opacity = `${1 - Math.min(1, progress / 0.2)}`;
+        indicator.style.opacity = `${1 - clamp(progress / 0.15)}`;
+      }
+      if (pinnedEl) {
+        // fade the entire pinned hero to background near the end so the next
+        // section is already visually present when the sticky releases —
+        // eliminates the perceived "jump"
+        const outro = easeInOut(range(progress, 0.82, 1));
+        pinnedEl.style.opacity = `${1 - outro}`;
       }
     };
 
@@ -90,6 +107,7 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
       window.removeEventListener("resize", request);
       video.removeEventListener("loadedmetadata", onMeta);
       if (rafId !== null) window.cancelAnimationFrame(rafId);
+      if (pinnedEl) pinnedEl.style.opacity = "";
     };
   }, [pinned]);
 
