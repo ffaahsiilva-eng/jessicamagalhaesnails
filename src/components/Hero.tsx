@@ -7,8 +7,8 @@ import EditableText from "@/components/admin/EditableText";
 import EditableImage from "@/components/admin/EditableImage";
 import heroImageDefault from "@/assets/hero-nails.jpg";
 import portraitAsset from "@/assets/jessica-portrait.png.asset.json";
-import heroVideoOptimized from "@/assets/hero-bg-optimized.mp4";
-import heroVideoPoster from "@/assets/hero-bg-poster.jpg";
+import heroVideoOptimized from "@/assets/hero-bg-optimized.mp4.asset.json";
+import heroVideoPoster from "@/assets/hero-bg-poster.jpg.asset.json";
 
 interface HeroProps {
   onBookClick: () => void;
@@ -113,10 +113,10 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
             loop
             playsInline
             preload="auto"
-            poster={heroVideoPoster}
+            poster={heroVideoPoster.url}
             disablePictureInPicture
           >
-            <source src={heroVideoOptimized} type="video/mp4" />
+            <source src={heroVideoOptimized.url} type="video/mp4" />
           </video>
         )}
         <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/50 to-background pointer-events-none" />
