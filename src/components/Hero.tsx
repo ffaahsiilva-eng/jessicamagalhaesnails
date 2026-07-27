@@ -7,6 +7,7 @@ import EditableText from "@/components/admin/EditableText";
 import EditableImage from "@/components/admin/EditableImage";
 import heroImageDefault from "@/assets/hero-nails.jpg";
 import portraitAsset from "@/assets/jessica-portrait.png.asset.json";
+import heroVideoWebm from "@/assets/hero-bg-optimized.webm";
 import heroVideoOptimized from "@/assets/hero-bg-optimized.mp4";
 import heroVideoPoster from "@/assets/hero-bg-poster.jpg";
 
@@ -116,6 +117,7 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
             poster={heroVideoPoster}
             disablePictureInPicture
           >
+            <source src={heroVideoWebm} type="video/webm" />
             <source src={heroVideoOptimized} type="video/mp4" />
           </video>
         )}
