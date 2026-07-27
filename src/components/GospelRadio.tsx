@@ -73,6 +73,16 @@ const GospelRadio = () => {
     }
   };
 
+  const handleClose = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+    setIsPlaying(false);
+    setIsVisible(false);
+  };
+
+  if (!isVisible) return null;
+
   return (
     <div className="fixed bottom-20 md:bottom-4 right-4 z-40 animate-in slide-in-from-bottom duration-500">
       <div className="bg-card/95 backdrop-blur-md border border-border rounded-2xl shadow-card p-3 flex items-center gap-3">
