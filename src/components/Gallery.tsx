@@ -14,6 +14,7 @@ import gallery1 from "@/assets/gallery-1.jpg";
 import gallery2 from "@/assets/gallery-2.jpg";
 import gallery3 from "@/assets/gallery-3.jpg";
 import gallery4 from "@/assets/gallery-4.jpg";
+import portfolioPortrait from "@/assets/jessica-portfolio.png.asset.json";
 
 const defaultImages = [
   { src: gallery1, alt: "Nail art floral rosa" },
@@ -162,6 +163,29 @@ const Gallery = memo(() => {
     <section id="galeria" className="py-20 bg-background">
       <div className="container mx-auto px-6">
         <div className="text-center mb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="mb-6 flex justify-center">
+            <div className="relative w-60 h-60 sm:w-72 sm:h-72 md:w-80 md:h-80">
+              <img
+                src={portfolioPortrait.url}
+                alt="Jéssica Magalhães"
+                loading="lazy"
+                className="w-full h-full object-cover object-top rounded-full"
+                style={{
+                  WebkitMaskImage:
+                    "radial-gradient(ellipse at center, black 55%, transparent 78%)",
+                  maskImage:
+                    "radial-gradient(ellipse at center, black 55%, transparent 78%)",
+                }}
+              />
+              <div
+                className="absolute inset-x-0 bottom-0 h-2/3 pointer-events-none rounded-full"
+                style={{
+                  background:
+                    "linear-gradient(to bottom, transparent 0%, hsl(var(--background) / 0.6) 55%, hsl(var(--background)) 100%)",
+                }}
+              />
+            </div>
+          </div>
           <EditableText
             settingKey="gallery_label"
             defaultValue="Portfólio"
