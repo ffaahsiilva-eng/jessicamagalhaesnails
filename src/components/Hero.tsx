@@ -18,75 +18,80 @@ interface HeroProps {
 const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
   const { getSetting } = useSiteSettings();
   const { isEditMode, isAdmin } = useAdminEdit();
-  const portraitRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
+  const pinnedRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const scrollIndicatorRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const pinned = !(isAdmin && isEditMode);
 
+  // Scrub video + fade overlay content based on scroll while section is pinned
   useEffect(() => {
-    let rafId: number | null = null;
-
-    const updatePortrait = () => {
-      const portrait = portraitRef.current;
-      if (!portrait) {
-        rafId = null;
-        return;
-      }
-
-      const vh = window.innerHeight || 800;
-      const progress = Math.min(1, Math.max(0, window.scrollY / (vh * 0.6)));
-      portrait.style.opacity = `${1 - progress}`;
-      portrait.style.transform = `translateZ(0) scale(${1 - progress * 0.05})`;
-      rafId = null;
-    };
-
-    const requestUpdate = () => {
-      if (rafId === null) {
-        rafId = window.requestAnimationFrame(updatePortrait);
-      }
-    };
-
-    requestUpdate();
-    window.addEventListener("scroll", requestUpdate, { passive: true });
-    window.addEventListener("resize", requestUpdate);
-    return () => {
-      window.removeEventListener("scroll", requestUpdate);
-      window.removeEventListener("resize", requestUpdate);
-      if (rafId !== null) window.cancelAnimationFrame(rafId);
-    };
-  }, []);
-
-  useEffect(() => {
+    if (!pinned) return;
+    const section = sectionRef.current;
     const video = videoRef.current;
-    if (!video) return;
+    const content = contentRef.current;
+    const indicator = scrollIndicatorRef.current;
+    if (!section || !video) return;
 
     video.muted = true;
     video.defaultMuted = true;
     video.playsInline = true;
+    video.pause();
 
-    const playVideo = () => {
-      if (!video.paused && !video.ended) return;
-      const playPromise = video.play();
-      if (playPromise) playPromise.catch(() => undefined);
+    let duration = video.duration && isFinite(video.duration) ? video.duration : 0;
+    const onMeta = () => {
+      duration = video.duration && isFinite(video.duration) ? video.duration : 0;
+      update();
     };
-
-    const handleVisibility = () => {
-      if (!document.hidden) playVideo();
-    };
-
-    if (video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
-      playVideo();
-    } else {
-      video.addEventListener("canplay", playVideo, { once: true });
+    if (!duration) {
+      video.addEventListener("loadedmetadata", onMeta, { once: true });
     }
 
-    document.addEventListener("visibilitychange", handleVisibility);
-    window.addEventListener("pageshow", playVideo);
+    let rafId: number | null = null;
+    const update = () => {
+      rafId = null;
+      const vh = window.innerHeight || 800;
+      const rect = section.getBoundingClientRect();
+      // pinDistance = section height - vh (from HTML: 300vh - 100vh = 200vh)
+      const pinDistance = section.offsetHeight - vh;
+      const scrolled = Math.min(Math.max(-rect.top, 0), pinDistance);
+      const progress = pinDistance > 0 ? scrolled / pinDistance : 0;
 
-    return () => {
-      video.removeEventListener("canplay", playVideo);
-      document.removeEventListener("visibilitychange", handleVisibility);
-      window.removeEventListener("pageshow", playVideo);
+      if (duration) {
+        const t = progress * duration;
+        // avoid tiny redundant seeks
+        if (Math.abs(video.currentTime - t) > 0.03) {
+          try {
+            video.currentTime = t;
+          } catch {}
+        }
+      }
+
+      if (content) {
+        const fade = Math.min(1, progress / 0.85);
+        content.style.opacity = `${1 - fade}`;
+        content.style.transform = `translate3d(0, ${-fade * 40}px, 0) scale(${1 - fade * 0.04})`;
+      }
+      if (indicator) {
+        indicator.style.opacity = `${1 - Math.min(1, progress / 0.2)}`;
+      }
     };
-  }, []);
+
+    const request = () => {
+      if (rafId === null) rafId = window.requestAnimationFrame(update);
+    };
+
+    update();
+    window.addEventListener("scroll", request, { passive: true });
+    window.addEventListener("resize", request);
+    return () => {
+      window.removeEventListener("scroll", request);
+      window.removeEventListener("resize", request);
+      video.removeEventListener("loadedmetadata", onMeta);
+      if (rafId !== null) window.cancelAnimationFrame(rafId);
+    };
+  }, [pinned]);
 
   const handleWhatsAppClick = useCallback(() => {
     const message = encodeURIComponent("Olá! Gostaria de agendar um horário.");
@@ -94,136 +99,145 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
   }, [whatsappNumber]);
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Background: looping video (admin edit mode falls back to editable image) */}
-      <div className="absolute inset-0 z-0">
-        {isAdmin && isEditMode ? (
-          <EditableImage
-            settingKey="hero_image_url"
-            defaultImage={heroImageDefault}
-            alt="Manicure profissional"
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <video
-            ref={videoRef}
-            className="w-full h-full object-cover"
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
-            poster={heroVideoPoster}
-            disablePictureInPicture
-          >
-            <source src={heroVideoOptimized} type="video/mp4" />
-          </video>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/50 to-background pointer-events-none" />
-      </div>
+    <section
+      ref={sectionRef}
+      className={pinned ? "relative w-full" : "relative min-h-screen flex items-center justify-center overflow-hidden"}
+      style={pinned ? { height: "300vh" } : undefined}
+    >
+      <div
+        ref={pinnedRef}
+        className={pinned ? "sticky top-0 h-screen w-full overflow-hidden flex items-center justify-center" : "contents"}
+      >
+        {/* Background: scrubbed video (admin edit mode falls back to editable image) */}
+        <div className="absolute inset-0 z-0">
+          {isAdmin && isEditMode ? (
+            <EditableImage
+              settingKey="hero_image_url"
+              defaultImage={heroImageDefault}
+              alt="Manicure profissional"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <video
+              ref={videoRef}
+              className="w-full h-full object-cover"
+              muted
+              playsInline
+              preload="auto"
+              poster={heroVideoPoster}
+              disablePictureInPicture
+            >
+              <source src={heroVideoOptimized} type="video/mp4" />
+            </video>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/50 to-background pointer-events-none" />
+        </div>
 
-      {/* Content */}
-      <div className="relative z-10 container mx-auto px-6 text-center">
-        <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <div
-            ref={portraitRef}
-            className="mb-6 flex justify-center will-change-transform opacity-0 animate-portrait-fade-in"
-          >
+        {/* Content overlay — fades out as user scrolls through the pin */}
+        <div
+          ref={contentRef}
+          className="relative z-10 container mx-auto px-6 text-center will-change-transform"
+        >
+          <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="mb-6 flex justify-center opacity-0 animate-portrait-fade-in">
+              <div className="relative w-72 h-72 sm:w-80 sm:h-80 md:w-96 md:h-96">
+                <img
+                  src={portraitAsset.url}
+                  alt="Jéssica Magalhães"
+                  className="w-full h-full object-cover object-top rounded-full"
+                  style={{
+                    WebkitMaskImage:
+                      "radial-gradient(ellipse at center, black 55%, transparent 78%)",
+                    maskImage:
+                      "radial-gradient(ellipse at center, black 55%, transparent 78%)",
+                  }}
+                />
+                <div
+                  className="absolute inset-x-0 bottom-0 h-2/3 pointer-events-none rounded-full"
+                  style={{
+                    background:
+                      "linear-gradient(to bottom, transparent 0%, hsl(var(--background) / 0.6) 55%, hsl(var(--background)) 100%)",
+                  }}
+                />
+              </div>
+            </div>
 
-            <div className="relative w-72 h-72 sm:w-80 sm:h-80 md:w-96 md:h-96">
-              <img
-                src={portraitAsset.url}
-                alt="Jéssica Magalhães"
-                className="w-full h-full object-cover object-top rounded-full"
-                style={{
-                  WebkitMaskImage:
-                    "radial-gradient(ellipse at center, black 55%, transparent 78%)",
-                  maskImage:
-                    "radial-gradient(ellipse at center, black 55%, transparent 78%)",
-                }}
-              />
-              <div
-                className="absolute inset-x-0 bottom-0 h-2/3 pointer-events-none rounded-full"
-                style={{
-                  background:
-                    "linear-gradient(to bottom, transparent 0%, hsl(var(--background) / 0.6) 55%, hsl(var(--background)) 100%)",
-                }}
-              />
+            <div className="mb-4 animate-in fade-in zoom-in-95 duration-500 delay-150">
+              {isAdmin && isEditMode ? (
+                <EditableText
+                  settingKey="hero_subtitle"
+                  defaultValue="Nail Designer"
+                  className="inline-block uppercase tracking-[0.3em] text-primary font-body font-medium text-xs text-center"
+                />
+              ) : (
+                <span className="inline-block uppercase tracking-[0.3em] text-primary font-body font-medium text-xs text-center">
+                  {getSetting("hero_subtitle", "Nail Designer")}
+                </span>
+              )}
+            </div>
+
+            <div className="mb-6 animate-in fade-in slide-in-from-bottom-2 duration-600 delay-300">
+              {isAdmin && isEditMode ? (
+                <EditableText
+                  settingKey="hero_title"
+                  defaultValue="Jéssica Magalhães"
+                  as="h1"
+                  className="md:text-7xl font-display font-semibold text-foreground leading-tight text-4xl"
+                />
+              ) : (
+                <h1 className="md:text-7xl font-display font-semibold text-foreground mb-6 leading-tight text-4xl">
+                  {getSetting("hero_title", "Jéssica Magalhães")}
+                </h1>
+              )}
+            </div>
+
+            <div className="mb-10 max-w-md mx-auto animate-in fade-in duration-600 delay-500">
+              {isAdmin && isEditMode ? (
+                <EditableText
+                  settingKey="hero_description"
+                  defaultValue="Unhas perfeitas com carinho e profissionalismo. Agende seu horário e sinta-se ainda mais linda!"
+                  as="p"
+                  multiline
+                  className="text-lg text-muted-foreground font-body"
+                />
+              ) : (
+                <p className="text-lg text-muted-foreground font-body">
+                  {getSetting("hero_description", "Unhas perfeitas com carinho e profissionalismo. Agende seu horário e sinta-se ainda mais linda!")}
+                </p>
+              )}
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center animate-in fade-in slide-in-from-bottom-2 duration-500 delay-700">
+              <Button
+                size="lg"
+                onClick={onBookClick}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-button font-body group"
+              >
+                <Calendar className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
+                Agendar Horário
+              </Button>
+
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={handleWhatsAppClick}
+                className="border-primary text-primary hover:bg-primary/10 font-body group"
+              >
+                <Phone className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
+                WhatsApp
+              </Button>
             </div>
           </div>
-
-          <div className="mb-4 animate-in fade-in zoom-in-95 duration-500 delay-150">
-            {isAdmin && isEditMode ? (
-              <EditableText
-                settingKey="hero_subtitle"
-                defaultValue="Nail Designer"
-                className="inline-block uppercase tracking-[0.3em] text-primary font-body font-medium text-xs text-center"
-              />
-            ) : (
-              <span className="inline-block uppercase tracking-[0.3em] text-primary font-body font-medium text-xs text-center">
-                {getSetting("hero_subtitle", "Nail Designer")}
-              </span>
-            )}
-          </div>
-
-          <div className="mb-6 animate-in fade-in slide-in-from-bottom-2 duration-600 delay-300">
-            {isAdmin && isEditMode ? (
-              <EditableText
-                settingKey="hero_title"
-                defaultValue="Jéssica Magalhães"
-                as="h1"
-                className="md:text-7xl font-display font-semibold text-foreground leading-tight text-4xl"
-              />
-            ) : (
-              <h1 className="md:text-7xl font-display font-semibold text-foreground mb-6 leading-tight text-4xl">
-                {getSetting("hero_title", "Jéssica Magalhães")}
-              </h1>
-            )}
-          </div>
-
-          <div className="mb-10 max-w-md mx-auto animate-in fade-in duration-600 delay-500">
-            {isAdmin && isEditMode ? (
-              <EditableText
-                settingKey="hero_description"
-                defaultValue="Unhas perfeitas com carinho e profissionalismo. Agende seu horário e sinta-se ainda mais linda!"
-                as="p"
-                multiline
-                className="text-lg text-muted-foreground font-body"
-              />
-            ) : (
-              <p className="text-lg text-muted-foreground font-body">
-                {getSetting("hero_description", "Unhas perfeitas com carinho e profissionalismo. Agende seu horário e sinta-se ainda mais linda!")}
-              </p>
-            )}
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center animate-in fade-in slide-in-from-bottom-2 duration-500 delay-700">
-            <Button
-              size="lg"
-              onClick={onBookClick}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-button font-body group"
-            >
-              <Calendar className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
-              Agendar Horário
-            </Button>
-
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={handleWhatsAppClick}
-              className="border-primary text-primary hover:bg-primary/10 font-body group"
-            >
-              <Phone className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
-              WhatsApp
-            </Button>
-          </div>
         </div>
-      </div>
 
-      {/* Decorative Scroll Indicator */}
-      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10 animate-bounce">
-        <div className="w-6 h-10 border-2 border-primary/50 rounded-full flex justify-center pt-2">
-          <div className="w-1.5 h-3 bg-primary rounded-full animate-pulse" />
+        {/* Decorative Scroll Indicator */}
+        <div
+          ref={scrollIndicatorRef}
+          className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10 animate-bounce"
+        >
+          <div className="w-6 h-10 border-2 border-primary/50 rounded-full flex justify-center pt-2">
+            <div className="w-1.5 h-3 bg-primary rounded-full animate-pulse" />
+          </div>
         </div>
       </div>
     </section>
