@@ -115,8 +115,36 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
     if (isOpen) {
       fetchBookedSlots();
       fetchBlockedSlots();
+      // Mantém a disponibilidade atualizada enquanto o modal está aberto
+      const interval = setInterval(() => {
+        fetchBookedSlots();
+        fetchBlockedSlots();
+      }, 15000);
+      return () => clearInterval(interval);
     }
   }, [isOpen]);
+
+  // Se o horário selecionado for ocupado por outra cliente, limpa a seleção
+  useEffect(() => {
+    if (!selectedDate || !selectedTime) return;
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
+    const taken =
+      bookedSlots.some(
+        (s) => s.appointment_date === dateStr && s.appointment_time.slice(0, 5) === selectedTime
+      ) ||
+      blockedSlots.some(
+        (s) => s.blocked_date === dateStr && s.blocked_time.slice(0, 5) === selectedTime
+      );
+    if (taken) {
+      setSelectedTime("");
+      toast({
+        title: "Horário indisponível",
+        description: "Esse horário acabou de ser reservado. Escolha outro horário.",
+        variant: "destructive",
+      });
+    }
+  }, [bookedSlots, blockedSlots, selectedDate, selectedTime]);
+
 
   const fetchBookedSlots = async () => {
     const { data, error } = await supabase.rpc("get_booked_slots", {
