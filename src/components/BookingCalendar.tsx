@@ -257,6 +257,25 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
     setIsLoading(true);
 
     try {
+      const dateStr = format(selectedDate, "yyyy-MM-dd");
+
+      // Revalida disponibilidade imediatamente antes de salvar
+      const { data: freshBooked } = await supabase.rpc("get_booked_slots", { _from_date: dateStr });
+      const alreadyTaken = (freshBooked as { appointment_date: string; appointment_time: string }[] | null)?.some(
+        (s) => s.appointment_date === dateStr && s.appointment_time.slice(0, 5) === selectedTime
+      );
+      if (alreadyTaken) {
+        await fetchBookedSlots();
+        setSelectedTime("");
+        setIsLoading(false);
+        toast({
+          title: "Horário já reservado",
+          description: "Outra cliente acabou de agendar esse horário. Por favor escolha outro.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       
       const cleanPhone = phone.replace(/\D/g, "");
@@ -267,7 +286,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         client_email: email.trim() || null,
         client_phone: cleanPhone,
         service_type: selectedService,
-        appointment_date: format(selectedDate, "yyyy-MM-dd"),
+        appointment_date: dateStr,
         appointment_time: selectedTime,
         notes: notes.trim() || null,
         status: "pending",
@@ -275,7 +294,22 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
 
       const { error } = await supabase.from("appointments").insert(appointmentPayload);
 
-      if (error) throw error;
+      if (error) {
+        // Índice único no banco impede dois agendamentos no mesmo dia/horário
+        if (error.code === "23505") {
+          await fetchBookedSlots();
+          setSelectedTime("");
+          setIsLoading(false);
+          toast({
+            title: "Horário já reservado",
+            description: "Esse horário foi ocupado agora mesmo. Escolha outro horário disponível.",
+            variant: "destructive",
+          });
+          return;
+        }
+        throw error;
+      }
+
 
       // Notify admin via WhatsApp API (if configured) — await so the request isn't aborted
       try {
