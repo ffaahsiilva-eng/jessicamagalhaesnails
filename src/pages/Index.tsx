@@ -10,13 +10,13 @@ import { AdminEditProvider } from "@/contexts/AdminEditContext";
 import AdminEditToggle from "@/components/admin/AdminEditToggle";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import SuspenseFallback from "@/components/SuspenseFallback";
+import BookingCalendar from "@/components/BookingCalendar";
 
 // Lazy load components below the fold for better performance
 const PriceTable = lazy(() => import("@/components/PriceTable"));
 const Gallery = lazy(() => import("@/components/Gallery"));
 const SocialLinks = lazy(() => import("@/components/SocialLinks"));
 const Footer = lazy(() => import("@/components/Footer"));
-const BookingCalendar = lazy(() => import("@/components/BookingCalendar"));
 const GospelRadio = lazy(() => import("@/components/GospelRadio"));
 
 const Index = () => {
@@ -76,13 +76,11 @@ const Index = () => {
         </ErrorBoundary>
 
         <ErrorBoundary>
-          <Suspense fallback={null}>
-            <BookingCalendar
-              isOpen={isBookingOpen}
-              onClose={() => setIsBookingOpen(false)}
-              whatsappNumber={whatsappNumber}
-            />
-          </Suspense>
+          <BookingCalendar
+            isOpen={isBookingOpen}
+            onClose={() => setIsBookingOpen(false)}
+            whatsappNumber={whatsappNumber}
+          />
         </ErrorBoundary>
 
         <AuthModal

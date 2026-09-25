@@ -28,6 +28,17 @@ class ErrorBoundary extends Component<Props, State> {
     console.error("ErrorBoundary caught an error:", error, errorInfo);
     this.setState({ errorInfo });
     this.props.onError?.(error, errorInfo);
+
+    // A cached page can briefly request an old lazy-loaded file after an update.
+    // Reload once so the browser receives the matching current application files.
+    const isStaleFileError = /dynamically imported module|loading chunk|chunkloaderror|failed to fetch/i.test(
+      error.message,
+    );
+    if (isStaleFileError && sessionStorage.getItem("stale-file-reload") !== "1") {
+      sessionStorage.setItem("stale-file-reload", "1");
+      window.location.reload();
+      return;
+    }
     
     // Log to performance monitoring
     if (typeof window !== "undefined" && "performance" in window) {
@@ -36,6 +47,7 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   handleRetry = () => {
+    sessionStorage.removeItem("stale-file-reload");
     this.setState({ hasError: false, error: null, errorInfo: null });
   };
 
