@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { registerAppServiceWorker } from "./lib/registerAppServiceWorker";
 
 // Global error handler for unhandled errors
 window.onerror = (message, source, lineno, colno, error) => {
@@ -31,9 +32,11 @@ createRoot(rootElement).render(
   </StrictMode>
 );
 
+void registerAppServiceWorker();
+
 // Performance mark for render complete
 if (typeof performance !== "undefined") {
-  requestIdleCallback?.(() => {
+  const markRenderComplete = () => {
     performance.mark("app-init-end");
     performance.measure("app-initialization", "app-init-start", "app-init-end");
     
@@ -41,7 +44,11 @@ if (typeof performance !== "undefined") {
     if (measures.length > 0 && process.env.NODE_ENV === "development") {
       console.log(`⚡ App initialized in ${measures[0].duration.toFixed(2)}ms`);
     }
-  }) ?? setTimeout(() => {
-    performance.mark("app-init-end");
-  }, 0);
+  };
+
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(markRenderComplete);
+  } else {
+    window.setTimeout(markRenderComplete, 0);
+  }
 }
