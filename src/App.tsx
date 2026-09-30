@@ -9,7 +9,6 @@ import { useFonts } from "./hooks/useFonts";
 import { usePerformanceMonitor } from "./hooks/usePerformanceMonitor";
 import ErrorBoundary from "./components/ErrorBoundary";
 import SuspenseFallback from "./components/SuspenseFallback";
-import UpdatePrompt from "./components/UpdatePrompt";
 
 // Lazy load pages for better performance
 const Index = lazy(() => import("./pages/Index"));
@@ -50,7 +49,6 @@ const App = () => (
         <ThemeProvider>
           <Toaster />
           <Sonner />
-          <UpdatePrompt />
           <BrowserRouter>
             <ErrorBoundary>
               <Suspense fallback={<SuspenseFallback type="page" />}>
