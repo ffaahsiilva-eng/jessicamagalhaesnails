@@ -6,27 +6,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
 const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const {
-    toast
-  } = useToast();
+  const { toast } = useToast();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
       if (mode === "signup") {
-        const {
-          error
-        } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -43,9 +42,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
         });
         setMode("login");
       } else {
-        const {
-          error
-        } = await supabase.auth.signInWithPassword({
+        const { error } = await supabase.auth.signInWithPassword({
           email,
           password
         });
@@ -57,26 +54,40 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
         onClose();
       }
     } catch (error: any) {
+      let message = error.message || "Algo deu errado. Tente novamente.";
+      if (message.includes("Failed to fetch")) {
+        message = "Erro de conexão com o banco de dados. Recarregue a página (Ctrl+F5) e tente novamente.";
+      } else if (message.includes("Invalid login credentials")) {
+        message = "E-mail ou senha incorretos. Verifique suas credenciais.";
+      } else if (message.includes("Email not confirmed")) {
+        message = "E-mail ainda não confirmado. Verifique sua caixa de entrada.";
+      } else if (message.includes("User already registered")) {
+        message = "Este e-mail já está cadastrado. Tente entrar na sua conta.";
+      }
       toast({
         title: "Erro",
-        description: error.message || "Algo deu errado. Tente novamente.",
+        description: message,
         variant: "destructive"
       });
     } finally {
       setIsLoading(false);
     }
   };
+
   const resetForm = () => {
     setEmail("");
     setPassword("");
     setName("");
     setMode("login");
   };
+
   const handleClose = () => {
     resetForm();
     onClose();
   };
-  return <AnimatePresence mode="wait">
+
+  return (
+    <AnimatePresence mode="wait">
       {isOpen && (
         <motion.div
           key="modal-backdrop"
@@ -115,7 +126,8 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="px-6 pb-6 space-y-4">
-              {mode === "signup" && <div className="space-y-2">
+              {mode === "signup" && (
+                <div className="space-y-2">
                   <Label htmlFor="auth-name" className="font-body text-foreground">
                     Nome
                   </Label>
@@ -123,7 +135,8 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input id="auth-name" type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Seu nome" className="pl-10 bg-secondary/50" required={mode === "signup"} />
                   </div>
-                </div>}
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="auth-email" className="font-body text-foreground">
@@ -156,6 +169,8 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>;
+    </AnimatePresence>
+  );
 };
+
 export default AuthModal;
