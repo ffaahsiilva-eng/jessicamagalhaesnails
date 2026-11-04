@@ -17,6 +17,7 @@ import { Calendar as CalendarIcon, Clock, Check, MessageCircle, X, Loader2, Aler
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
+import { notifyWhatsAppBooking } from "@/lib/whatsapp";
 import { z } from "zod";
 
 interface BookingCalendarProps {
@@ -245,32 +246,39 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         status: "pending",
       };
 
-      const { error } = await supabase.from("appointments").insert(appointmentPayload);
+      const { data: insertedAppt, error } = await supabase
+        .from("appointments")
+        .insert(appointmentPayload)
+        .select()
+        .single();
 
       if (error) throw error;
 
-      // Notify admin via WhatsApp API (if configured) — await so the request isn't aborted
+      const selectedServiceData = services.find((s) => s.name === selectedService);
+      const servicePrice = selectedServiceData?.price || "";
+
+      // Notify admin via WhatsApp API (with price and confirm link)
       try {
-        const { data: notifyData, error: notifyErr } = await supabase.functions.invoke(
-          "notify-admin-booking",
-          { body: { ...appointmentPayload, action: "new" } },
-        );
-        if (notifyErr) console.warn("notify-admin-booking error:", notifyErr);
-        else console.log("notify-admin-booking result:", notifyData);
+        await notifyWhatsAppBooking({
+          ...appointmentPayload,
+          appointment_id: insertedAppt?.id || null,
+          service_price: servicePrice,
+          site_url: window.location.origin,
+          action: "new",
+        });
       } catch (err) {
-        console.warn("notify-admin-booking failed:", err);
+        console.warn("notifyWhatsAppBooking failed:", err);
       }
 
 
       const formattedDate = format(selectedDate, "dd/MM/yyyy", { locale: ptBR });
-      const selectedServiceData = services.find((s) => s.name === selectedService);
-      const servicePrice = selectedServiceData?.price ? ` — ${selectedServiceData.price}` : "";
+      const priceSuffix = servicePrice ? ` — ${servicePrice}` : "";
       const message = encodeURIComponent(
         `Olá! Gostaria de agendar um horário:\n\n` +
         `*Nome:* ${name.trim()}\n` +
         `*Telefone:* ${phone}\n` +
         `*Email:* ${email.trim()}\n` +
-        `*Serviço:* ${selectedService}${servicePrice}\n` +
+        `*Serviço:* ${selectedService}${priceSuffix}\n` +
         `*Data:* ${formattedDate}\n` +
         `*Horário:* ${selectedTime}\n` +
         `${notes.trim() ? `*Observações:* ${notes.trim()}\n` : ""}\n` +

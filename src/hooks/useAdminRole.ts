@@ -21,6 +21,7 @@ export const useAdminRole = () => {
 
       setUserId(user.id);
 
+      // Verificação por role no banco ou e-mail cadastrado de admin
       const { data, error } = await supabase
         .from("user_roles")
         .select("role")
@@ -28,7 +29,10 @@ export const useAdminRole = () => {
         .eq("role", "admin")
         .maybeSingle();
 
-      setIsAdmin(!!data && !error);
+      const hasAdminRole = !!data && !error;
+      const isKnownAdmin = user.email === "jessica@gmail.com";
+
+      setIsAdmin(hasAdminRole || isKnownAdmin);
       setIsLoading(false);
     };
 

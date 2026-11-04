@@ -249,10 +249,10 @@
 }
 
 @keyframes portrait-fade-in {
-  0%, 60% { opacity: 0; transform: scale(0.98); }
+  0% { opacity: 0; transform: scale(0.95); }
   100% { opacity: 1; transform: scale(1); }
 }
 
 .animate-portrait-fade-in {
-  animation: portrait-fade-in 12s ease-out forwards;
+  animation: portrait-fade-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

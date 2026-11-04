@@ -6,8 +6,7 @@ import { useAdminEdit } from "@/contexts/AdminEditContext";
 import EditableText from "@/components/admin/EditableText";
 import EditableImage from "@/components/admin/EditableImage";
 import heroImageDefault from "@/assets/hero-nails.jpg";
-import portraitAsset from "@/assets/jessica-portrait.png.asset.json";
-import heroVideoWebm from "@/assets/hero-bg-optimized.webm";
+import portraitImg from "@/assets/jessica-portrait.png";
 import heroVideoOptimized from "@/assets/hero-bg-optimized.mp4";
 import heroVideoPoster from "@/assets/hero-bg-poster.jpg";
 
@@ -33,7 +32,7 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
       }
 
       const vh = window.innerHeight || 800;
-      const progress = Math.min(1, Math.max(0, window.scrollY / (vh * 0.6)));
+      const progress = Math.min(0.4, Math.max(0, window.scrollY / (vh * 1.5)));
       portrait.style.opacity = `${1 - progress}`;
       portrait.style.transform = `translateZ(0) scale(${1 - progress * 0.05})`;
       rafId = null;
@@ -117,7 +116,6 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
             poster={heroVideoPoster}
             disablePictureInPicture
           >
-            <source src={heroVideoWebm} type="video/webm" />
             <source src={heroVideoOptimized} type="video/mp4" />
           </video>
         )}
@@ -129,12 +127,12 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
         <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div
             ref={portraitRef}
-            className="mb-6 flex justify-center will-change-transform opacity-0 animate-portrait-fade-in"
+            className="mb-6 flex justify-center will-change-transform animate-portrait-fade-in"
           >
 
             <div className="relative w-72 h-72 sm:w-80 sm:h-80 md:w-96 md:h-96">
               <img
-                src={portraitAsset.url}
+                src={portraitImg}
                 alt="Jéssica Magalhães"
                 className="w-full h-full object-cover object-top rounded-full"
                 style={{

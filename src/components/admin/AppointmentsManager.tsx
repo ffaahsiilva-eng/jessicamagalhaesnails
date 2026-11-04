@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { notifyWhatsAppBooking } from "@/lib/whatsapp";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Appointment = Tables<"appointments">;
@@ -93,6 +94,20 @@ const AppointmentsManager = () => {
     fetchAppointments();
   }, [filter]);
 
+  // Checar se há link de confirmação direta via URL (?confirm_id=...)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const confirmId = params.get("confirm_id");
+    if (confirmId && appointments.length > 0) {
+      const targetAppt = appointments.find((a) => a.id === confirmId);
+      if (targetAppt && targetAppt.status === "pending") {
+        if (window.confirm(`Deseja confirmar o agendamento de ${targetAppt.client_name} (${targetAppt.service_type}) para ${targetAppt.appointment_date} às ${targetAppt.appointment_time.slice(0, 5)}?`)) {
+          updateStatus(targetAppt.id, "confirmed", targetAppt);
+        }
+      }
+    }
+  }, [appointments]);
+
   const fetchAppointments = async () => {
     setIsLoading(true);
     let query = supabase
@@ -135,20 +150,20 @@ const AppointmentsManager = () => {
 
   const notifyAdmin = async (apt: Appointment, action: "confirmed" | "cancelled") => {
     try {
-      await supabase.functions.invoke("notify-admin-booking", {
-        body: {
-          client_name: apt.client_name,
-          client_phone: apt.client_phone,
-          client_email: apt.client_email,
-          service_type: apt.service_type,
-          appointment_date: apt.appointment_date,
-          appointment_time: apt.appointment_time,
-          notes: apt.notes,
-          action,
-        },
+      await notifyWhatsAppBooking({
+        appointment_id: apt.id,
+        client_name: apt.client_name,
+        client_phone: apt.client_phone,
+        client_email: apt.client_email,
+        service_type: apt.service_type,
+        appointment_date: apt.appointment_date,
+        appointment_time: apt.appointment_time,
+        notes: apt.notes,
+        site_url: window.location.origin,
+        action,
       });
     } catch (e) {
-      console.error("notify-admin-booking failed", e);
+      console.error("notifyWhatsAppBooking failed", e);
     }
   };
 

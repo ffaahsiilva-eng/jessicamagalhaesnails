@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { sendDirectWhatsApp } from "@/lib/whatsapp";
 
 interface WhatsAppConfigRow {
   id: string;
@@ -78,33 +79,27 @@ const WhatsAppApiManager = () => {
 
   const handleTest = async () => {
     if (!config) return;
+    if (!config.instance_id || !config.instance_token || !config.admin_number) {
+      toast({
+        title: "Preencha os campos",
+        description: "Preencha o ID da Instância, o Token e o Número do Admin.",
+        variant: "destructive",
+      });
+      return;
+    }
     setIsTesting(true);
     try {
-      const { data, error } = await supabase.functions.invoke("notify-admin-booking", {
-        body: {
-          client_name: "Teste de Conexão",
-          client_phone: config.admin_number,
-          client_email: null,
-          service_type: "Teste",
-          appointment_date: new Date().toISOString().slice(0, 10),
-          appointment_time: "12:00",
-          notes: "Mensagem de teste do painel admin",
-        },
-      });
-      if (error) throw error;
-      if ((data as { skipped?: boolean })?.skipped) {
-        toast({
-          title: "Não enviado",
-          description: "Ative a integração e preencha ID, token e número.",
-          variant: "destructive",
-        });
-      } else {
-        toast({ title: "Teste enviado!", description: "Verifique o WhatsApp do admin." });
-      }
+      await sendDirectWhatsApp(
+        config.instance_id,
+        config.instance_token,
+        config.admin_number,
+        "🔔 *Teste de Conexão WhatsApp*\n\nSua integração com o site da Jéssica Magalhães está ativa e funcionando perfeitamente! 💅✨"
+      );
+      toast({ title: "Teste enviado com sucesso!", description: "Verifique a mensagem recebida no WhatsApp." });
     } catch (e) {
       toast({
         title: "Falha no teste",
-        description: (e as Error).message,
+        description: (e as Error).message || "Verifique se a instância está conectada no painel W-API.",
         variant: "destructive",
       });
     }
