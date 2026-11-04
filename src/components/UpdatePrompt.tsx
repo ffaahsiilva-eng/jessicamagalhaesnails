@@ -2,7 +2,7 @@ import { useRegisterSW } from "virtual:pwa-register/react";
 import { useEffect } from "react";
 
 const CACHE_VERSION_KEY = "app_cache_version";
-const CURRENT_VERSION = "2026-11-04-v4";
+const CURRENT_VERSION = "2026-11-04-v5";
 
 const clearAllCaches = async () => {
   // Clear CacheStorage
