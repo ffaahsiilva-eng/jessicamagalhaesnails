@@ -6,9 +6,9 @@ import { useAdminEdit } from "@/contexts/AdminEditContext";
 import EditableText from "@/components/admin/EditableText";
 import EditableImage from "@/components/admin/EditableImage";
 import heroImageDefault from "@/assets/hero-nails.jpg";
-import portraitAsset from "@/assets/jessica-portrait.png.asset.json";
-import heroVideoOptimized from "@/assets/hero-bg-optimized.mp4.asset.json";
-import heroVideoPoster from "@/assets/hero-bg-poster.jpg.asset.json";
+const portraitAsset = { url: "/media/jessica-portrait.png" };
+const heroVideoOptimized = { url: "/media/hero-bg-optimized.mp4" };
+const heroVideoPoster = { url: "/media/hero-bg-poster.jpg" };
 
 interface HeroProps {
   onBookClick: () => void;

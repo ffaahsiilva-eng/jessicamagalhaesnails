@@ -14,7 +14,7 @@ import gallery1 from "@/assets/gallery-1.jpg";
 import gallery2 from "@/assets/gallery-2.jpg";
 import gallery3 from "@/assets/gallery-3.jpg";
 import gallery4 from "@/assets/gallery-4.jpg";
-import portfolioPortrait from "@/assets/jessica-portfolio.png.asset.json";
+const portfolioPortrait = { url: "/media/jessica-portfolio.png" };
 
 const defaultImages = [
   { src: gallery1, alt: "Nail art floral rosa" },
