@@ -1,5 +1,12 @@
 {
   "rewrites": [
-    { "source": "/((?!media/|assets/|sw.js|workbox-|manifest).*)", "destination": "/index.html" }
+    {
+      "source": "/api/wapi/:match*",
+      "destination": "https://api.w-api.app/:match*"
+    },
+    {
+      "source": "/((?!api/|media/|assets/|sw.js|workbox-|manifest).*)",
+      "destination": "/index.html"
+    }
   ]
 }

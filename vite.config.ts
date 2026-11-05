@@ -12,6 +12,13 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    proxy: {
+      "/api/wapi": {
+        target: "https://api.w-api.app",
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/api\/wapi/, ""),
+      },
+    },
   },
   plugins: [
     react(),

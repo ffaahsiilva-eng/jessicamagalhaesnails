@@ -94,6 +94,73 @@ export const sendDirectWhatsApp = async (
 ) => {
   const cleanPhone = phone.replace(/\D/g, "");
   const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
+  const payload = {
+    instance_id: instanceId.trim(),
+    instance_token: instanceToken.trim(),
+    phone: formattedPhone,
+    number: formattedPhone,
+    message,
+    text: message,
+  };
+
+  // 1. Tentar via Serverless Function (/api/send-whatsapp) do próprio domínio (Sem CORS no navegador!)
+  try {
+    const apiRes = await fetch("/api/send-whatsapp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (apiRes.ok) {
+      const data = await apiRes.json();
+      return data;
+    }
+
+    const errText = await apiRes.text();
+    try {
+      const errJson = JSON.parse(errText);
+      if (errJson && (errJson.message || errJson.error)) {
+        throw new Error(errJson.message || errJson.error);
+      }
+    } catch (parseE) {
+      if (parseE instanceof Error && parseE.message && !parseE.message.includes("JSON")) {
+        throw parseE;
+      }
+    }
+  } catch (apiErr: unknown) {
+    const msg = apiErr instanceof Error ? apiErr.message : String(apiErr);
+    // Se a função serverless retornou um erro específico da API W-API, relança
+    if (!msg.includes("404") && !msg.includes("Failed to fetch") && !msg.includes("Method not allowed")) {
+      throw apiErr;
+    }
+  }
+
+  // 2. Tentar via proxy local/Vercel rewrite (/api/wapi)
+  try {
+    const proxyEndpoint = `/api/wapi/v1/message/send-text?instanceId=${encodeURIComponent(instanceId.trim())}`;
+    const proxyRes = await fetch(proxyEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${instanceToken.trim()}`,
+      },
+      body: JSON.stringify({
+        phone: formattedPhone,
+        number: formattedPhone,
+        message,
+        text: message,
+      }),
+    });
+
+    if (proxyRes.ok) {
+      const data = await proxyRes.json();
+      return data;
+    }
+  } catch {
+    // Continua para o envio direto
+  }
+
+  // 3. Fallback: Envio direto para api.w-api.app (quando suportado)
   const endpoint = `https://api.w-api.app/v1/message/send-text?instanceId=${encodeURIComponent(instanceId.trim())}`;
 
   const res = await fetch(endpoint, {
@@ -104,7 +171,9 @@ export const sendDirectWhatsApp = async (
     },
     body: JSON.stringify({
       phone: formattedPhone,
+      number: formattedPhone,
       message,
+      text: message,
     }),
   });
 

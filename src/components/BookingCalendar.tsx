@@ -420,16 +420,9 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
       await releaseCurrentHold();
       setStep(4);
 
-      // Tentar abrir WhatsApp automaticamente em nova aba
-      try {
-        window.open(url, "_blank");
-      } catch {
-        // Fallback caso popup seja bloqueado pelo navegador
-      }
-
       toast({
-        title: "Agendamento salvo!",
-        description: "Notificação enviada. Clique no botão caso queira abrir no WhatsApp.",
+        title: "Agendamento solicitado!",
+        description: "Enviado para confirmação no painel da Jéssica.",
       });
     } catch (error: unknown) {
       console.error("Erro ao criar agendamento:", error);
@@ -849,32 +842,33 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
 
           {step === 4 && (
             <div className="text-center py-8 space-y-4 animate-in fade-in zoom-in-95 duration-200">
-              <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
+              <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto text-primary">
                 <Check className="h-8 w-8 text-primary" />
               </div>
-              <h3 className="font-display text-xl font-semibold text-foreground">
-                Agendamento Salvo!
+              <h3 className="font-display text-2xl font-semibold text-foreground">
+                Agendamento Solicitado! 🎉
               </h3>
-              <p className="text-muted-foreground font-body text-sm">
-                Agora envie a mensagem pelo WhatsApp para confirmar seu horário.
+              <p className="text-muted-foreground font-body text-sm max-w-sm mx-auto leading-relaxed">
+                Sua solicitação foi enviada para o nosso painel. Assim que a Jéssica confirmar o seu horário, você receberá uma notificação diretamente no seu WhatsApp.
               </p>
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#25D366] hover:bg-[#1da851] text-white font-medium px-6 py-3.5 w-full text-base transition-colors shadow-button active:scale-[0.98]"
-              >
-                <MessageCircle className="h-5 w-5" />
-                Enviar pelo WhatsApp
-              </a>
-              <div>
+              <div className="pt-2 space-y-3">
                 <Button
-                  variant="outline"
                   onClick={resetAndClose}
-                  className="w-full h-11 font-body active:scale-[0.98] transition-transform"
+                  className="w-full h-12 font-body text-base font-medium rounded-xl shadow-button active:scale-[0.98] transition-all bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
-                  Fechar
+                  Concluir
                 </Button>
+                {whatsappUrl && (
+                  <a
+                    href={whatsappUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors pt-1"
+                  >
+                    <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />
+                    Prefere falar direto? Abrir conversa no WhatsApp
+                  </a>
+                )}
               </div>
             </div>
           )}
