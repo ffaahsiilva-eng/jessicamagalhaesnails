@@ -170,14 +170,37 @@ Deno.serve(async (req) => {
       await sendWhatsApp(adminNumber, adminConfirmText);
     }
 
-    // 3. CANCELADO
+    // 3. CANCELADO -> Envia para o CLIENTE e para a ADMIN
     if (action === 'cancelled') {
       const clientCancelText =
-        `❌ *Agendamento Cancelado*\n\n` +
-        `Olá, *${body.client_name}*. Informamos que seu agendamento para o dia ${formattedDate} às ${time} foi cancelado.\n` +
-        `Caso deseje remarcar, acesse nosso site:\n${baseUrl}`;
+        `❌ *AGENDAMENTO CANCELADO* ❌\n\n` +
+        `Olá, *${body.client_name}*! Informamos que o seu agendamento com Jéssica Magalhães foi cancelado:\n\n` +
+        `💅 *${serviceLabel}:* ${body.service_type}\n` +
+        `📅 *Data:* ${formattedDate}\n` +
+        `🕐 *Horário:* ${time}\n` +
+        (priceDisplay ? `💰 *${priceLabel}:* ${priceDisplay}\n` : '') +
+        `\nCaso deseje remarcar para outro dia ou horário disponível, acesse nosso site:\n` +
+        `👉 ${baseUrl}\n\n` +
+        `Se tiver dúvidas, basta responder esta mensagem. Te esperamos em breve! 💕`;
 
-      await sendWhatsApp(clientNumber, clientCancelText);
+      const resClient = await sendWhatsApp(clientNumber, clientCancelText);
+      results.client = { ok: resClient.ok, status: resClient.status };
+
+      const adminCancelText =
+        `❌ *AGENDAMENTO CANCELADO NO PAINEL* ❌\n\n` +
+        `O agendamento a seguir foi cancelado:\n\n` +
+        `👤 *Cliente:* ${body.client_name}\n` +
+        `📱 *WhatsApp:* ${body.client_phone}\n` +
+        `💅 *${serviceLabel}:* ${body.service_type}\n` +
+        (priceDisplay ? `💰 *${priceLabel}:* ${priceDisplay}\n` : '') +
+        `📅 *Data:* ${formattedDate}\n` +
+        `🕐 *Horário:* ${time}\n` +
+        (cleanNotes ? `📝 *Obs:* ${cleanNotes}\n` : '') +
+        `\n📱 Notificação de cancelamento enviada para o WhatsApp da cliente!\n` +
+        `📋 Painel: ${baseUrl}/admin`;
+
+      const resAdmin = await sendWhatsApp(adminNumber, adminCancelText);
+      results.admin = { ok: resAdmin.ok, status: resAdmin.status };
     }
 
     // 4. LEMBRETE DE 1 HORA

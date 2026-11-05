@@ -205,14 +205,37 @@ export const notifyWhatsAppBooking = async (params: SendBookingNotificationParam
     return { success: true, via: "direct-w-api", to: "client_and_admin_1h" };
   }
 
-  // CANCELADO
+  // CANCELADO -> Notificar Cliente E Admin
   if (params.action === "cancelled") {
+    // 1. Mensagem para o CLIENTE
     const clientCancelText =
-      `❌ *Agendamento Cancelado*\n\n` +
-      `Olá, *${params.client_name}*. Informamos que seu agendamento para o dia ${formattedDate} às ${time} foi cancelado.\n` +
-      `Caso deseje remarcar, acesse nosso site:\n${baseUrl}`;
+      `❌ *AGENDAMENTO CANCELADO* ❌\n\n` +
+      `Olá, *${params.client_name}*! Informamos que o seu agendamento com Jéssica Magalhães foi cancelado:\n\n` +
+      `💅 *${serviceLabel}:* ${params.service_type}\n` +
+      `📅 *Data:* ${formattedDate}\n` +
+      `🕐 *Horário:* ${time}\n` +
+      (priceDisplay ? `💰 *${priceLabel}:* ${priceDisplay}\n` : "") +
+      `\nCaso deseje remarcar para outro dia ou horário disponível, acesse nosso site:\n` +
+      `👉 ${baseUrl}\n\n` +
+      `Se tiver dúvidas, basta responder esta mensagem. Te esperamos em breve! 💕`;
 
     await sendDirectWhatsApp(config.instance_id, config.instance_token, params.client_phone, clientCancelText);
-    return { success: true, via: "direct-w-api", to: "client_cancel" };
+
+    // 2. Mensagem para o ADMIN
+    const adminCancelText =
+      `❌ *AGENDAMENTO CANCELADO NO PAINEL* ❌\n\n` +
+      `O agendamento a seguir foi cancelado:\n\n` +
+      `👤 *Cliente:* ${params.client_name}\n` +
+      `📱 *WhatsApp:* ${params.client_phone}\n` +
+      `💅 *${serviceLabel}:* ${params.service_type}\n` +
+      (priceDisplay ? `💰 *${priceLabel}:* ${priceDisplay}\n` : "") +
+      `📅 *Data:* ${formattedDate}\n` +
+      `🕐 *Horário:* ${time}\n` +
+      (cleanNotes ? `📝 *Obs:* ${cleanNotes}\n` : "") +
+      `\n📱 Notificação de cancelamento enviada para o WhatsApp da cliente!\n` +
+      `📋 Painel: ${baseUrl}/admin`;
+
+    await sendDirectWhatsApp(config.instance_id, config.instance_token, config.admin_number, adminCancelText);
+    return { success: true, via: "direct-w-api", to: "client_and_admin_cancel" };
   }
 };

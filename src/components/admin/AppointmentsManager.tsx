@@ -168,18 +168,33 @@ const AppointmentsManager = () => {
     const priceLabel = isMulti ? "Valor Total" : "Valor";
     const priceLine = price ? `💰 *${priceLabel}:* ${price}\n` : "";
 
-    const message = encodeURIComponent(
-      `✨ Olá *${apt.client_name}*! ✨\n\n` +
-      `✅ Seu agendamento foi *CONFIRMADO*! 💕\n\n` +
-      `💅 *${serviceLabel}:* ${apt.service_type}\n` +
-      priceLine +
-      `📅 *Data:* ${formattedDate}\n` +
-      `🕐 *Horário:* ${apt.appointment_time.slice(0, 5)}\n\n` +
-      `📖 ${getRandomVerse()}\n\n` +
-      `⏰ *Tolerância de 15 minutos para chegada.*\n\n` +
-      `📸 *Instagram:* https://www.instagram.com/jessica_magalhaes_nail\n\n` +
-      `🙏 Te esperamos com muito carinho! 💕`
-    );
+    let rawText = "";
+    if (apt.status === "cancelled") {
+      rawText =
+        `❌ *AGENDAMENTO CANCELADO* ❌\n\n` +
+        `Olá, *${apt.client_name}*! Informamos que o seu agendamento com Jéssica Magalhães foi cancelado:\n\n` +
+        `💅 *${serviceLabel}:* ${apt.service_type}\n` +
+        `📅 *Data:* ${formattedDate}\n` +
+        `🕐 *Horário:* ${apt.appointment_time.slice(0, 5)}\n` +
+        priceLine +
+        `\nCaso deseje remarcar para outro dia ou horário disponível, acesse nosso site:\n` +
+        `👉 https://jessicamagalhaesnail.vercel.app\n\n` +
+        `Se tiver dúvidas, basta responder esta mensagem. Te esperamos em breve! 💕`;
+    } else {
+      rawText =
+        `✨ Olá *${apt.client_name}*! ✨\n\n` +
+        `✅ Seu agendamento foi *CONFIRMADO*! 💕\n\n` +
+        `💅 *${serviceLabel}:* ${apt.service_type}\n` +
+        priceLine +
+        `📅 *Data:* ${formattedDate}\n` +
+        `🕐 *Horário:* ${apt.appointment_time.slice(0, 5)}\n\n` +
+        `📖 ${getRandomVerse()}\n\n` +
+        `⏰ *Tolerância de 15 minutos para chegada.*\n\n` +
+        `📸 *Instagram:* https://www.instagram.com/jessica_magalhaes_nail\n\n` +
+        `🙏 Te esperamos com muito carinho! 💕`;
+    }
+
+    const message = encodeURIComponent(rawText);
     const phone = apt.client_phone.replace(/\D/g, "");
     window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
   };
@@ -270,14 +285,25 @@ const AppointmentsManager = () => {
   };
 
   const updateStatus = async (id: string, status: string, apt?: Appointment) => {
+    if (status === "cancelled") {
+      const name = apt?.client_name || "este agendamento";
+      if (!window.confirm(`Deseja cancelar o agendamento de ${name}?\n\nUma notificação de cancelamento será enviada automaticamente para o WhatsApp da cliente e da administradora.`)) {
+        return;
+      }
+    }
     setIsUpdating(id);
     const { error } = await supabase.from("appointments").update({ status }).eq("id", id);
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: `Status: ${statusLabels[status]}` });
+      toast({
+        title: `Status: ${statusLabels[status]}`,
+        description: status === "cancelled"
+          ? "Cancelamento registrado e enviado via WhatsApp para cliente e admin."
+          : undefined,
+      });
       if (apt && (status === "confirmed" || status === "cancelled")) {
-        notifyAdmin(apt, status);
+        await notifyAdmin(apt, status);
       }
       if (status === "confirmed" && apt) sendWhatsAppConfirmation(apt);
       fetchAppointments();
@@ -333,6 +359,24 @@ const AppointmentsManager = () => {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Agendamento atualizado!" });
+      const updatedApt: Appointment = {
+        ...editingAppointment,
+        client_name: editForm.client_name,
+        client_phone: editForm.client_phone,
+        client_email: editForm.client_email || null,
+        service_type: editForm.service_type,
+        appointment_date: editForm.appointment_date,
+        appointment_time: editForm.appointment_time,
+        notes: editForm.notes || null,
+        status: editForm.status,
+      };
+
+      if (editForm.status !== editingAppointment.status) {
+        if (editForm.status === "confirmed" || editForm.status === "cancelled") {
+          await notifyAdmin(updatedApt, editForm.status as "confirmed" | "cancelled");
+        }
+      }
+
       setEditingAppointment(null);
       fetchAppointments();
     }
@@ -483,12 +527,36 @@ const AppointmentsManager = () => {
                                 </Button>
                               </>
                             )}
+                            {apt.status === "confirmed" && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50"
+                                onClick={() => updateStatus(apt.id, "cancelled", apt)}
+                                disabled={isUpdating === apt.id}
+                                title="Cancelar Agendamento"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {apt.status === "cancelled" && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                onClick={() => updateStatus(apt.id, "confirmed", apt)}
+                                disabled={isUpdating === apt.id}
+                                title="Reativar / Confirmar"
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                            )}
                             <Button
                               size="icon"
                               variant="ghost"
                               className="h-8 w-8 text-emerald-600 hover:bg-emerald-50"
                               onClick={() => sendWhatsAppConfirmation(apt)}
-                              title="Enviar WhatsApp"
+                              title={apt.status === "cancelled" ? "Enviar aviso de cancelamento via WhatsApp" : "Enviar confirmação via WhatsApp"}
                             >
                               <MessageCircle className="h-4 w-4" />
                             </Button>
@@ -576,10 +644,20 @@ const AppointmentsManager = () => {
                           <Button size="sm" className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs" onClick={() => updateStatus(apt.id, "confirmed", apt)} disabled={isUpdating === apt.id}>
                             <Check className="h-3 w-3 mr-1" /> Confirmar
                           </Button>
-                          <Button size="sm" variant="outline" className="border-rose-200 text-rose-600 h-8 text-xs" onClick={() => updateStatus(apt.id, "cancelled", apt)} disabled={isUpdating === apt.id}>
+                          <Button size="sm" variant="outline" className="border-rose-200 text-rose-600 hover:bg-rose-50 h-8 text-xs" onClick={() => updateStatus(apt.id, "cancelled", apt)} disabled={isUpdating === apt.id} title="Cancelar">
                             <X className="h-3 w-3" />
                           </Button>
                         </>
+                      )}
+                      {apt.status === "confirmed" && (
+                        <Button size="sm" variant="outline" className="border-rose-200 text-rose-600 hover:bg-rose-50 h-8 text-xs" onClick={() => updateStatus(apt.id, "cancelled", apt)} disabled={isUpdating === apt.id}>
+                          <X className="h-3 w-3 mr-1" /> Cancelar
+                        </Button>
+                      )}
+                      {apt.status === "cancelled" && (
+                        <Button size="sm" variant="outline" className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 h-8 text-xs" onClick={() => updateStatus(apt.id, "confirmed", apt)} disabled={isUpdating === apt.id}>
+                          <Check className="h-3 w-3 mr-1" /> Reativar
+                        </Button>
                       )}
                       <Button size="sm" variant="outline" className="h-8 text-xs text-emerald-600 border-emerald-200" onClick={() => sendWhatsAppConfirmation(apt)}>
                         <MessageCircle className="h-3 w-3 mr-1" /> WhatsApp
