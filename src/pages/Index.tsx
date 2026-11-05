@@ -6,7 +6,6 @@ import Gallery from "@/components/Gallery";
 import SocialLinks from "@/components/SocialLinks";
 import Footer from "@/components/Footer";
 import BookingCalendar from "@/components/BookingCalendar";
-import GospelRadio from "@/components/GospelRadio";
 import AuthModal from "@/components/AuthModal";
 import InstallBanner from "@/components/InstallBanner";
 import MobileBottomNav from "@/components/MobileBottomNav";
@@ -73,10 +72,6 @@ const Index = () => {
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
       />
-
-      <ErrorBoundary fallback={null}>
-        <GospelRadio />
-      </ErrorBoundary>
       
       <InstallBanner />
       
