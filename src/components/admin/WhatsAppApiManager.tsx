@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { MessageCircle, Loader2, Save, Eye, EyeOff, Send } from "lucide-react";
+import { MessageCircle, Loader2, Save, Eye, EyeOff, Send, Lock, Unlock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -61,8 +61,57 @@ const WhatsAppApiManager = () => {
     setIsLoading(false);
   };
 
+  const handleToggleEnabled = async (checked: boolean) => {
+    if (!config) return;
+    setIsSaving(true);
+    const updated = { ...config, enabled: checked };
+    setConfig(updated);
+
+    try {
+      const cleanAdmin = updated.admin_number.replace(/\D/g, "");
+      const formattedAdmin = cleanAdmin.startsWith("55") ? cleanAdmin : `55${cleanAdmin}`;
+      const payload = {
+        instance_id: updated.instance_id.trim(),
+        instance_token: updated.instance_token.trim(),
+        admin_number: formattedAdmin,
+        enabled: checked,
+      };
+
+      const { error } = await supabase
+        .from("whatsapp_config")
+        .update(payload)
+        .eq("id", updated.id);
+
+      if (error) throw error;
+      await syncWhatsAppConfigToSiteSettings(payload);
+
+      toast({
+        title: checked ? "Integração ativada!" : "Integração desativada",
+        description: checked
+          ? "As informações foram bloqueadas para edição e as notificações estão ativas."
+          : "As informações foram desbloqueadas. Agora você pode editar.",
+      });
+    } catch (err: unknown) {
+      toast({
+        title: "Erro ao alterar status",
+        description: err instanceof Error ? err.message : String(err),
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!config) return;
+    if (config.enabled) {
+      toast({
+        title: "Campos bloqueados",
+        description: "Desative a integração acima para editar e salvar novas informações.",
+        variant: "destructive",
+      });
+      return;
+    }
     setIsSaving(true);
     const cleanAdmin = config.admin_number.replace(/\D/g, "");
     const formattedAdmin = cleanAdmin.startsWith("55") ? cleanAdmin : `55${cleanAdmin}`;
@@ -145,28 +194,59 @@ const WhatsAppApiManager = () => {
           </div>
           <Switch
             checked={config.enabled}
-            onCheckedChange={(v) => setConfig({ ...config, enabled: v })}
+            onCheckedChange={handleToggleEnabled}
+            disabled={isSaving}
           />
         </div>
 
+        {/* Status de bloqueio visual */}
+        {config.enabled ? (
+          <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-2.5 text-xs text-emerald-800 dark:text-emerald-300">
+            <Lock className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <span>Integração ativa. Os campos estão protegidos contra alteração acidental. Desative para editar.</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 p-2.5 text-xs text-amber-800 dark:text-amber-300">
+            <Unlock className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span>Integração desativada. Os campos estão liberados para edição.</span>
+          </div>
+        )}
+
         <div className="space-y-1.5">
-          <Label className="font-body text-sm">ID da Instância</Label>
+          <div className="flex items-center justify-between">
+            <Label className="font-body text-sm">ID da Instância</Label>
+            {config.enabled && (
+              <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-body">
+                <Lock className="h-3 w-3" /> Bloqueado
+              </span>
+            )}
+          </div>
           <Input
             value={config.instance_id}
             onChange={(e) => setConfig({ ...config, instance_id: e.target.value })}
             placeholder="instance_xxxxx"
+            disabled={config.enabled}
+            className={config.enabled ? "bg-muted/60 text-muted-foreground cursor-not-allowed" : ""}
           />
         </div>
 
         <div className="space-y-1.5">
-          <Label className="font-body text-sm">Token da Instância</Label>
+          <div className="flex items-center justify-between">
+            <Label className="font-body text-sm">Token da Instância</Label>
+            {config.enabled && (
+              <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-body">
+                <Lock className="h-3 w-3" /> Bloqueado
+              </span>
+            )}
+          </div>
           <div className="relative">
             <Input
               type={showToken ? "text" : "password"}
               value={config.instance_token}
               onChange={(e) => setConfig({ ...config, instance_token: e.target.value })}
               placeholder="••••••••••••"
-              className="pr-10"
+              disabled={config.enabled}
+              className={`pr-10 ${config.enabled ? "bg-muted/60 text-muted-foreground cursor-not-allowed" : ""}`}
             />
             <Button
               type="button"
@@ -181,19 +261,38 @@ const WhatsAppApiManager = () => {
         </div>
 
         <div className="space-y-1.5">
-          <Label className="font-body text-sm">Número do Admin (com DDI)</Label>
+          <div className="flex items-center justify-between">
+            <Label className="font-body text-sm">Número do Admin (com DDI)</Label>
+            {config.enabled && (
+              <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-body">
+                <Lock className="h-3 w-3" /> Bloqueado
+              </span>
+            )}
+          </div>
           <Input
             value={config.admin_number}
             onChange={(e) => setConfig({ ...config, admin_number: e.target.value })}
             placeholder="559191837179"
+            disabled={config.enabled}
+            className={config.enabled ? "bg-muted/60 text-muted-foreground cursor-not-allowed" : ""}
           />
           <p className="text-xs text-muted-foreground">Apenas números. Ex: 559191837179</p>
         </div>
 
         <div className="flex gap-2 pt-1">
-          <Button onClick={handleSave} disabled={isSaving} className="flex-1">
-            {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-            Salvar
+          <Button
+            onClick={handleSave}
+            disabled={isSaving || config.enabled}
+            className={`flex-1 ${config.enabled ? "opacity-60 cursor-not-allowed" : ""}`}
+          >
+            {isSaving ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : config.enabled ? (
+              <Lock className="h-4 w-4 mr-2" />
+            ) : (
+              <Save className="h-4 w-4 mr-2" />
+            )}
+            {config.enabled ? "Bloqueado para edição" : "Salvar"}
           </Button>
           <Button onClick={handleTest} disabled={isTesting} variant="outline" className="flex-1">
             {isTesting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
