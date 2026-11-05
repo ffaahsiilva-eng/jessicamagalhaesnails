@@ -189,7 +189,25 @@ export const AdminEditProvider = ({ children }: { children: ReactNode }) => {
 export const useAdminEdit = () => {
   const context = useContext(AdminEditContext);
   if (!context) {
-    throw new Error("useAdminEdit must be used within AdminEditProvider");
+    return {
+      isEditMode: false,
+      toggleEditMode: async () => {},
+      exitWithoutSaving: () => {},
+      isAdmin: false,
+      isLoading: false,
+      isSaving: false,
+      draftSettings: {},
+      setDraftSetting: () => {},
+      getDraftSetting: (_key: string, fallback: string = "") => fallback,
+      saveAllChanges: async () => {},
+      hasPendingChanges: false,
+      pendingCount: 0,
+      imageModalData: null,
+      openImageModal: () => {},
+      closeImageModal: () => {},
+      isStyleDrawerOpen: false,
+      setIsStyleDrawerOpen: () => {},
+    };
   }
   return context;
 };

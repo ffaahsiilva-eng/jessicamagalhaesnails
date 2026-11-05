@@ -40,7 +40,13 @@ class ErrorBoundary extends Component<Props, State> {
   };
 
   handleReload = () => {
-    window.location.reload();
+    try {
+      if (typeof window !== "undefined") {
+        window.location.href = window.location.origin + window.location.pathname;
+      }
+    } catch {
+      window.location.reload();
+    }
   };
 
   render() {
@@ -58,9 +64,14 @@ class ErrorBoundary extends Component<Props, State> {
             <h3 className="font-display text-xl font-semibold text-foreground mb-2">
               Algo deu errado
             </h3>
-            <p className="text-muted-foreground font-body text-sm mb-6">
+            <p className="text-muted-foreground font-body text-sm mb-4">
               Ocorreu um erro inesperado. Tente recarregar a página ou entre em contato conosco.
             </p>
+            {this.state.error?.message && (
+              <p className="text-[11px] font-mono text-muted-foreground/80 bg-muted/50 p-2 rounded mb-4 max-w-xs mx-auto break-words">
+                {this.state.error.message}
+              </p>
+            )}
             <div className="flex gap-3 justify-center">
               <Button
                 variant="outline"

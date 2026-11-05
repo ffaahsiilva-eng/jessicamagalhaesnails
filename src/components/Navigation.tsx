@@ -30,13 +30,20 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        setUser(data?.session?.user ?? null);
+      })
+      .catch(() => {
+        setUser(null);
+      });
+
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-    return () => subscription.unsubscribe();
+
+    return () => data?.subscription?.unsubscribe();
   }, []);
 
   const handleLogout = useCallback(async () => {

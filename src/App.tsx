@@ -7,12 +7,15 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useThemeColors } from "./hooks/useThemeColors";
 import { useFonts } from "./hooks/useFonts";
 import { usePerformanceMonitor } from "./hooks/usePerformanceMonitor";
+import { AdminEditProvider } from "@/contexts/AdminEditContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import SuspenseFallback from "./components/SuspenseFallback";
 import UpdatePrompt from "./components/UpdatePrompt";
 
-// Lazy load pages for better performance
-const Index = lazy(() => import("./pages/Index"));
+// Direct import for homepage to prevent dynamic chunk load errors on iOS
+import Index from "./pages/Index";
+
+// Lazy load secondary admin & utility pages with safe error handling
 const Admin = lazy(() => import("./pages/Admin"));
 const Install = lazy(() => import("./pages/Install"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -39,7 +42,7 @@ const queryClient = new QueryClient({
 const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   useThemeColors();
   useFonts();
-  usePerformanceMonitor(process.env.NODE_ENV === "development");
+  usePerformanceMonitor(Boolean(import.meta.env.DEV));
   return <>{children}</>;
 };
 
@@ -47,24 +50,26 @@ const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <ThemeProvider>
-          <Toaster />
-          <Sonner />
-          <UpdatePrompt />
-          <BrowserRouter>
-            <ErrorBoundary>
-              <Suspense fallback={<SuspenseFallback type="page" />}>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/admin" element={<Admin />} />
-                  <Route path="/install" element={<Install />} />
-                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
-            </ErrorBoundary>
-          </BrowserRouter>
-        </ThemeProvider>
+        <AdminEditProvider>
+          <ThemeProvider>
+            <Toaster />
+            <Sonner />
+            <UpdatePrompt />
+            <BrowserRouter>
+              <ErrorBoundary>
+                <Suspense fallback={<SuspenseFallback type="page" />}>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/admin" element={<Admin />} />
+                    <Route path="/install" element={<Install />} />
+                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
+              </ErrorBoundary>
+            </BrowserRouter>
+          </ThemeProvider>
+        </AdminEditProvider>
       </TooltipProvider>
     </QueryClientProvider>
   </ErrorBoundary>

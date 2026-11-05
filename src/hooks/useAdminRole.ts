@@ -7,47 +7,69 @@ export const useAdminRole = () => {
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     const checkAdminRole = async (isInitial = false) => {
-      if (isInitial) {
+      if (isInitial && isMounted) {
         setIsLoading(true);
       }
       
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        setIsAdmin(false);
-        setUserId(null);
-        setIsLoading(false);
-        return;
+      try {
+        const { data } = await supabase.auth.getUser();
+        const user = data?.user ?? null;
+        
+        if (!user) {
+          if (isMounted) {
+            setIsAdmin(false);
+            setUserId(null);
+            setIsLoading(false);
+          }
+          return;
+        }
+
+        if (isMounted) {
+          setUserId(user.id);
+        }
+
+        // Verificação por role no banco ou e-mail cadastrado de admin
+        const { data: roleData, error } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "admin")
+          .maybeSingle();
+
+        const hasAdminRole = !!roleData && !error;
+        const isKnownAdmin = user.email === "jessica@gmail.com";
+
+        if (isMounted) {
+          setIsAdmin(hasAdminRole || isKnownAdmin);
+        }
+      } catch (err) {
+        console.warn("Error checking admin role:", err);
+        if (isMounted) {
+          setIsAdmin(false);
+          setUserId(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
-
-      setUserId(user.id);
-
-      // Verificação por role no banco ou e-mail cadastrado de admin
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
-
-      const hasAdminRole = !!data && !error;
-      const isKnownAdmin = user.email === "jessica@gmail.com";
-
-      setIsAdmin(hasAdminRole || isKnownAdmin);
-      setIsLoading(false);
     };
 
     checkAdminRole(true);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      // Evita disparar reload de estado e telas de loading no foco de janela
+    const { data } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
         checkAdminRole(false);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      data?.subscription?.unsubscribe();
+    };
   }, []);
 
   return { isAdmin, isLoading, userId };
