@@ -20,6 +20,7 @@ interface AdminEditContextType {
   setDraftSetting: (key: string, value: string) => void;
   getDraftSetting: (key: string, fallback?: string) => string;
   saveAllChanges: () => Promise<void>;
+  exitWithoutSaving: () => void;
   hasPendingChanges: boolean;
   pendingCount: number;
   // Image modal
@@ -129,6 +130,24 @@ export const AdminEditProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [isAdmin, isEditMode, draftSettings, saveAllChanges, toast]);
 
+  const exitWithoutSaving = useCallback(() => {
+    if (Object.keys(draftSettings).length > 0) {
+      const confirmDiscard = window.confirm(
+        "Deseja sair sem salvar? Todas as alterações não salvas serão descartadas."
+      );
+      if (!confirmDiscard) return;
+    }
+
+    setDraftSettings({});
+    setIsEditMode(false);
+    setIsStyleDrawerOpen(false);
+    setImageModalData(null);
+    toast({
+      title: "Edições descartadas",
+      description: "Você saiu do modo de edição sem salvar as alterações.",
+    });
+  }, [draftSettings, toast]);
+
   const openImageModal = useCallback((settingKey: string, defaultImage: string, title?: string) => {
     setImageModalData({ settingKey, defaultImage, title });
   }, []);
@@ -145,6 +164,7 @@ export const AdminEditProvider = ({ children }: { children: ReactNode }) => {
       value={{
         isEditMode,
         toggleEditMode,
+        exitWithoutSaving,
         isAdmin,
         isLoading,
         isSaving,

@@ -1,4 +1,4 @@
-import { Pencil, Check, Palette, Loader2, Save } from "lucide-react";
+import { Pencil, Check, Palette, Loader2, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAdminEdit } from "@/contexts/AdminEditContext";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ const AdminEditToggle = () => {
     isAdmin,
     isEditMode,
     toggleEditMode,
+    exitWithoutSaving,
     isLoading,
     isSaving,
     pendingCount,
@@ -27,10 +28,10 @@ const AdminEditToggle = () => {
 
       {isEditMode ? (
         /* Top Floating Control Bar when in Edit Mode */
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[90] flex items-center gap-2 bg-card/95 backdrop-blur-md border border-primary/30 shadow-2xl rounded-full px-4 py-2 animate-in slide-in-from-top-4 duration-300">
-          <div className="flex items-center gap-2 pr-2 border-r border-border">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-display font-semibold text-xs sm:text-sm text-foreground">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[90] flex items-center gap-1.5 sm:gap-2 bg-card/95 backdrop-blur-md border border-primary/30 shadow-2xl rounded-full px-3 sm:px-4 py-2 animate-in slide-in-from-top-4 duration-300 max-w-[95vw]">
+          <div className="flex items-center gap-1.5 sm:gap-2 pr-2 border-r border-border shrink-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            <span className="font-display font-semibold text-xs sm:text-sm text-foreground whitespace-nowrap">
               Modo Edição
             </span>
           </div>
@@ -40,15 +41,15 @@ const AdminEditToggle = () => {
             size="sm"
             variant="ghost"
             onClick={() => setIsStyleDrawerOpen(true)}
-            className="h-8 px-2.5 text-xs font-body gap-1.5 hover:bg-primary/10 hover:text-primary"
+            className="h-8 px-2 sm:px-2.5 text-xs font-body gap-1.5 hover:bg-primary/10 hover:text-primary shrink-0"
             title="Mudar cores da faixa rolante, rodapé e seções"
           >
             <Palette className="h-3.5 w-3.5 text-primary" />
-            <span className="hidden sm:inline">Cores de Barras</span>
+            <span className="hidden md:inline">Cores de Barras</span>
           </Button>
 
           {pendingCount > 0 && (
-            <span className="text-[11px] font-body text-primary font-medium hidden md:inline px-1">
+            <span className="text-[11px] font-body text-primary font-medium hidden lg:inline px-1">
               {pendingCount} alteração(ões) pendente(s)
             </span>
           )}
@@ -56,9 +57,22 @@ const AdminEditToggle = () => {
           <Button
             type="button"
             size="sm"
+            variant="ghost"
+            onClick={exitWithoutSaving}
+            className="h-8 px-2.5 text-xs font-body text-muted-foreground hover:text-destructive hover:bg-destructive/10 gap-1 rounded-full transition-colors shrink-0"
+            title="Descartar alterações e sair do modo de edição sem salvar"
+          >
+            <X className="h-3.5 w-3.5 text-destructive" />
+            <span className="hidden sm:inline">Sair sem salvar</span>
+            <span className="sm:hidden text-destructive font-medium">Descartar</span>
+          </Button>
+
+          <Button
+            type="button"
+            size="sm"
             disabled={isSaving}
             onClick={toggleEditMode}
-            className="h-8 px-3 text-xs font-body bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 rounded-full shadow-md"
+            className="h-8 px-3 text-xs font-body bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 rounded-full shadow-md shrink-0"
             title="Ao sair do modo de edição, todas as alterações são salvas automaticamente"
           >
             {isSaving ? (
@@ -66,7 +80,8 @@ const AdminEditToggle = () => {
             ) : (
               <Check className="h-3.5 w-3.5" />
             )}
-            <span>Sair e Salvar</span>
+            <span className="hidden sm:inline">Sair e Salvar</span>
+            <span className="sm:hidden">Salvar</span>
           </Button>
         </div>
       ) : (
