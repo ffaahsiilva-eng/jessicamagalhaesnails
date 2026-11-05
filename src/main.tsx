@@ -3,6 +3,29 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
+// Polyfill requestIdleCallback / cancelIdleCallback for iOS Safari / WebKit
+if (typeof window !== "undefined") {
+  if (!("requestIdleCallback" in window)) {
+    (window as unknown as { requestIdleCallback: unknown }).requestIdleCallback = function (
+      cb: (deadline: { didTimeout: boolean; timeRemaining: () => number }) => void
+    ) {
+      const start = Date.now();
+      return window.setTimeout(() => {
+        cb({
+          didTimeout: false,
+          timeRemaining: () => Math.max(0, 50 - (Date.now() - start)),
+        });
+      }, 1);
+    };
+  }
+
+  if (!("cancelIdleCallback" in window)) {
+    (window as unknown as { cancelIdleCallback: unknown }).cancelIdleCallback = function (id: number) {
+      clearTimeout(id);
+    };
+  }
+}
+
 // Global error handler for unhandled errors
 window.onerror = (message, source, lineno, colno, error) => {
   console.error("🔴 Global Error:", { message, source, lineno, colno, error });
@@ -31,17 +54,20 @@ createRoot(rootElement).render(
   </StrictMode>
 );
 
-// Performance mark for render complete
-if (typeof performance !== "undefined") {
-  requestIdleCallback?.(() => {
-    performance.mark("app-init-end");
-    performance.measure("app-initialization", "app-init-start", "app-init-end");
-    
-    const measures = performance.getEntriesByName("app-initialization");
-    if (measures.length > 0 && process.env.NODE_ENV === "development") {
-      console.log(`⚡ App initialized in ${measures[0].duration.toFixed(2)}ms`);
+// Performance mark for render complete (seguro contra WebKit / iOS Safari)
+if (typeof performance !== "undefined" && typeof window !== "undefined") {
+  const scheduleIdle = window.requestIdleCallback || window.setTimeout;
+  scheduleIdle(() => {
+    try {
+      performance.mark("app-init-end");
+      performance.measure("app-initialization", "app-init-start", "app-init-end");
+
+      const measures = performance.getEntriesByName("app-initialization");
+      if (measures.length > 0 && import.meta.env.DEV) {
+        console.log(`⚡ App initialized in ${measures[0].duration.toFixed(2)}ms`);
+      }
+    } catch {
+      // Ignora erro de medição
     }
-  }) ?? setTimeout(() => {
-    performance.mark("app-init-end");
-  }, 0);
+  });
 }
