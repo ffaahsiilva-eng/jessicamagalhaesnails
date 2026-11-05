@@ -61,10 +61,11 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
     <nav
       className={`
         fixed top-0 left-0 right-0 z-50 transition-all duration-300
-        ${isScrolled ? "bg-card/90 backdrop-blur-md shadow-soft py-3" : "bg-transparent py-5"}
+        pt-[max(env(safe-area-inset-top,0px),1rem)]
+        ${isScrolled ? "bg-card/90 backdrop-blur-md shadow-soft pb-3" : "bg-transparent pb-4"}
       `}
     >
-      <div className="container mx-auto px-6 flex items-center justify-end">
+      <div className="container mx-auto px-4 sm:px-6 flex items-center justify-end">
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-8">
           {navLinks.map((link) => (
@@ -123,10 +124,10 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
           </Button>
         </div>
 
-        {/* Mobile Menu Button */}
+        {/* Mobile Menu Button - posicionado com margem do topo para fácil clique no celular */}
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="md:hidden p-3 text-foreground rounded-xl active:scale-95 transition-transform min-h-[44px] min-w-[44px] flex items-center justify-center"
+          className="md:hidden mt-2 p-3 text-foreground rounded-2xl bg-card/90 backdrop-blur-md border border-border/60 shadow-soft active:scale-90 transition-all min-h-[48px] min-w-[48px] flex items-center justify-center cursor-pointer touch-manipulation z-50"
           aria-label={isMobileMenuOpen ? "Fechar menu" : "Abrir menu"}
         >
           {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
