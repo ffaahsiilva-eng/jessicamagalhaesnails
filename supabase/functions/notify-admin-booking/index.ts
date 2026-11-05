@@ -181,7 +181,7 @@ Deno.serve(async (req) => {
         (priceDisplay ? `💰 *${priceLabel}:* ${priceDisplay}\n` : '') +
         `\nCaso deseje remarcar para outro dia ou horário disponível, acesse nosso site:\n` +
         `👉 ${baseUrl}\n\n` +
-        `Se tiver dúvidas, basta responder esta mensagem. Te esperamos em breve! 💕`;
+        `Te esperamos em breve! 💕`;
 
       const resClient = await sendWhatsApp(clientNumber, clientCancelText);
       results.client = { ok: resClient.ok, status: resClient.status };

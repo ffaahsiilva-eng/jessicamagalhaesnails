@@ -346,7 +346,7 @@ export const notifyWhatsAppBooking = async (params: SendBookingNotificationParam
       (priceDisplay ? `💰 *${priceLabel}:* ${priceDisplay}\n` : "") +
       `\nCaso deseje remarcar para outro dia ou horário disponível, acesse nosso site:\n` +
       `👉 ${baseUrl}\n\n` +
-      `Se tiver dúvidas, basta responder esta mensagem. Te esperamos em breve! 💕`;
+      `Te esperamos em breve! 💕`;
 
     await sendDirectWhatsApp(config.instance_id, config.instance_token, params.client_phone, clientCancelText);
 
