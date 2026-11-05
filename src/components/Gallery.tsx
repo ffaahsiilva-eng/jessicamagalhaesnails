@@ -175,7 +175,7 @@ const Gallery = memo(() => {
               {/* Anel dourado tracejado girando devagar (spinSlow 40s linear infinito) */}
               <svg
                 viewBox="0 0 332 332"
-                className="absolute -top-4 -left-4 w-[272px] h-[272px] sm:w-[332px] sm:h-[332px] pointer-events-none animate-spin-slow select-none"
+                className="absolute -top-3 -left-3 sm:-top-4 sm:-left-4 w-[234px] h-[234px] sm:w-[294px] sm:h-[294px] md:w-[332px] md:h-[332px] pointer-events-none animate-spin-slow select-none will-change-transform"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
                 aria-hidden="true"
@@ -191,7 +191,7 @@ const Gallery = memo(() => {
               </svg>
 
               {/* Círculo com a foto do portfólio, fundo bege claro, borda branca de 6px e sombra suave */}
-              <div className="relative w-[240px] h-[240px] sm:w-[300px] sm:h-[300px] rounded-full overflow-hidden border-[6px] border-white shadow-[0_10px_30px_rgba(0,0,0,0.08)] bg-gradient-to-br from-[#fdfbf7] to-[#f4ece1] flex items-center justify-center group/portfolio">
+              <div className="relative w-[210px] h-[210px] sm:w-[270px] sm:h-[270px] md:w-[300px] md:h-[300px] rounded-full overflow-hidden border-4 sm:border-[6px] border-white shadow-[0_10px_30px_rgba(0,0,0,0.08)] bg-gradient-to-br from-[#fdfbf7] to-[#f4ece1] flex items-center justify-center group/portfolio">
                 <img
                   src={portfolioImg}
                   alt="Jéssica Magalhães"
@@ -220,10 +220,10 @@ const Gallery = memo(() => {
 
               {/* Selo 1: Topo esquerdo flutuando (floaty2 5.5s) */}
               <div
-                className="absolute top-2 sm:top-5 -left-[6px] sm:-left-6 md:-left-8 bg-white/95 backdrop-blur-sm text-[#3a2e2b] shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-[#efe8df] rounded-full px-3.5 py-1.5 sm:px-4 sm:py-2 flex items-center gap-1.5 text-xs sm:text-sm font-medium tracking-tight whitespace-nowrap z-20 select-none animate-floaty2"
+                className="absolute top-1 sm:top-5 -left-1 sm:-left-6 md:-left-8 bg-white/95 backdrop-blur-sm text-[#3a2e2b] shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-[#efe8df] rounded-full px-2.5 py-1 sm:px-4 sm:py-2 flex items-center gap-1.5 text-[11px] sm:text-xs md:text-sm font-medium tracking-tight whitespace-nowrap z-20 select-none animate-floaty2 will-change-transform"
                 style={{ fontFamily: "'Jost', sans-serif" }}
               >
-                <span className="text-sm">⭐</span>
+                <span className="text-xs sm:text-sm">⭐</span>
                 <EditableText
                   settingKey="badge_premium_text"
                   defaultValue="Atendimento premium"
@@ -233,10 +233,10 @@ const Gallery = memo(() => {
 
               {/* Selo 2: Embaixo à direita flutuando (floaty 6.5s) */}
               <div
-                className="absolute bottom-3 sm:bottom-6 -right-[6px] sm:-right-6 md:-right-8 bg-white/95 backdrop-blur-sm text-[#3a2e2b] shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-[#efe8df] rounded-full px-3.5 py-1.5 sm:px-4 sm:py-2 flex items-center gap-1.5 text-xs sm:text-sm font-medium tracking-tight whitespace-nowrap z-20 select-none animate-floaty"
+                className="absolute bottom-1 sm:bottom-6 -right-1 sm:-right-6 md:-right-8 bg-white/95 backdrop-blur-sm text-[#3a2e2b] shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-[#efe8df] rounded-full px-2.5 py-1 sm:px-4 sm:py-2 flex items-center gap-1.5 text-[11px] sm:text-xs md:text-sm font-medium tracking-tight whitespace-nowrap z-20 select-none animate-floaty will-change-transform"
                 style={{ fontFamily: "'Jost', sans-serif" }}
               >
-                <span className="text-sm">💅</span>
+                <span className="text-xs sm:text-sm">💅</span>
                 <EditableText
                   settingKey="badge_quality_text"
                   defaultValue="Produtos de alta qualidade"

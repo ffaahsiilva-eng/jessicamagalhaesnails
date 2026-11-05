@@ -41,7 +41,7 @@ const InstallBanner = () => {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="fixed bottom-20 md:bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-40"
+          className="fixed bottom-36 md:bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-40"
         >
           <div className="bg-card border border-border rounded-2xl shadow-card p-4">
             <button

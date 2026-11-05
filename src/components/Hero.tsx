@@ -40,7 +40,7 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
       const vh = window.innerHeight || 800;
       const progress = Math.min(0.4, Math.max(0, window.scrollY / (vh * 1.5)));
       portrait.style.opacity = `${1 - progress}`;
-      portrait.style.transform = `translateZ(0) scale(${1 - progress * 0.05})`;
+      portrait.style.transform = `translate3d(0, 0, 0) scale(${1 - progress * 0.05})`;
       rafId = null;
     };
 
@@ -136,7 +136,7 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
             className="mb-8 flex justify-center will-change-transform animate-portrait-fade-in"
           >
             {/* Foto de Cima: Retrato com suporte a troca em tempo real */}
-            <div className="relative w-72 h-72 sm:w-80 sm:h-80 md:w-96 md:h-96 group/portrait">
+            <div className="relative w-64 h-64 sm:w-80 sm:h-80 md:w-96 md:h-96 group/portrait">
               <img
                 src={heroPortrait}
                 alt="Jéssica Magalhães"
@@ -146,6 +146,8 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
                     "radial-gradient(ellipse at center, black 55%, transparent 78%)",
                   maskImage:
                     "radial-gradient(ellipse at center, black 55%, transparent 78%)",
+                  transform: "translate3d(0, 0, 0)",
+                  backfaceVisibility: "hidden",
                 }}
               />
               <div
@@ -196,7 +198,7 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
             </div>
           </div>
 
-          <div className="mb-4 animate-in fade-in zoom-in-95 duration-500 delay-150">
+          <div className="mb-3 sm:mb-4 animate-in fade-in zoom-in-95 duration-500 delay-150">
             <EditableText
               settingKey="hero_subtitle"
               defaultValue="Nail Designer"
@@ -205,30 +207,30 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
             />
           </div>
 
-          <div className="mb-6 animate-in fade-in slide-in-from-bottom-2 duration-600 delay-300">
+          <div className="mb-4 sm:mb-6 animate-in fade-in slide-in-from-bottom-2 duration-600 delay-300">
             <EditableText
               settingKey="hero_title"
               defaultValue="Jéssica Magalhães"
               as="h1"
-              className="md:text-7xl font-display font-semibold text-foreground leading-tight text-4xl"
+              className="text-3xl sm:text-5xl md:text-7xl font-display font-semibold text-foreground leading-tight"
             />
           </div>
 
-          <div className="mb-10 max-w-md mx-auto animate-in fade-in duration-600 delay-500">
+          <div className="mb-8 sm:mb-10 max-w-md mx-auto animate-in fade-in duration-600 delay-500">
             <EditableText
               settingKey="hero_description"
               defaultValue="Unhas perfeitas com carinho e profissionalismo. Agende seu horário e sinta-se ainda mais linda!"
               as="p"
               multiline
-              className="text-lg text-muted-foreground font-body"
+              className="text-base sm:text-lg text-muted-foreground font-body px-2"
             />
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center animate-in fade-in slide-in-from-bottom-2 duration-500 delay-700">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center w-full max-w-xs sm:max-w-md mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500 delay-700">
             <Button
               size="lg"
               onClick={isEditMode ? undefined : onBookClick}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-button font-body group"
+              className="w-full sm:w-auto h-12 sm:h-11 px-8 bg-primary hover:bg-primary/90 text-primary-foreground shadow-button font-body group text-base active:scale-[0.98] transition-transform"
             >
               <Calendar className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
               <EditableText
@@ -242,7 +244,7 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
               size="lg"
               variant="outline"
               onClick={isEditMode ? undefined : handleWhatsAppClick}
-              className="border-primary text-primary hover:bg-primary/10 font-body group"
+              className="w-full sm:w-auto h-12 sm:h-11 px-8 border-primary text-primary hover:bg-primary/10 font-body group text-base active:scale-[0.98] transition-transform"
             >
               <Phone className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
               <EditableText

@@ -435,10 +435,10 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-foreground/40 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-foreground/40 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200"
     >
       <div
-        className="bg-card w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-card overflow-hidden max-h-[92vh] overflow-y-auto animate-in slide-in-from-bottom-4 duration-300"
+        className="bg-card w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-card overflow-hidden max-h-[92vh] overflow-y-auto animate-in slide-in-from-bottom-4 duration-300 safe-area-bottom"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -491,11 +491,12 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                   return date < today || date > addDays(new Date(), 30) || isSunday(date);
                 }}
                 locale={ptBR}
-                className="rounded-xl border border-border mx-auto"
+                className="rounded-xl border border-border mx-auto max-w-full"
               />
               <Button
                 onClick={() => setStep(2)}
                 disabled={!selectedDate}
+                className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-body text-base active:scale-[0.98] transition-transform shadow-button"
               >
                 Continuar
               </Button>
@@ -568,7 +569,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                 <Button
                   variant="outline"
                   onClick={() => setStep(1)}
-                  className="flex-1"
+                  className="flex-1 h-12 font-body active:scale-[0.98] transition-transform"
                 >
                   Voltar
                 </Button>
@@ -578,7 +579,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                     setStep(3);
                   }}
                   disabled={!selectedTime || !selectedService}
-                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                  className="flex-1 h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-body active:scale-[0.98] transition-transform shadow-button"
                 >
                   Continuar
                 </Button>
@@ -687,14 +688,14 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                     await releaseCurrentHold();
                     setStep(2);
                   }}
-                  className="flex-1"
+                  className="flex-1 h-12 font-body active:scale-[0.98] transition-transform"
                 >
                   Voltar
                 </Button>
                 <Button
                   onClick={handleSendWhatsApp}
                   disabled={isLoading || !isStep3Valid}
-                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                  className="flex-1 h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-body shadow-button active:scale-[0.98] transition-transform text-sm sm:text-base"
                 >
                   <MessageCircle className="mr-2 h-4 w-4" />
                   Enviar via WhatsApp
@@ -718,7 +719,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                 href={whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 rounded-md bg-[#25D366] hover:bg-[#1da851] text-white font-medium px-6 py-3 transition-colors"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#25D366] hover:bg-[#1da851] text-white font-medium px-6 py-3.5 w-full text-base transition-colors shadow-button active:scale-[0.98]"
               >
                 <MessageCircle className="h-5 w-5" />
                 Enviar pelo WhatsApp
@@ -727,7 +728,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                 <Button
                   variant="outline"
                   onClick={resetAndClose}
-                  size="sm"
+                  className="w-full h-11 font-body active:scale-[0.98] transition-transform"
                 >
                   Fechar
                 </Button>

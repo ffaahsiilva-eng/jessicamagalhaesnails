@@ -119,7 +119,7 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
         {/* Mobile Menu Button */}
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="md:hidden p-3 text-foreground rounded-xl active:scale-95 transition-transform"
+          className="md:hidden p-3 text-foreground rounded-xl active:scale-95 transition-transform min-h-[44px] min-w-[44px] flex items-center justify-center"
           aria-label={isMobileMenuOpen ? "Fechar menu" : "Abrir menu"}
         >
           {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -186,7 +186,7 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
                   setIsMobileMenuOpen(false);
                   onBookClick();
                 }}
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground text-base font-medium shadow-button active:scale-[0.98] transition-transform"
               >
                 <EditableText settingKey="nav_book_btn_mobile" defaultValue="Agendar Horário" as="span" />
               </Button>

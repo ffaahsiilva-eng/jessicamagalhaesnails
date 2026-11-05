@@ -24,7 +24,7 @@ const Footer = memo(({ whatsappNumber }: FooterProps) => {
 
   return (
     <footer
-      className="text-background py-12 pb-24 md:pb-12 transition-colors duration-300"
+      className="text-background py-12 pb-28 md:pb-12 safe-area-bottom transition-colors duration-300"
       style={{ backgroundColor: footerBg }}
     >
       <div className="container mx-auto px-6">

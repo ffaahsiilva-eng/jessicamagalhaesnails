@@ -102,8 +102,8 @@ const PriceTable = memo(() => {
                 key={service.id}
                 style={{ animationDelay: `${index * 50}ms` }}
                 className={`
-                  relative p-6 rounded-2xl bg-card border transition-all duration-300
-                  hover:shadow-card hover:-translate-y-1
+                  relative p-4 sm:p-6 rounded-2xl bg-card border transition-all duration-200
+                  hover:shadow-card hover:-translate-y-0.5 active:scale-[0.99]
                   animate-in fade-in slide-in-from-bottom-2 fill-mode-both
                   ${service.is_popular ? "border-primary shadow-soft" : "border-border"}
                 `}
