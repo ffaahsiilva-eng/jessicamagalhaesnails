@@ -288,7 +288,7 @@ export const notifyWhatsAppBooking = async (params: SendBookingNotificationParam
       (cleanNotes ? `📝 *Obs:* ${cleanNotes}\n` : "") +
       `\n⏰ *Importante:* Temos uma tolerância de 15 minutos para chegada.\n` +
       `📸 *Instagram:* https://www.instagram.com/jessica_magalhaes_nail\n\n` +
-      `Estamos ansiosas para te receber! Se precisar de algo, basta responder esta mensagem. 🙏`;
+      `Estamos ansiosas para receber você! 💅✨ Prepare-se para um momento especial de cuidado, beleza e carinho. Será um prazer cuidar de você! 💖`;
 
     await sendDirectWhatsApp(config.instance_id, config.instance_token, params.client_phone, clientText);
 
