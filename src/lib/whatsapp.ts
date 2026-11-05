@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { calculateServicesTotal, extractPriceFromNotes, cleanNotesForDisplay } from "@/lib/price";
 
 export interface SendBookingNotificationParams {
   appointment_id?: string | null;
@@ -63,10 +64,46 @@ export const sendDirectWhatsApp = async (
 };
 
 export const notifyWhatsAppBooking = async (params: SendBookingNotificationParams) => {
-  // 1. Tentar Edge Function primeiro
+  // Resolver preço de forma robusta se não foi passado diretamente
+  let priceDisplay = params.service_price?.trim() || "";
+
+  if (!priceDisplay) {
+    // 1. Tentar extrair de anotações internas [Valor: ...]
+    priceDisplay = extractPriceFromNotes(params.notes);
+  }
+
+  if (!priceDisplay && params.service_type) {
+    // 2. Tentar buscar da tabela de serviços e calcular soma (mesmo para múltiplos com '+')
+    try {
+      const { data: dbServices } = await supabase
+        .from("services")
+        .select("name, price")
+        .eq("is_active", true);
+
+      if (dbServices && dbServices.length > 0) {
+        const { totalFormatted } = calculateServicesTotal(params.service_type, dbServices);
+        if (totalFormatted) {
+          priceDisplay = totalFormatted;
+        }
+      }
+    } catch {
+      // Ignora erro de query
+    }
+  }
+
+  const isMulti = params.service_type.includes("+") || params.service_type.includes(",");
+  const serviceLabel = isMulti ? "Serviços" : "Serviço";
+  const priceLabel = isMulti ? "Valor Total" : "Valor";
+  const priceLine = priceDisplay ? `💰 *${priceLabel}:* ${priceDisplay}\n` : "";
+  const cleanNotes = cleanNotesForDisplay(params.notes);
+
+  // 1. Tentar Edge Function primeiro passando o price já resolvido
   try {
     const { data, error } = await supabase.functions.invoke("notify-admin-booking", {
-      body: params,
+      body: {
+        ...params,
+        service_price: priceDisplay || params.service_price,
+      },
     });
     if (!error && data && !data.error) {
       return { success: true, via: "edge-function", data };
@@ -84,8 +121,7 @@ export const notifyWhatsAppBooking = async (params: SendBookingNotificationParam
   const [y, m, d] = params.appointment_date.split("-");
   const formattedDate = `${d}/${m}/${y}`;
   const time = params.appointment_time.slice(0, 5);
-  const priceText = params.service_price ? ` (${params.service_price})` : "";
-  const baseUrl = params.site_url || window.location.origin;
+  const baseUrl = params.site_url || (typeof window !== "undefined" ? window.location.origin : "https://jessicamagalhaesnail.vercel.app");
 
   const confirmLink = params.appointment_id
     ? `${baseUrl}/admin?confirm_id=${params.appointment_id}`
@@ -98,10 +134,11 @@ export const notifyWhatsAppBooking = async (params: SendBookingNotificationParam
       `👤 *Cliente:* ${params.client_name}\n` +
       `📱 *WhatsApp:* ${params.client_phone}\n` +
       (params.client_email ? `✉️ *Email:* ${params.client_email}\n` : "") +
-      `💅 *Serviço:* ${params.service_type}${priceText}\n` +
+      `💅 *${serviceLabel}:* ${params.service_type}\n` +
+      priceLine +
       `📅 *Data:* ${formattedDate}\n` +
       `🕐 *Horário:* ${time}\n` +
-      (params.notes ? `📝 *Obs:* ${params.notes}\n` : "") +
+      (cleanNotes ? `📝 *Obs:* ${cleanNotes}\n` : "") +
       `\n❓ *Confirma este agendamento?*\n` +
       `👉 Clique no link para confirmar no painel:\n` +
       `${confirmLink}`;
@@ -115,10 +152,11 @@ export const notifyWhatsAppBooking = async (params: SendBookingNotificationParam
     const clientText =
       `✨ *AGENDAMENTO CONFIRMADO!* ✨\n\n` +
       `Olá, *${params.client_name}*! Seu horário com Jéssica Magalhães foi confirmado com sucesso! 💕\n\n` +
-      `💅 *Serviço:* ${params.service_type}${priceText}\n` +
+      `💅 *${serviceLabel}:* ${params.service_type}\n` +
+      priceLine +
       `📅 *Data:* ${formattedDate}\n` +
       `🕐 *Horário:* ${time}\n` +
-      (params.notes ? `📝 *Obs:* ${params.notes}\n` : "") +
+      (cleanNotes ? `📝 *Obs:* ${cleanNotes}\n` : "") +
       `\n⏰ *Importante:* Temos uma tolerância de 15 minutos para chegada.\n` +
       `📸 *Instagram:* https://www.instagram.com/jessica_magalhaes_nail\n\n` +
       `Estamos ansiosas para te receber! Se precisar de algo, basta responder esta mensagem. 🙏`;
@@ -126,11 +164,12 @@ export const notifyWhatsAppBooking = async (params: SendBookingNotificationParam
     await sendDirectWhatsApp(config.instance_id, config.instance_token, params.client_phone, clientText);
 
     const adminText =
-      `✅ *Agendamento confirmado!*\n\n` +
-      `Cliente: *${params.client_name}*\n` +
-      `Serviço: ${params.service_type}${priceText}\n` +
-      `Data: ${formattedDate} às ${time}\n` +
-      `Mensagem de confirmação enviada para o WhatsApp da cliente!`;
+      `✅ *Agendamento confirmado com sucesso!*\n\n` +
+      `👤 Cliente: *${params.client_name}*\n` +
+      `💅 ${serviceLabel}: ${params.service_type}\n` +
+      (priceDisplay ? `💰 ${priceLabel}: ${priceDisplay}\n` : "") +
+      `📅 Data: ${formattedDate} às ${time}\n` +
+      `📱 Mensagem de confirmação enviada para o WhatsApp da cliente!`;
 
     await sendDirectWhatsApp(config.instance_id, config.instance_token, config.admin_number, adminText);
     return { success: true, via: "direct-w-api", to: "client_and_admin" };
@@ -142,7 +181,8 @@ export const notifyWhatsAppBooking = async (params: SendBookingNotificationParam
       `⏰ *LEMBRETE: SEU HORÁRIO É DAQUI A 1 HORA!* ⏰\n\n` +
       `Olá, *${params.client_name}*! Tudo bem? 💕\n` +
       `Passando para lembrar que seu atendimento com Jéssica Magalhães está marcado para hoje:\n\n` +
-      `💅 *Serviço:* ${params.service_type}${priceText}\n` +
+      `💅 *${serviceLabel}:* ${params.service_type}\n` +
+      priceLine +
       `🕐 *Horário:* ${time}\n` +
       `📅 *Data:* ${formattedDate}\n\n` +
       `⏰ *Lembrete:* Temos 15 minutos de tolerância para chegada.\n` +
@@ -154,15 +194,25 @@ export const notifyWhatsAppBooking = async (params: SendBookingNotificationParam
       `⏰ *LEMBRETE - 1H PARA O ATENDIMENTO*\n\n` +
       `👤 *Cliente:* ${params.client_name}\n` +
       `📱 *WhatsApp:* ${params.client_phone}\n` +
-      `💅 *Serviço:* ${params.service_type}${priceText}\n` +
+      `💅 *${serviceLabel}:* ${params.service_type}\n` +
+      (priceDisplay ? `💰 ${priceLabel}: ${priceDisplay}\n` : "") +
       `📅 *Data:* ${formattedDate}\n` +
       `🕐 *Horário:* ${time}\n` +
-      (params.notes ? `📝 *Obs:* ${params.notes}\n` : "") +
+      (cleanNotes ? `📝 *Obs:* ${cleanNotes}\n` : "") +
       `\n📋 Painel: ${baseUrl}/admin`;
 
     await sendDirectWhatsApp(config.instance_id, config.instance_token, config.admin_number, adminText);
     return { success: true, via: "direct-w-api", to: "client_and_admin_1h" };
   }
 
-  return { success: true };
+  // CANCELADO
+  if (params.action === "cancelled") {
+    const clientCancelText =
+      `❌ *Agendamento Cancelado*\n\n` +
+      `Olá, *${params.client_name}*. Informamos que seu agendamento para o dia ${formattedDate} às ${time} foi cancelado.\n` +
+      `Caso deseje remarcar, acesse nosso site:\n${baseUrl}`;
+
+    await sendDirectWhatsApp(config.instance_id, config.instance_token, params.client_phone, clientCancelText);
+    return { success: true, via: "direct-w-api", to: "client_cancel" };
+  }
 };

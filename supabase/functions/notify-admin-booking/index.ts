@@ -15,6 +15,22 @@ interface BookingPayload {
   site_url?: string | null;
 }
 
+const parsePriceNum = (str?: string | null): number => {
+  if (!str) return 0;
+  const cleaned = str.replace(/[^\d.,]/g, '').trim();
+  if (!cleaned) return 0;
+  if (cleaned.includes(',')) {
+    const val = parseFloat(cleaned.replace(/\./g, '').replace(',', '.'));
+    return isNaN(val) ? 0 : val;
+  }
+  const val = parseFloat(cleaned);
+  return isNaN(val) ? 0 : val;
+};
+
+const formatBRL = (val: number): string => {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+};
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -48,11 +64,40 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Resolver preço de forma robusta
+    let priceDisplay = body.service_price?.trim() || '';
+    if (!priceDisplay && body.notes) {
+      const match = body.notes.match(/\[Valor:\s*([^\]]+)\]/i);
+      if (match) priceDisplay = match[1].trim();
+    }
+
+    if (!priceDisplay && body.service_type) {
+      try {
+        const { data: svcList } = await supabase.from('services').select('name, price').eq('is_active', true);
+        if (svcList && svcList.length > 0) {
+          const names = body.service_type.split(/\s*\+\s*/).map((s) => s.trim().toLowerCase());
+          let sum = 0;
+          for (const n of names) {
+            const found = svcList.find((s) => s.name.trim().toLowerCase() === n);
+            if (found?.price) sum += parsePriceNum(found.price);
+          }
+          if (sum > 0) priceDisplay = formatBRL(sum);
+        }
+      } catch {
+        // Ignora
+      }
+    }
+
+    const isMulti = body.service_type.includes('+') || body.service_type.includes(',');
+    const serviceLabel = isMulti ? 'Serviços' : 'Serviço';
+    const priceLabel = isMulti ? 'Valor Total' : 'Valor';
+    const priceLine = priceDisplay ? `💰 *${priceLabel}:* ${priceDisplay}\n` : '';
+    const cleanNotes = body.notes ? body.notes.replace(/\s*\[Valor:[^\]]*\]/gi, '').trim() : '';
+
     const [y, m, d] = body.appointment_date.split('-');
     const formattedDate = `${d}/${m}/${y}`;
     const time = body.appointment_time.slice(0, 5);
     const action = body.action ?? 'new';
-    const priceText = body.service_price ? ` (${body.service_price})` : '';
 
     const baseUrl = body.site_url || 'https://jessicamagalhaesnail.vercel.app';
     const confirmLink = body.appointment_id
@@ -77,17 +122,18 @@ Deno.serve(async (req) => {
 
     const results: Record<string, unknown> = {};
 
-    // 1. Mensagem quando é NOVO agendamento -> Envia para a ADMIN com link de confirmação
+    // 1. NOVO agendamento -> Envia para a ADMIN com link de confirmação
     if (action === 'new') {
       const adminText =
         `🔔 *NOVO AGENDAMENTO RECEBIDO!*\n\n` +
         `👤 *Cliente:* ${body.client_name}\n` +
         `📱 *WhatsApp:* ${body.client_phone}\n` +
         (body.client_email ? `✉️ *Email:* ${body.client_email}\n` : '') +
-        `💅 *Serviço:* ${body.service_type}${priceText}\n` +
+        `💅 *${serviceLabel}:* ${body.service_type}\n` +
+        priceLine +
         `📅 *Data:* ${formattedDate}\n` +
         `🕐 *Horário:* ${time}\n` +
-        (body.notes ? `📝 *Obs:* ${body.notes}\n` : '') +
+        (cleanNotes ? `📝 *Obs:* ${cleanNotes}\n` : '') +
         `\n❓ *Confirma este agendamento?*\n` +
         `👉 Clique no link para confirmar no painel:\n` +
         `${confirmLink}`;
@@ -96,15 +142,16 @@ Deno.serve(async (req) => {
       results.admin = { ok: resAdmin.ok, status: resAdmin.status };
     }
 
-    // 2. Mensagem quando é CONFIRMADO -> Envia para o CLIENTE com todos os detalhes e para a ADMIN
+    // 2. CONFIRMADO -> Envia para o CLIENTE com preço e para a ADMIN
     if (action === 'confirmed') {
       const clientText =
         `✨ *AGENDAMENTO CONFIRMADO!* ✨\n\n` +
         `Olá, *${body.client_name}*! Seu horário com Jéssica Magalhães foi confirmado com sucesso! 💕\n\n` +
-        `💅 *Serviço:* ${body.service_type}${priceText}\n` +
+        `💅 *${serviceLabel}:* ${body.service_type}\n` +
+        priceLine +
         `📅 *Data:* ${formattedDate}\n` +
         `🕐 *Horário:* ${time}\n` +
-        (body.notes ? `📝 *Obs:* ${body.notes}\n` : '') +
+        (cleanNotes ? `📝 *Obs:* ${cleanNotes}\n` : '') +
         `\n⏰ *Importante:* Temos uma tolerância de 15 minutos para chegada.\n` +
         `📸 *Instagram:* https://www.instagram.com/jessica_magalhaes_nail\n\n` +
         `Estamos ansiosas para te receber! Se precisar de algo, basta responder esta mensagem. 🙏`;
@@ -114,31 +161,33 @@ Deno.serve(async (req) => {
 
       const adminConfirmText =
         `✅ *Agendamento confirmado com sucesso!*\n\n` +
-        `Cliente: *${body.client_name}*\n` +
-        `Serviço: ${body.service_type}${priceText}\n` +
-        `Data: ${formattedDate} às ${time}\n` +
-        `Mensagem de confirmação enviada para a cliente!`;
+        `👤 Cliente: *${body.client_name}*\n` +
+        `💅 ${serviceLabel}: ${body.service_type}\n` +
+        (priceDisplay ? `💰 ${priceLabel}: ${priceDisplay}\n` : '') +
+        `📅 Data: ${formattedDate} às ${time}\n` +
+        `📱 Mensagem de confirmação enviada para a cliente!`;
 
       await sendWhatsApp(adminNumber, adminConfirmText);
     }
 
-    // 3. Mensagem quando é CANCELADO
+    // 3. CANCELADO
     if (action === 'cancelled') {
       const clientCancelText =
         `❌ *Agendamento Cancelado*\n\n` +
         `Olá, *${body.client_name}*. Informamos que seu agendamento para o dia ${formattedDate} às ${time} foi cancelado.\n` +
-        `Caso deseje remarcar, acesse nosso site: ${baseUrl}`;
+        `Caso deseje remarcar, acesse nosso site:\n${baseUrl}`;
 
       await sendWhatsApp(clientNumber, clientCancelText);
     }
 
-    // 4. Mensagem quando é LEMBRETE DE 1 HORA
+    // 4. LEMBRETE DE 1 HORA
     if (action === 'reminder_1h') {
       const clientReminderText =
         `⏰ *LEMBRETE: SEU HORÁRIO É DAQUI A 1 HORA!* ⏰\n\n` +
         `Olá, *${body.client_name}*! Tudo bem? 💕\n` +
         `Passando para lembrar que seu atendimento com Jéssica Magalhães está marcado para hoje:\n\n` +
-        `💅 *Serviço:* ${body.service_type}${priceText}\n` +
+        `💅 *${serviceLabel}:* ${body.service_type}\n` +
+        priceLine +
         `🕐 *Horário:* ${time}\n` +
         `📅 *Data:* ${formattedDate}\n\n` +
         `⏰ *Lembrete:* Temos 15 minutos de tolerância para chegada.\n` +
@@ -151,10 +200,11 @@ Deno.serve(async (req) => {
         `⏰ *LEMBRETE - 1H PARA O ATENDIMENTO*\n\n` +
         `👤 *Cliente:* ${body.client_name}\n` +
         `📱 *WhatsApp:* ${body.client_phone}\n` +
-        `💅 *Serviço:* ${body.service_type}${priceText}\n` +
+        `💅 *${serviceLabel}:* ${body.service_type}\n` +
+        (priceDisplay ? `💰 ${priceLabel}: ${priceDisplay}\n` : '') +
         `📅 *Data:* ${formattedDate}\n` +
         `🕐 *Horário:* ${time}\n` +
-        (body.notes ? `📝 *Obs:* ${body.notes}\n` : '') +
+        (cleanNotes ? `📝 *Obs:* ${cleanNotes}\n` : '') +
         `\n📋 Painel: ${baseUrl}/admin`;
 
       const resAdmin = await sendWhatsApp(adminNumber, adminReminderText);

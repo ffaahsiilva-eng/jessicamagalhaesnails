@@ -1,6 +1,22 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
+const parsePriceNum = (str?: string | null): number => {
+  if (!str) return 0;
+  const cleaned = str.replace(/[^\d.,]/g, '').trim();
+  if (!cleaned) return 0;
+  if (cleaned.includes(',')) {
+    const val = parseFloat(cleaned.replace(/\./g, '').replace(',', '.'));
+    return isNaN(val) ? 0 : val;
+  }
+  const val = parseFloat(cleaned);
+  return isNaN(val) ? 0 : val;
+};
+
+const formatBRL = (val: number): string => {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+};
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -71,6 +87,12 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Buscar lista de serviços para resolver preços
+    const { data: servicesList } = await supabase
+      .from('services')
+      .select('name, price')
+      .eq('is_active', true);
+
     const adminNumber = config.admin_number.replace(/\D/g, '');
     const endpoint = `https://api.w-api.app/v1/message/send-text?instanceId=${encodeURIComponent(config.instance_id)}`;
 
@@ -93,12 +115,35 @@ Deno.serve(async (req) => {
       const formattedDate = `${d}/${m}/${y}`;
       const time = a.appointment_time.slice(0, 5);
 
+      // Preço
+      let priceDisplay = '';
+      if (a.notes) {
+        const match = a.notes.match(/\[Valor:\s*([^\]]+)\]/i);
+        if (match) priceDisplay = match[1].trim();
+      }
+      if (!priceDisplay && servicesList && a.service_type) {
+        const names = a.service_type.split(/\s*\+\s*/).map((s: string) => s.trim().toLowerCase());
+        let sum = 0;
+        for (const n of names) {
+          const match = servicesList.find((s: { name: string; price: string }) => s.name.trim().toLowerCase() === n);
+          if (match?.price) sum += parsePriceNum(match.price);
+        }
+        if (sum > 0) priceDisplay = formatBRL(sum);
+      }
+
+      const isMulti = a.service_type.includes('+') || a.service_type.includes(',');
+      const serviceLabel = isMulti ? 'Serviços' : 'Serviço';
+      const priceLabel = isMulti ? 'Valor Total' : 'Valor';
+      const priceLine = priceDisplay ? `💰 *${priceLabel}:* ${priceDisplay}\n` : '';
+      const cleanNotes = a.notes ? a.notes.replace(/\s*\[Valor:[^\]]*\]/gi, '').trim() : '';
+
       // 1. Mensagem de lembrete para a CLIENTE
       const clientReminderText =
         `⏰ *LEMBRETE: SEU HORÁRIO É DAQUI A 1 HORA!* ⏰\n\n` +
         `Olá, *${a.client_name}*! Tudo bem? 💕\n` +
         `Passando para lembrar que seu atendimento com Jéssica Magalhães está marcado para hoje:\n\n` +
-        `💅 *Serviço:* ${a.service_type}\n` +
+        `💅 *${serviceLabel}:* ${a.service_type}\n` +
+        priceLine +
         `🕐 *Horário:* ${time}\n` +
         `📅 *Data:* ${formattedDate}\n\n` +
         `⏰ *Lembrete:* Temos 15 minutos de tolerância para chegada.\n` +
@@ -112,10 +157,11 @@ Deno.serve(async (req) => {
         `⏰ *LEMBRETE - 1H PARA O ATENDIMENTO*\n\n` +
         `👤 *Cliente:* ${a.client_name}\n` +
         `📱 *WhatsApp:* ${a.client_phone}\n` +
-        `💅 *Serviço:* ${a.service_type}\n` +
+        `💅 *${serviceLabel}:* ${a.service_type}\n` +
+        (priceDisplay ? `💰 *${priceLabel}:* ${priceDisplay}\n` : '') +
         `📅 *Data:* ${formattedDate}\n` +
         `🕐 *Horário:* ${time}\n` +
-        (a.notes ? `📝 *Obs:* ${a.notes}\n` : '') +
+        (cleanNotes ? `📝 *Obs:* ${cleanNotes}\n` : '') +
         `\n📋 Painel: https://jessicamagalhaesnail.vercel.app/admin`;
 
       const resAdmin = await sendWhatsApp(adminNumber, adminReminderText);

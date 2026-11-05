@@ -47,6 +47,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { notifyWhatsAppBooking } from "@/lib/whatsapp";
+import { calculateServicesTotal, extractPriceFromNotes, cleanNotesForDisplay } from "@/lib/price";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Appointment = Tables<"appointments">;
@@ -81,6 +82,7 @@ const AppointmentsManager = () => {
   const [search, setSearch] = useState("");
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [isSendingSummary, setIsSendingSummary] = useState(false);
+  const [servicesList, setServicesList] = useState<Array<{ name: string; price: string }>>([]);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [editForm, setEditForm] = useState({
     client_name: "",
@@ -96,6 +98,30 @@ const AppointmentsManager = () => {
   useEffect(() => {
     fetchAppointments();
   }, [filter]);
+
+  useEffect(() => {
+    const fetchServices = async () => {
+      const { data } = await supabase
+        .from("services")
+        .select("name, price")
+        .eq("is_active", true);
+      if (data) setServicesList(data);
+    };
+    fetchServices();
+  }, []);
+
+  const getAppointmentPrice = (apt: Appointment): string => {
+    // 1. Tentar de anotações internas [Valor: ...]
+    const fromNotes = extractPriceFromNotes(apt.notes);
+    if (fromNotes) return fromNotes;
+
+    // 2. Tentar calcular dos serviços ativos
+    if (servicesList.length > 0 && apt.service_type) {
+      const { totalFormatted } = calculateServicesTotal(apt.service_type, servicesList);
+      if (totalFormatted) return totalFormatted;
+    }
+    return "";
+  };
 
   // Checar se há link de confirmação direta via URL (?confirm_id=...)
   useEffect(() => {
@@ -136,16 +162,23 @@ const AppointmentsManager = () => {
 
   const sendWhatsAppConfirmation = (apt: Appointment) => {
     const formattedDate = format(parseISO(apt.appointment_date), "dd/MM/yyyy", { locale: ptBR });
+    const isMulti = apt.service_type.includes("+") || apt.service_type.includes(",");
+    const serviceLabel = isMulti ? "Serviços" : "Serviço";
+    const price = getAppointmentPrice(apt);
+    const priceLabel = isMulti ? "Valor Total" : "Valor";
+    const priceLine = price ? `💰 *${priceLabel}:* ${price}\n` : "";
+
     const message = encodeURIComponent(
-      `✨ Olá ${apt.client_name}! ✨\n\n` +
-      `✅ Seu agendamento foi *CONFIRMADO*! ✅\n\n` +
+      `✨ Olá *${apt.client_name}*! ✨\n\n` +
+      `✅ Seu agendamento foi *CONFIRMADO*! 💕\n\n` +
+      `💅 *${serviceLabel}:* ${apt.service_type}\n` +
+      priceLine +
       `📅 *Data:* ${formattedDate}\n` +
-      `🕐 *Horário:* ${apt.appointment_time.slice(0, 5)}\n` +
-      `💅 *Serviço:* ${apt.service_type}\n\n` +
+      `🕐 *Horário:* ${apt.appointment_time.slice(0, 5)}\n\n` +
       `📖 ${getRandomVerse()}\n\n` +
       `⏰ *Tolerância de 15 minutos para chegada.*\n\n` +
       `📸 *Instagram:* https://www.instagram.com/jessica_magalhaes_nail\n\n` +
-      `🙏 Te espero! 💕`
+      `🙏 Te esperamos com muito carinho! 💕`
     );
     const phone = apt.client_phone.replace(/\D/g, "");
     window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
@@ -153,12 +186,14 @@ const AppointmentsManager = () => {
 
   const notifyAdmin = async (apt: Appointment, action: "confirmed" | "cancelled") => {
     try {
+      const price = getAppointmentPrice(apt);
       await notifyWhatsAppBooking({
         appointment_id: apt.id,
         client_name: apt.client_name,
         client_phone: apt.client_phone,
         client_email: apt.client_email,
         service_type: apt.service_type,
+        service_price: price || null,
         appointment_date: apt.appointment_date,
         appointment_time: apt.appointment_time,
         notes: apt.notes,
@@ -173,12 +208,14 @@ const AppointmentsManager = () => {
   const send1HourReminder = async (apt: Appointment) => {
     setIsUpdating(apt.id);
     try {
+      const price = getAppointmentPrice(apt);
       const res = await notifyWhatsAppBooking({
         appointment_id: apt.id,
         client_name: apt.client_name,
         client_phone: apt.client_phone,
         client_email: apt.client_email,
         service_type: apt.service_type,
+        service_price: price || null,
         appointment_date: apt.appointment_date,
         appointment_time: apt.appointment_time,
         notes: apt.notes,
@@ -408,7 +445,12 @@ const AppointmentsManager = () => {
                           {apt.client_phone}
                         </TableCell>
                         <TableCell className="font-body text-sm">
-                          {apt.service_type}
+                          <div className="font-medium text-foreground">{apt.service_type}</div>
+                          {getAppointmentPrice(apt) && (
+                            <div className="text-xs font-semibold text-primary mt-0.5">
+                              💰 {getAppointmentPrice(apt)}
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className={`${statusColors[apt.status]} text-xs`}>
@@ -520,8 +562,13 @@ const AppointmentsManager = () => {
                       <span className="font-body text-sm text-muted-foreground">{apt.client_phone}</span>
                     </div>
                     <p className="text-sm text-primary font-medium font-body">💅 {apt.service_type}</p>
-                    {apt.notes && (
-                      <p className="text-xs text-muted-foreground italic">📝 {apt.notes}</p>
+                    {getAppointmentPrice(apt) && (
+                      <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                        💰 {getAppointmentPrice(apt)}
+                      </p>
+                    )}
+                    {cleanNotesForDisplay(apt.notes) && (
+                      <p className="text-xs text-muted-foreground italic">📝 {cleanNotesForDisplay(apt.notes)}</p>
                     )}
                     <div className="flex gap-1.5 pt-1">
                       {apt.status === "pending" && (

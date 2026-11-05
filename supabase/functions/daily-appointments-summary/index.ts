@@ -1,6 +1,22 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
+const parsePriceNum = (str?: string | null): number => {
+  if (!str) return 0;
+  const cleaned = str.replace(/[^\d.,]/g, '').trim();
+  if (!cleaned) return 0;
+  if (cleaned.includes(',')) {
+    const val = parseFloat(cleaned.replace(/\./g, '').replace(',', '.'));
+    return isNaN(val) ? 0 : val;
+  }
+  const val = parseFloat(cleaned);
+  return isNaN(val) ? 0 : val;
+};
+
+const formatBRL = (val: number): string => {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+};
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -36,6 +52,12 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Buscar lista de serviços para resolver preços
+    const { data: servicesList } = await supabase
+      .from('services')
+      .select('name, price')
+      .eq('is_active', true);
+
     const [y, m, d] = todayStr.split('-');
     const formattedDate = `${d}/${m}/${y}`;
 
@@ -56,20 +78,64 @@ Deno.serve(async (req) => {
       const confirmedCount = appts.filter((a) => a.status === 'confirmed').length;
       const pendingCount = appts.filter((a) => a.status === 'pending').length;
 
+      let dayTotalNumber = 0;
+
+      // Calcular preços individuais e total do dia
+      const itemsWithPrice = appts.map((a) => {
+        let priceDisplay = '';
+        let priceNum = 0;
+
+        if (a.notes) {
+          const match = a.notes.match(/\[Valor:\s*([^\]]+)\]/i);
+          if (match) {
+            priceDisplay = match[1].trim();
+            priceNum = parsePriceNum(priceDisplay);
+          }
+        }
+
+        if (!priceDisplay && servicesList && a.service_type) {
+          const names = a.service_type.split(/\s*\+\s*/).map((s: string) => s.trim().toLowerCase());
+          for (const n of names) {
+            const match = servicesList.find((s: { name: string; price: string }) => s.name.trim().toLowerCase() === n);
+            if (match?.price) {
+              priceNum += parsePriceNum(match.price);
+            }
+          }
+          if (priceNum > 0) priceDisplay = formatBRL(priceNum);
+        }
+
+        dayTotalNumber += priceNum;
+
+        const isMulti = a.service_type.includes('+') || a.service_type.includes(',');
+        const serviceLabel = isMulti ? 'Serviços' : 'Serviço';
+        const priceLabel = isMulti ? 'Valor Total' : 'Valor';
+        const cleanNotes = a.notes ? a.notes.replace(/\s*\[Valor:[^\]]*\]/gi, '').trim() : '';
+
+        return {
+          ...a,
+          serviceLabel,
+          priceLabel,
+          priceDisplay,
+          cleanNotes,
+        };
+      });
+
       text += `Total: *${appts.length}* cliente(s) agendada(s) para hoje\n`;
       if (confirmedCount > 0) text += `✅ *${confirmedCount}* confirmado(s)\n`;
       if (pendingCount > 0) text += `⏳ *${pendingCount}* pendente(s)\n`;
+      if (dayTotalNumber > 0) text += `💰 Faturamento Previsto: *${formatBRL(dayTotalNumber)}*\n`;
       text += `\n─────────────────────\n\n`;
 
-      for (const a of appts) {
+      for (const a of itemsWithPrice) {
         const emoji = statusEmoji[a.status] ?? '•';
         const label = statusLabel[a.status] ?? a.status;
         text +=
           `${emoji} *${a.appointment_time.slice(0, 5)}* - *${a.client_name}*\n` +
-          `   💅 *Serviço:* ${a.service_type}\n` +
+          `   💅 *${a.serviceLabel}:* ${a.service_type}\n` +
+          (a.priceDisplay ? `   💰 *${a.priceLabel}:* ${a.priceDisplay}\n` : '') +
           `   📱 *WhatsApp:* ${a.client_phone}\n` +
           `   📌 *Status:* ${label}\n` +
-          (a.notes ? `   📝 *Obs:* ${a.notes}\n` : '') +
+          (a.cleanNotes ? `   📝 *Obs:* ${a.cleanNotes}\n` : '') +
           `\n`;
       }
 
@@ -100,13 +166,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ success: true, count: appts?.length ?? 0 }), {
+    return new Response(JSON.stringify({ success: true, count: appts.length, sentTo: cleanPhone }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
     console.error('daily-appointments-summary error', err);
     return new Response(JSON.stringify({ error: (err as Error).message }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });

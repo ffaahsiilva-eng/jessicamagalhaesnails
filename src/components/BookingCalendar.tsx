@@ -1,23 +1,17 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { format, addDays, isSaturday, isSunday } from "date-fns";
+import { format, addDays, isSunday } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Clock, Check, MessageCircle, X, Loader2, AlertCircle } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Check, MessageCircle, X, Loader2, AlertCircle, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { notifyWhatsAppBooking } from "@/lib/whatsapp";
+import { calculateServicesTotal, parsePrice } from "@/lib/price";
 import { z } from "zod";
 
 interface BookingCalendarProps {
@@ -60,7 +54,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
   const [step, setStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedTime, setSelectedTime] = useState<string>("");
-  const [selectedService, setSelectedService] = useState<string>("");
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -102,20 +96,32 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
 
   // Fetch services from database
   const { data: services = [] } = useQuery({
-    queryKey: ["services-names"],
+    queryKey: ["services-booking-list"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("services")
-        .select("name, price")
+        .select("name, price, duration, is_popular")
         .eq("is_active", true)
         .order("display_order", { ascending: true });
 
       if (error) throw error;
-      return data as { name: string; price: string }[];
+      return data as { name: string; price: string; duration?: string; is_popular?: boolean }[];
     },
     enabled: isOpen,
   });
 
+  // Calculate pricing summary for multiple selected services
+  const pricingSummary = useMemo(() => {
+    return calculateServicesTotal(selectedServices, services);
+  }, [selectedServices, services]);
+
+  const toggleService = (serviceName: string) => {
+    setSelectedServices((prev) =>
+      prev.includes(serviceName)
+        ? prev.filter((s) => s !== serviceName)
+        : [...prev, serviceName]
+    );
+  };
 
   const holdCurrentSlot = async (timeToHold?: string) => {
     const time = timeToHold || selectedTime;
@@ -297,10 +303,10 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
   };
 
   const handleSendWhatsApp = async () => {
-    if (!selectedDate || !selectedTime || !selectedService) {
+    if (!selectedDate || !selectedTime || selectedServices.length === 0) {
       toast({
         title: "Preencha todos os campos",
-        description: "Por favor, preencha todas as informações para agendar.",
+        description: "Por favor, selecione data, horário e pelo menos um serviço.",
         variant: "destructive",
       });
       return;
@@ -331,18 +337,25 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
       const cleanPhone = phone.replace(/\D/g, "");
+
+      const combinedServiceType = selectedServices.join(" + ");
+      const totalPrice = pricingSummary.totalFormatted;
+
+      // Anotação com valor preservado
+      const internalNotes = notes.trim()
+        ? `${notes.trim()}${totalPrice ? ` [Valor: ${totalPrice}]` : ""}`
+        : (totalPrice ? `[Valor: ${totalPrice}]` : null);
 
       const appointmentPayload = {
         user_id: user?.id || null,
         client_name: name.trim(),
         client_email: email.trim() || null,
         client_phone: cleanPhone,
-        service_type: selectedService,
+        service_type: combinedServiceType,
         appointment_date: format(selectedDate, "yyyy-MM-dd"),
         appointment_time: selectedTime,
-        notes: notes.trim() || null,
+        notes: internalNotes,
         status: "pending",
       };
 
@@ -354,15 +367,12 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
 
       if (error) throw error;
 
-      const selectedServiceData = services.find((s) => s.name === selectedService);
-      const servicePrice = selectedServiceData?.price || "";
-
-      // Notify admin via WhatsApp API (with price and confirm link)
+      // Notify admin via WhatsApp API (with total price and confirm link)
       try {
         await notifyWhatsAppBooking({
           ...appointmentPayload,
           appointment_id: insertedAppt?.id || null,
-          service_price: servicePrice,
+          service_price: totalPrice,
           site_url: window.location.origin,
           action: "new",
         });
@@ -370,22 +380,29 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         console.warn("notifyWhatsAppBooking failed:", err);
       }
 
-
       const formattedDate = format(selectedDate, "dd/MM/yyyy", { locale: ptBR });
-      const priceSuffix = servicePrice ? ` — ${servicePrice}` : "";
+      const isMulti = selectedServices.length > 1;
+      const serviceLabel = isMulti ? "*Serviços:*" : "*Serviço:*";
+      const priceLabel = isMulti ? "*Valor Total:*" : "*Valor:*";
+
+      const servicesBreakdown = pricingSummary.breakdown
+        .map((b) => `  • ${b.name}${b.price ? ` (${b.price})` : ""}`)
+        .join("\n");
+
       const message = encodeURIComponent(
         `Olá! Gostaria de agendar um horário:\n\n` +
         `*Nome:* ${name.trim()}\n` +
         `*Telefone:* ${phone}\n` +
-        `*Email:* ${email.trim()}\n` +
-        `*Serviço:* ${selectedService}${priceSuffix}\n` +
+        (email.trim() ? `*Email:* ${email.trim()}\n` : "") +
+        `${serviceLabel}\n${servicesBreakdown}\n` +
+        (totalPrice ? `${priceLabel} ${totalPrice}\n` : "") +
         `*Data:* ${formattedDate}\n` +
         `*Horário:* ${selectedTime}\n` +
-        `${notes.trim() ? `*Observações:* ${notes.trim()}\n` : ""}\n` +
-        `Você pode confirmar meu agendamento?\n\n` +
+        (notes.trim() ? `*Observações:* ${notes.trim()}\n` : "") +
+        `\nVocê pode confirmar meu agendamento?\n\n` +
         `⏰ *Tolerância de 15 minutos para chegada.*\n\n` +
         `📸 *Instagram:* https://www.instagram.com/jessica_magalhaes_nail\n\n` +
-        `📋 Painel de agendamentos:\nhttps://jessicamagalhaes.lovable.app/admin`
+        `📋 Painel de agendamentos:\nhttps://jessicamagalhaesnail.vercel.app/admin`
       );
 
       const url = `https://wa.me/${whatsappNumber}?text=${message}`;
@@ -419,7 +436,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
     setStep(1);
     setSelectedDate(undefined);
     setSelectedTime("");
-    setSelectedService("");
+    setSelectedServices([]);
     setName("");
     setEmail("");
     setPhone("");
@@ -505,67 +522,149 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
 
           {step === 2 && (
             <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-200">
-              <div className="flex items-center gap-2 text-foreground mb-4">
-                <Clock className="h-5 w-5 text-primary" />
-                <span className="font-body font-medium">
-                  Escolha o horário - {selectedDate && format(selectedDate, "dd/MM", { locale: ptBR })}
-                </span>
-              </div>
-              
-              {timeSlots.length === 0 ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : availableTimes.length === 0 ? (
-                <div className="text-center py-8 space-y-2">
-                  <p className="text-muted-foreground font-body">
-                    Todos os horários desta data já foram preenchidos.
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Por favor, selecione outro dia no calendário.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-4 gap-2">
-                  {availableTimes.map((time) => (
-                    <button
-                      key={time}
-                      onClick={() => setSelectedTime(time)}
-                      className={`
-                        py-3 px-2 rounded-xl font-body text-sm transition-all
-                        ${selectedTime === time
-                          ? "bg-primary text-primary-foreground shadow-button scale-105 font-medium"
-                          : "bg-secondary text-secondary-foreground hover:bg-primary/20"
-                        }
-                      `}
-                    >
-                      {time}
-                    </button>
-                  ))}
-                </div>
-              )}
-
+              {/* Escolha do horário */}
               <div className="space-y-2">
-                <Label className="font-body text-foreground">Serviço</Label>
-                <Select value={selectedService} onValueChange={setSelectedService}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecione o serviço" />
-                  </SelectTrigger>
-                  <SelectContent className="z-[80]">
-                    {services.map((service) => (
-                      <SelectItem key={service.name} value={service.name}>
-                        <span className="flex items-center justify-between gap-3 w-full">
-                          <span>{service.name}</span>
-                          <span className="text-primary font-semibold text-sm">{service.price}</span>
-                        </span>
-                      </SelectItem>
+                <div className="flex items-center gap-2 text-foreground">
+                  <Clock className="h-5 w-5 text-primary" />
+                  <span className="font-body font-medium">
+                    Escolha o horário - {selectedDate && format(selectedDate, "dd/MM", { locale: ptBR })}
+                  </span>
+                </div>
+                
+                {timeSlots.length === 0 ? (
+                  <div className="flex justify-center py-6">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : availableTimes.length === 0 ? (
+                  <div className="text-center py-6 space-y-2 bg-secondary/30 rounded-xl p-3 border border-border">
+                    <p className="text-muted-foreground font-body text-sm">
+                      Todos os horários desta data já foram preenchidos.
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Por favor, selecione outro dia no calendário.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-4 gap-2 max-h-36 overflow-y-auto pr-1">
+                    {availableTimes.map((time) => (
+                      <button
+                        key={time}
+                        onClick={() => setSelectedTime(time)}
+                        className={`
+                          py-2.5 px-2 rounded-xl font-body text-sm transition-all
+                          ${selectedTime === time
+                            ? "bg-primary text-primary-foreground shadow-button scale-105 font-medium"
+                            : "bg-secondary text-secondary-foreground hover:bg-primary/20"
+                          }
+                        `}
+                      >
+                        {time}
+                      </button>
                     ))}
-
-                  </SelectContent>
-                </Select>
+                  </div>
+                )}
               </div>
 
-              <div className="flex gap-2">
+              {/* Escolha dos Serviços (Multi-seleção) */}
+              <div className="space-y-2.5 pt-2 border-t border-border/60">
+                <div className="flex items-center justify-between">
+                  <Label className="font-body text-foreground font-semibold flex items-center gap-1.5">
+                    <span>💅</span>
+                    <span>Escolha o(s) serviço(s)</span>
+                  </Label>
+                  <span className="text-[11px] font-medium text-primary px-2 py-0.5 rounded-full bg-primary/10">
+                    Pode marcar 2 ou mais
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Toque nos serviços desejados para combiná-los neste mesmo horário:
+                </p>
+
+                {services.length === 0 ? (
+                  <div className="flex justify-center py-6">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1 select-none">
+                    {services.map((service) => {
+                      const isSelected = selectedServices.includes(service.name);
+                      return (
+                        <button
+                          key={service.name}
+                          type="button"
+                          onClick={() => toggleService(service.name)}
+                          className={`
+                            w-full flex items-center justify-between p-3 rounded-xl border text-left transition-all active:scale-[0.99]
+                            ${
+                              isSelected
+                                ? "bg-primary/10 border-primary text-foreground shadow-sm ring-1 ring-primary/40"
+                                : "bg-secondary/40 border-border/70 hover:border-primary/40 hover:bg-secondary/70 text-foreground"
+                            }
+                          `}
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div
+                              className={`w-5 h-5 rounded-md flex items-center justify-center border transition-colors shrink-0 ${
+                                isSelected
+                                  ? "bg-primary border-primary text-primary-foreground"
+                                  : "border-muted-foreground/40 bg-background"
+                              }`}
+                            >
+                              {isSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-body font-medium text-sm truncate">
+                                  {service.name}
+                                </span>
+                                {service.is_popular && (
+                                  <span className="text-[10px] font-semibold bg-amber-500/20 text-amber-600 dark:text-amber-400 px-1.5 py-0.2 rounded">
+                                    ★ Popular
+                                  </span>
+                                )}
+                              </div>
+                              {service.duration && (
+                                <span className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                                  <Clock className="h-3 w-3" />
+                                  {service.duration}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="shrink-0 text-right pl-3">
+                            <span className={`font-semibold text-sm ${isSelected ? "text-primary" : "text-foreground"}`}>
+                              {service.price}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Resumo em tempo real dos serviços selecionados */}
+                {selectedServices.length > 0 && (
+                  <div className="bg-primary/10 border border-primary/20 rounded-xl p-3 flex items-center justify-between animate-in fade-in duration-200">
+                    <div className="space-y-0.5 min-w-0 flex-1 pr-2">
+                      <p className="text-xs font-semibold text-primary flex items-center gap-1">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        {selectedServices.length} {selectedServices.length === 1 ? "serviço selecionado" : "serviços selecionados"}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {selectedServices.join(", ")}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="text-[11px] text-muted-foreground block">Total estimado</span>
+                      <span className="font-bold text-base text-primary">
+                        {pricingSummary.totalFormatted}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2 pt-2">
                 <Button
                   variant="outline"
                   onClick={() => setStep(1)}
@@ -578,7 +677,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                     await holdCurrentSlot(selectedTime);
                     setStep(3);
                   }}
-                  disabled={!selectedTime || !selectedService}
+                  disabled={!selectedTime || selectedServices.length === 0}
                   className="flex-1 h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-body active:scale-[0.98] transition-transform shadow-button"
                 >
                   Continuar
@@ -671,13 +770,40 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                 />
               </div>
 
-              {/* Summary */}
-              <div className="bg-secondary/50 rounded-xl p-4 space-y-2">
-                <h4 className="font-body font-medium text-foreground">Resumo</h4>
-                <div className="text-sm text-muted-foreground space-y-1">
-                  <p>📅 {selectedDate && format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}</p>
-                  <p>🕐 {selectedTime}</p>
-                  <p>💅 {selectedService}</p>
+              {/* Summary detalhado com valores */}
+              <div className="bg-secondary/50 rounded-xl p-4 space-y-2.5 border border-border/50">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-body font-semibold text-foreground">Resumo do Agendamento</h4>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-primary/15 text-primary font-medium">
+                    {selectedServices.length} {selectedServices.length === 1 ? "serviço" : "serviços"}
+                  </span>
+                </div>
+                <div className="text-sm text-muted-foreground space-y-1.5">
+                  <p className="flex items-center gap-2">
+                    <span>📅</span>
+                    <span>{selectedDate && format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</span>
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <span>🕐</span>
+                    <span className="font-medium text-foreground">{selectedTime}</span>
+                  </p>
+                  <div className="pt-2 border-t border-border/40">
+                    <p className="text-xs font-semibold text-foreground mb-1.5">💅 Serviços selecionados:</p>
+                    <div className="space-y-1 pl-1">
+                      {pricingSummary.breakdown.map((svc) => (
+                        <div key={svc.name} className="flex items-center justify-between text-xs">
+                          <span className="text-foreground">• {svc.name}</span>
+                          <span className="text-primary font-medium">{svc.price}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {pricingSummary.totalFormatted && (
+                    <div className="pt-2 border-t border-border/40 flex items-center justify-between font-semibold text-foreground">
+                      <span>💰 {selectedServices.length > 1 ? "Valor Total:" : "Valor do Serviço:"}</span>
+                      <span className="text-base text-primary font-bold">{pricingSummary.totalFormatted}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
