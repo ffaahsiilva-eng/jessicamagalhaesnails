@@ -7,8 +7,10 @@ export const useAdminRole = () => {
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    const checkAdminRole = async () => {
-      setIsLoading(true);
+    const checkAdminRole = async (isInitial = false) => {
+      if (isInitial) {
+        setIsLoading(true);
+      }
       
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -36,10 +38,13 @@ export const useAdminRole = () => {
       setIsLoading(false);
     };
 
-    checkAdminRole();
+    checkAdminRole(true);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      checkAdminRole();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      // Evita disparar reload de estado e telas de loading no foco de janela
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
+        checkAdminRole(false);
+      }
     });
 
     return () => subscription.unsubscribe();

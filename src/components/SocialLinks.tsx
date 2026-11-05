@@ -1,5 +1,6 @@
 import { memo, useMemo } from "react";
 import { Instagram, Phone } from "lucide-react";
+import EditableText from "@/components/admin/EditableText";
 
 interface SocialLinksProps {
   instagram?: string;
@@ -26,15 +27,24 @@ const SocialLinks = memo(({ instagram, whatsappNumber }: SocialLinksProps) => {
     <section id="contato" className="py-20 bg-secondary/30">
       <div className="container mx-auto px-6">
         <div className="text-center mb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <span className="text-sm uppercase tracking-[0.2em] text-primary font-body font-medium">
-            Conecte-se
-          </span>
-          <h2 className="text-4xl md:text-5xl font-display font-semibold text-foreground mt-2">
-            Redes Sociais
-          </h2>
-          <p className="text-muted-foreground font-body mt-4 max-w-md mx-auto">
-            Siga-me para ver novos trabalhos, promoções e novidades!
-          </p>
+          <EditableText
+            settingKey="social_label"
+            defaultValue="Conecte-se"
+            as="span"
+            className="text-sm uppercase tracking-[0.2em] text-primary font-body font-medium"
+          />
+          <EditableText
+            settingKey="social_title"
+            defaultValue="Redes Sociais"
+            as="h2"
+            className="text-4xl md:text-5xl font-display font-semibold text-foreground mt-2"
+          />
+          <EditableText
+            settingKey="social_description"
+            defaultValue="Siga-me para ver novos trabalhos, promoções e novidades!"
+            as="p"
+            className="text-muted-foreground font-body mt-4 max-w-md mx-auto"
+          />
         </div>
 
         <div className="flex justify-center gap-6">

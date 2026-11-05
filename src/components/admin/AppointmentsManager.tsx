@@ -15,6 +15,8 @@ import {
   MessageCircle,
   Pencil,
   Search,
+  Bell,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -78,6 +80,7 @@ const AppointmentsManager = () => {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
+  const [isSendingSummary, setIsSendingSummary] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [editForm, setEditForm] = useState({
     client_name: "",
@@ -167,6 +170,68 @@ const AppointmentsManager = () => {
     }
   };
 
+  const send1HourReminder = async (apt: Appointment) => {
+    setIsUpdating(apt.id);
+    try {
+      const res = await notifyWhatsAppBooking({
+        appointment_id: apt.id,
+        client_name: apt.client_name,
+        client_phone: apt.client_phone,
+        client_email: apt.client_email,
+        service_type: apt.service_type,
+        appointment_date: apt.appointment_date,
+        appointment_time: apt.appointment_time,
+        notes: apt.notes,
+        site_url: window.location.origin,
+        action: "reminder_1h",
+      });
+
+      if (res && ((res as { success?: boolean }).success || (res as { via?: string }).via)) {
+        toast({
+          title: "Lembrete enviado com sucesso!",
+          description: `Lembrete de 1h enviado para ${apt.client_name} e para a administradora.`,
+        });
+      } else {
+        toast({
+          title: "Atenção",
+          description: (res as { reason?: string })?.reason || "Verifique as configurações da API do WhatsApp.",
+          variant: "destructive",
+        });
+      }
+    } catch (e) {
+      toast({
+        title: "Erro ao enviar",
+        description: (e as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdating(null);
+    }
+  };
+
+  const handleSendDailySummary = async () => {
+    setIsSendingSummary(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("daily-appointments-summary");
+      if (error) throw error;
+      if (data && (data as { error?: string }).error) {
+        throw new Error((data as { error: string }).error);
+      }
+      toast({
+        title: "Resumo matinal enviado!",
+        description: "Os agendamentos de hoje foram enviados para o seu WhatsApp.",
+      });
+    } catch (e) {
+      toast({
+        title: "Erro ao enviar resumo",
+        description: (e as Error).message || "Verifique se a API do WhatsApp está conectada.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingSummary(false);
+    }
+  };
+
   const updateStatus = async (id: string, status: string, apt?: Appointment) => {
     setIsUpdating(id);
     const { error } = await supabase.from("appointments").update({ status }).eq("id", id);
@@ -250,10 +315,23 @@ const AppointmentsManager = () => {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="font-display text-lg flex items-center gap-2">
-          <CalendarIcon className="h-5 w-5 text-primary" />
-          Todos os Agendamentos
-        </CardTitle>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <CardTitle className="font-display text-lg flex items-center gap-2">
+            <CalendarIcon className="h-5 w-5 text-primary" />
+            Todos os Agendamentos
+          </CardTitle>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleSendDailySummary}
+            disabled={isSendingSummary}
+            className="w-fit text-xs font-body text-primary border-primary/30 hover:bg-primary/10"
+            title="Enviar agora a lista de agendamentos de hoje para o WhatsApp da administradora"
+          >
+            {isSendingSummary ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
+            Resumo de Hoje no WhatsApp
+          </Button>
+        </div>
         <div className="flex flex-col sm:flex-row gap-2 mt-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -375,6 +453,16 @@ const AppointmentsManager = () => {
                             <Button
                               size="icon"
                               variant="ghost"
+                              className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                              onClick={() => send1HourReminder(apt)}
+                              disabled={isUpdating === apt.id}
+                              title="Enviar lembrete de 1 hora (Cliente + Admin)"
+                            >
+                              {isUpdating === apt.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
                               className="h-8 w-8 text-muted-foreground hover:text-foreground"
                               onClick={() => openEdit(apt)}
                               title="Editar"
@@ -448,6 +536,9 @@ const AppointmentsManager = () => {
                       )}
                       <Button size="sm" variant="outline" className="h-8 text-xs text-emerald-600 border-emerald-200" onClick={() => sendWhatsAppConfirmation(apt)}>
                         <MessageCircle className="h-3 w-3 mr-1" /> WhatsApp
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-8 text-xs text-amber-600 border-amber-200 hover:bg-amber-50" onClick={() => send1HourReminder(apt)} disabled={isUpdating === apt.id} title="Enviar lembrete de 1h">
+                        {isUpdating === apt.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Bell className="h-3 w-3 mr-1" />} Lembrar 1h
                       </Button>
                       <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => openEdit(apt)}>
                         <Pencil className="h-3.5 w-3.5" />

@@ -37,6 +37,28 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Dedup: skip appointments that already received 1h reminder
+    const apptIds = (appts ?? []).map((a) => a.id).filter(Boolean);
+    let alreadySent = new Set<string>();
+    if (apptIds.length > 0) {
+      try {
+        const { data: sentRows } = await supabase
+          .from('hour_reminders_sent')
+          .select('appointment_id')
+          .in('appointment_id', apptIds);
+        alreadySent = new Set((sentRows ?? []).map((r) => r.appointment_id as string));
+      } catch {
+        // Tabela ainda opcional, continua sem travar
+      }
+    }
+    const filteredAppts = (appts ?? []).filter((a) => !alreadySent.has(a.id));
+
+    if (filteredAppts.length === 0) {
+      return new Response(JSON.stringify({ skipped: true, reason: 'Todos os agendamentos da janela já foram lembrados' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const { data: config } = await supabase
       .from('whatsapp_config')
       .select('instance_id, instance_token, admin_number, enabled')
@@ -66,7 +88,7 @@ Deno.serve(async (req) => {
 
     const results: unknown[] = [];
 
-    for (const a of appts) {
+    for (const a of filteredAppts) {
       const [y, m, d] = a.appointment_date.split('-');
       const formattedDate = `${d}/${m}/${y}`;
       const time = a.appointment_time.slice(0, 5);
@@ -97,6 +119,14 @@ Deno.serve(async (req) => {
         `\n📋 Painel: https://jessicamagalhaesnail.vercel.app/admin`;
 
       const resAdmin = await sendWhatsApp(adminNumber, adminReminderText);
+
+      if (resClient.ok && a.id) {
+        try {
+          await supabase.from('hour_reminders_sent').insert({ appointment_id: a.id });
+        } catch {
+          // Ignore
+        }
+      }
 
       results.push({
         id: a.id,

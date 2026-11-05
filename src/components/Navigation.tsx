@@ -4,10 +4,9 @@ import { Menu, X, User, LogOut, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminRole } from "@/hooks/useAdminRole";
-import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { useAdminEdit } from "@/contexts/AdminEditContext";
+import EditableText from "@/components/admin/EditableText";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
-import logoJMDefault from "@/assets/logo-jm.png";
-import verifiedBadge from "@/assets/verified-badge.png";
 
 interface NavigationProps {
   onLoginClick: () => void;
@@ -20,10 +19,7 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const { isAdmin } = useAdminRole();
-  const { getSetting } = useSiteSettings();
-
-  const logoUrl = getSetting("logo_url", "");
-  const logo = logoUrl || logoJMDefault;
+  const { isEditMode } = useAdminEdit();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -49,9 +45,9 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
   }, []);
 
   const navLinks = [
-    { name: "Serviços", href: "#precos" },
-    { name: "Galeria", href: "#galeria" },
-    { name: "Contato", href: "#contato" },
+    { name: "Serviços", href: "#precos", key: "nav_services" },
+    { name: "Galeria", href: "#galeria", key: "nav_gallery" },
+    { name: "Contato", href: "#contato", key: "nav_contact" },
   ];
 
   return (
@@ -61,30 +57,16 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
         ${isScrolled ? "bg-card/90 backdrop-blur-md shadow-soft py-3" : "bg-transparent py-5"}
       `}
     >
-      <div className="container mx-auto px-6 flex items-center justify-between">
-        {/* Logo */}
-        <a href="/" className="flex-shrink-0 flex items-center">
-          <img
-            src={logo}
-            alt="Logo"
-            className={`transition-all duration-300 ${isScrolled ? "h-10" : "h-14"}`}
-          />
-          <img
-            src={verifiedBadge}
-            alt="Verificado"
-            className={`transition-all duration-300 ${isScrolled ? "h-2.5 w-2.5" : "h-3 w-3"} self-start mt-1 -ml-1`}
-          />
-        </a>
-
+      <div className="container mx-auto px-6 flex items-center justify-end">
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-8">
           {navLinks.map((link) => (
             <a
-              key={link.name}
-              href={link.href}
+              key={link.key}
+              href={isEditMode ? undefined : link.href}
               className="font-body text-sm text-foreground/80 hover:text-primary transition-colors"
             >
-              {link.name}
+              <EditableText settingKey={link.key} defaultValue={link.name} as="span" />
             </a>
           ))}
 
@@ -117,20 +99,20 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
             <Button
               size="sm"
               variant="ghost"
-              onClick={onLoginClick}
+              onClick={isEditMode ? undefined : onLoginClick}
               className="text-foreground hover:text-primary"
             >
               <User className="h-4 w-4 mr-2" />
-              Entrar
+              <EditableText settingKey="nav_login_btn" defaultValue="Entrar" as="span" />
             </Button>
           )}
 
           <Button
             size="sm"
-            onClick={onBookClick}
+            onClick={isEditMode ? undefined : onBookClick}
             className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-button"
           >
-            Agendar
+            <EditableText settingKey="nav_book_btn" defaultValue="Agendar" as="span" />
           </Button>
         </div>
 
@@ -150,12 +132,12 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
           <div className="container mx-auto px-6 py-4 space-y-4">
             {navLinks.map((link) => (
               <a
-                key={link.name}
+                key={link.key}
                 href={link.href}
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="block font-body text-foreground py-3 text-lg active:text-primary transition-colors"
               >
-                {link.name}
+                <EditableText settingKey={link.key} defaultValue={link.name} as="span" />
               </a>
             ))}
 
@@ -195,7 +177,7 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
                   className="w-full"
                 >
                   <User className="h-4 w-4 mr-2" />
-                  Entrar
+                  <EditableText settingKey="nav_login_btn" defaultValue="Entrar" as="span" />
                 </Button>
               )}
 
@@ -206,7 +188,7 @@ const Navigation = memo(({ onLoginClick, onBookClick }: NavigationProps) => {
                 }}
                 className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
               >
-                Agendar Horário
+                <EditableText settingKey="nav_book_btn_mobile" defaultValue="Agendar Horário" as="span" />
               </Button>
             </div>
           </div>

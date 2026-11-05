@@ -36,20 +36,20 @@ const PriceTable = memo(() => {
           <EditableText
             settingKey="prices_label"
             defaultValue="Serviços"
-            as="span"
-            className="text-sm uppercase tracking-[0.2em] text-primary font-body font-medium"
+            as="p"
+            className="text-sm uppercase tracking-[0.2em] text-primary font-body font-medium mb-2"
           />
           <EditableText
             settingKey="prices_title"
             defaultValue="Tabela de Preços"
             as="h2"
-            className="text-4xl md:text-5xl font-display font-semibold text-foreground mt-2"
+            className="text-4xl md:text-5xl font-display font-semibold text-foreground mb-3"
           />
           <EditableText
             settingKey="prices_description"
             defaultValue="Serviços de qualidade com produtos premium para suas unhas"
             as="p"
-            className="text-muted-foreground font-body mt-4 max-w-md mx-auto"
+            className="text-muted-foreground font-body max-w-md mx-auto"
           />
           {isAdmin && (
             <Button
@@ -130,20 +130,34 @@ const PriceTable = memo(() => {
                     <div className="flex-1">
                       <h3 className="font-display text-xl font-semibold text-foreground flex items-center gap-2">
                         {!service.image_url && <Sparkles className="h-4 w-4 text-accent" />}
-                        {service.name}
+                        <EditableText
+                          settingKey={`service_${service.id}_name`}
+                          defaultValue={service.name}
+                          as="span"
+                        />
                       </h3>
-                      <p className="text-muted-foreground font-body text-sm mt-1">
-                        {service.description}
-                      </p>
+                      <EditableText
+                        settingKey={`service_${service.id}_description`}
+                        defaultValue={service.description || ""}
+                        as="p"
+                        className="text-muted-foreground font-body text-sm mt-1"
+                      />
                       <div className="flex items-center gap-1 mt-2 text-muted-foreground text-xs font-body">
                         <Clock className="h-3 w-3" />
-                        {service.duration}
+                        <EditableText
+                          settingKey={`service_${service.id}_duration`}
+                          defaultValue={service.duration}
+                          as="span"
+                        />
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="text-2xl font-display font-bold text-primary">
-                        {service.price}
-                      </span>
+                      <EditableText
+                        settingKey={`service_${service.id}_price`}
+                        defaultValue={service.price}
+                        as="span"
+                        className="text-2xl font-display font-bold text-primary"
+                      />
                     </div>
                   </div>
                 </div>
@@ -152,9 +166,12 @@ const PriceTable = memo(() => {
           </div>
         )}
 
-        <p className="text-center text-muted-foreground text-sm font-body mt-8 animate-in fade-in duration-500 delay-300">
-          * Valores sujeitos a alteração. Consulte disponibilidade.
-        </p>
+        <EditableText
+          settingKey="prices_footnote"
+          defaultValue="* Valores sujeitos a alteração. Consulte disponibilidade."
+          as="p"
+          className="text-center text-muted-foreground text-sm font-body mt-8 animate-in fade-in duration-500 delay-300"
+        />
       </div>
     </section>
   );

@@ -695,3 +695,114 @@ CREATE INDEX IF NOT EXISTS idx_maintenance_reminders_sent_appt ON public.mainten
 INSERT INTO public.user_roles (user_id, role)
 VALUES ('d4949733-3693-42a4-b3d1-9226aa467e21', 'admin')
 ON CONFLICT DO NOTHING;
+
+-- File: 20260626211500_hour_reminders_cron.sql
+CREATE TABLE IF NOT EXISTS public.hour_reminders_sent (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  appointment_id uuid NOT NULL REFERENCES public.appointments(id) ON DELETE CASCADE,
+  sent_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (appointment_id)
+);
+
+GRANT SELECT, INSERT, DELETE ON public.hour_reminders_sent TO authenticated;
+GRANT ALL ON public.hour_reminders_sent TO service_role;
+
+ALTER TABLE public.hour_reminders_sent ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admins manage hour reminders" ON public.hour_reminders_sent;
+CREATE POLICY "Admins manage hour reminders" ON public.hour_reminders_sent
+FOR ALL
+TO authenticated
+USING (public.has_role(auth.uid(), 'admin'))
+WITH CHECK (public.has_role(auth.uid(), 'admin'));
+
+CREATE INDEX IF NOT EXISTS idx_hour_reminders_sent_appt ON public.hour_reminders_sent(appointment_id);
+
+-- Schedule: Daily summary to admin at 07:00 AM (BRT, UTC-3 -> 10:00 UTC)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    PERFORM cron.unschedule('resumo-diario-agenda-07h') WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'resumo-diario-agenda-07h');
+    PERFORM cron.schedule(
+      'resumo-diario-agenda-07h',
+      '0 10 * * *',
+      $cron$
+      SELECT
+        net.http_post(
+          url:='https://ezpvzzazvhvjrzseaomg.supabase.co/functions/v1/daily-appointments-summary',
+          headers:='{"Content-Type": "application/json"}'::jsonb,
+          body:='{}'::jsonb
+        ) as request_id;
+      $cron$
+    );
+
+    -- Schedule: 1-hour appointment reminder (every 10 minutes from 08:00 to 20:00 BRT -> 11:00 to 23:00 UTC)
+    PERFORM cron.unschedule('lembrete-1h-antes') WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'lembrete-1h-antes');
+    PERFORM cron.schedule(
+      'lembrete-1h-antes',
+      '*/10 11-23 * * *',
+      $cron$
+      SELECT
+        net.http_post(
+          url:='https://ezpvzzazvhvjrzseaomg.supabase.co/functions/v1/appointment-hour-reminder',
+          headers:='{"Content-Type": "application/json"}'::jsonb,
+          body:='{}'::jsonb
+        ) as request_id;
+      $cron$
+    );
+  END IF;
+END $$;
+
+-- File: 20260626213000_slot_holds.sql
+CREATE TABLE IF NOT EXISTS public.slot_holds (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  slot_date date NOT NULL,
+  slot_time time NOT NULL,
+  session_id text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.slot_holds ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can view active slot holds" ON public.slot_holds;
+CREATE POLICY "Anyone can view active slot holds"
+ON public.slot_holds FOR SELECT
+TO anon, authenticated
+USING (created_at > now() - interval '15 minutes');
+
+DROP POLICY IF EXISTS "Anyone can insert slot holds" ON public.slot_holds;
+CREATE POLICY "Anyone can insert slot holds"
+ON public.slot_holds FOR INSERT
+TO anon, authenticated
+WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Anyone can delete their slot holds" ON public.slot_holds;
+CREATE POLICY "Anyone can delete their slot holds"
+ON public.slot_holds FOR DELETE
+TO anon, authenticated
+USING (true);
+
+CREATE INDEX IF NOT EXISTS idx_slot_holds_date_time ON public.slot_holds(slot_date, slot_time);
+
+CREATE OR REPLACE FUNCTION public.get_booked_slots(_from_date date)
+RETURNS TABLE(appointment_date date, appointment_time time)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT appointment_date, appointment_time
+  FROM public.appointments
+  WHERE appointment_date >= _from_date
+    AND status <> 'cancelled'
+  UNION
+  SELECT slot_date AS appointment_date, slot_time AS appointment_time
+  FROM public.slot_holds
+  WHERE slot_date >= _from_date
+    AND created_at > now() - interval '15 minutes';
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_booked_slots(date) TO anon, authenticated;
+
+
+

@@ -19,6 +19,7 @@ Deno.serve(async (req) => {
       .from('appointments')
       .select('client_name, client_phone, service_type, appointment_time, status, notes')
       .eq('appointment_date', todayStr)
+      .neq('status', 'cancelled') // Não lista cancelados no resumo matinal
       .order('appointment_time', { ascending: true });
 
     if (error) throw error;
@@ -41,34 +42,43 @@ Deno.serve(async (req) => {
     const statusEmoji: Record<string, string> = {
       pending: '⏳',
       confirmed: '✅',
-      cancelled: '❌',
     };
     const statusLabel: Record<string, string> = {
       pending: 'Pendente',
       confirmed: 'Confirmado',
-      cancelled: 'Cancelado',
     };
 
-    let text = `📅 *AGENDA DO DIA - ${formattedDate}*\n\n`;
+    let text = `📅 *AGENDA DE HOJE (${formattedDate})* 💅✨\n\n`;
 
     if (!appts || appts.length === 0) {
-      text += `Nenhum agendamento para hoje. 🌸`;
+      text += `Nenhum agendamento marcado para hoje.\nTenha um excelente e abençoado dia! 🌸`;
     } else {
-      text += `Total: *${appts.length}* agendamento(s)\n\n`;
+      const confirmedCount = appts.filter((a) => a.status === 'confirmed').length;
+      const pendingCount = appts.filter((a) => a.status === 'pending').length;
+
+      text += `Total: *${appts.length}* cliente(s) agendada(s) para hoje\n`;
+      if (confirmedCount > 0) text += `✅ *${confirmedCount}* confirmado(s)\n`;
+      if (pendingCount > 0) text += `⏳ *${pendingCount}* pendente(s)\n`;
+      text += `\n─────────────────────\n\n`;
+
       for (const a of appts) {
         const emoji = statusEmoji[a.status] ?? '•';
         const label = statusLabel[a.status] ?? a.status;
         text +=
-          `${emoji} *${a.appointment_time.slice(0, 5)}* - ${a.client_name}\n` +
-          `   💅 ${a.service_type}\n` +
-          `   📱 ${a.client_phone}\n` +
-          `   📌 ${label}\n` +
-          (a.notes ? `   📝 ${a.notes}\n` : '') +
+          `${emoji} *${a.appointment_time.slice(0, 5)}* - *${a.client_name}*\n` +
+          `   💅 *Serviço:* ${a.service_type}\n` +
+          `   📱 *WhatsApp:* ${a.client_phone}\n` +
+          `   📌 *Status:* ${label}\n` +
+          (a.notes ? `   📝 *Obs:* ${a.notes}\n` : '') +
           `\n`;
       }
+
+      text += `📋 *Painel:* https://jessicamagalhaesnail.vercel.app/admin\n`;
+      text += `✨ Desejamos um dia muito produtivo e abençoado! 💕`;
     }
 
     const adminNumber = config.admin_number.replace(/\D/g, '');
+    const cleanPhone = adminNumber.startsWith('55') ? adminNumber : `55${adminNumber}`;
     const endpoint = `https://api.w-api.app/v1/message/send-text?instanceId=${encodeURIComponent(config.instance_id)}`;
 
     const sendRes = await fetch(endpoint, {
@@ -77,7 +87,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${config.instance_token}`,
       },
-      body: JSON.stringify({ phone: adminNumber, message: text }),
+      body: JSON.stringify({ phone: cleanPhone, message: text }),
     });
 
     const sendText = await sendRes.text();

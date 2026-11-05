@@ -21,13 +21,13 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 0, // Always refetch fresh data
-      gcTime: 1000 * 60 * 5, // 5 minutes
-      retry: 3,
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 10, // 10 minutes
+      retry: 2,
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-      refetchOnWindowFocus: true,
-      refetchOnReconnect: true,
-      refetchOnMount: true,
+      refetchOnWindowFocus: false, // Desabilita atualização automática ao mudar de aba/janela
+      refetchOnReconnect: false,
+      refetchOnMount: false,
     },
     mutations: {
       retry: 2,

@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import EditableText from "@/components/admin/EditableText";
 import { useAdminEdit } from "@/contexts/AdminEditContext";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { useToast } from "@/hooks/use-toast";
 
 // Default images (fallback)
@@ -31,9 +32,15 @@ const Gallery = memo(() => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const addFileInputRef = useRef<HTMLInputElement>(null);
-  const { isEditMode, isAdmin } = useAdminEdit();
+  const { isEditMode, isAdmin, openImageModal, getDraftSetting } = useAdminEdit();
+  const { getSetting } = useSiteSettings();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const portfolioImg =
+    getDraftSetting("portfolio_portrait_url") ||
+    getSetting("portfolio_portrait_url", "") ||
+    portfolioPortrait.url;
 
   const { data: dbImages, isLoading } = useQuery({
     queryKey: ["gallery"],
@@ -163,27 +170,79 @@ const Gallery = memo(() => {
     <section id="galeria" className="py-20 bg-background">
       <div className="container mx-auto px-6">
         <div className="text-center mb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="mb-6 flex justify-center">
-            <div className="relative w-60 h-60 sm:w-72 sm:h-72 md:w-80 md:h-80">
-              <img
-                src={portfolioPortrait.url}
-                alt="Jéssica Magalhães"
-                loading="lazy"
-                className="w-full h-full object-cover object-top rounded-full"
-                style={{
-                  WebkitMaskImage:
-                    "radial-gradient(ellipse at center, black 55%, transparent 78%)",
-                  maskImage:
-                    "radial-gradient(ellipse at center, black 55%, transparent 78%)",
-                }}
-              />
+          <div className="mb-8 flex justify-center">
+            <div className="relative flex items-center justify-center select-none">
+              {/* Anel dourado tracejado girando devagar (spinSlow 40s linear infinito) */}
+              <svg
+                viewBox="0 0 332 332"
+                className="absolute -top-4 -left-4 w-[272px] h-[272px] sm:w-[332px] sm:h-[332px] pointer-events-none animate-spin-slow select-none"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <circle
+                  cx="166"
+                  cy="166"
+                  r="164"
+                  stroke="#c69a5d"
+                  strokeWidth="1.5"
+                  strokeDasharray="6 10"
+                />
+              </svg>
+
+              {/* Círculo com a foto do portfólio, fundo bege claro, borda branca de 6px e sombra suave */}
+              <div className="relative w-[240px] h-[240px] sm:w-[300px] sm:h-[300px] rounded-full overflow-hidden border-[6px] border-white shadow-[0_10px_30px_rgba(0,0,0,0.08)] bg-gradient-to-br from-[#fdfbf7] to-[#f4ece1] flex items-center justify-center group/portfolio">
+                <img
+                  src={portfolioImg}
+                  alt="Jéssica Magalhães"
+                  loading="lazy"
+                  className="w-full h-full object-cover object-center select-none"
+                />
+
+                {/* Botão de edição da foto do portfólio no Modo Edição */}
+                {isEditing && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openImageModal("portfolio_portrait_url", portfolioImg, "Foto do Portfólio (Galeria)");
+                    }}
+                    className="absolute inset-0 bg-black/50 opacity-0 group-hover/portfolio:opacity-100 transition-opacity flex flex-col items-center justify-center text-white gap-2 z-30 cursor-pointer"
+                    title="Trocar Foto do Portfólio"
+                  >
+                    <div className="p-3 rounded-full bg-primary text-white shadow-lg">
+                      <Camera className="h-6 w-6" />
+                    </div>
+                    <span className="text-xs font-semibold uppercase tracking-wider bg-black/60 px-3 py-1 rounded-full">Trocar Foto</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Selo 1: Topo esquerdo flutuando (floaty2 5.5s) */}
               <div
-                className="absolute inset-x-0 bottom-0 h-2/3 pointer-events-none rounded-full"
-                style={{
-                  background:
-                    "linear-gradient(to bottom, transparent 0%, hsl(var(--background) / 0.6) 55%, hsl(var(--background)) 100%)",
-                }}
-              />
+                className="absolute top-2 sm:top-5 -left-[6px] sm:-left-6 md:-left-8 bg-white/95 backdrop-blur-sm text-[#3a2e2b] shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-[#efe8df] rounded-full px-3.5 py-1.5 sm:px-4 sm:py-2 flex items-center gap-1.5 text-xs sm:text-sm font-medium tracking-tight whitespace-nowrap z-20 select-none animate-floaty2"
+                style={{ fontFamily: "'Jost', sans-serif" }}
+              >
+                <span className="text-sm">⭐</span>
+                <EditableText
+                  settingKey="badge_premium_text"
+                  defaultValue="Atendimento premium"
+                  as="span"
+                />
+              </div>
+
+              {/* Selo 2: Embaixo à direita flutuando (floaty 6.5s) */}
+              <div
+                className="absolute bottom-3 sm:bottom-6 -right-[6px] sm:-right-6 md:-right-8 bg-white/95 backdrop-blur-sm text-[#3a2e2b] shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-[#efe8df] rounded-full px-3.5 py-1.5 sm:px-4 sm:py-2 flex items-center gap-1.5 text-xs sm:text-sm font-medium tracking-tight whitespace-nowrap z-20 select-none animate-floaty"
+                style={{ fontFamily: "'Jost', sans-serif" }}
+              >
+                <span className="text-sm">💅</span>
+                <EditableText
+                  settingKey="badge_quality_text"
+                  defaultValue="Produtos de alta qualidade"
+                  as="span"
+                />
+              </div>
             </div>
           </div>
           <EditableText
@@ -241,7 +300,7 @@ const Gallery = memo(() => {
                 />
 
                 {/* Admin edit overlay */}
-                {isEditing && hasDbImages && (
+                {isEditing && (
                   <>
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 z-10">
                       {uploadingIndex === index ? (
@@ -253,26 +312,28 @@ const Gallery = memo(() => {
                               e.stopPropagation();
                               fileInputRefs.current[image.id]?.click();
                             }}
-                            className="p-2.5 rounded-full bg-primary/80 text-white backdrop-blur-sm hover:bg-primary transition-colors"
+                            className="p-2.5 rounded-full bg-primary/80 text-white backdrop-blur-sm hover:bg-primary transition-colors cursor-pointer"
                             title="Trocar imagem"
                           >
                             <Camera className="h-5 w-5" />
                           </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteImage(image.id);
-                            }}
-                            disabled={deletingId === image.id}
-                            className="p-2.5 rounded-full bg-destructive/80 text-white backdrop-blur-sm hover:bg-destructive transition-colors"
-                            title="Remover imagem"
-                          >
-                            {deletingId === image.id ? (
-                              <Loader2 className="h-5 w-5 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-5 w-5" />
-                            )}
-                          </button>
+                          {hasDbImages && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteImage(image.id);
+                              }}
+                              disabled={deletingId === image.id}
+                              className="p-2.5 rounded-full bg-destructive/80 text-white backdrop-blur-sm hover:bg-destructive transition-colors cursor-pointer"
+                              title="Remover imagem"
+                            >
+                              {deletingId === image.id ? (
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-5 w-5" />
+                              )}
+                            </button>
+                          )}
                         </>
                       )}
                     </div>
@@ -283,7 +344,13 @@ const Gallery = memo(() => {
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
-                        if (file) handleReplaceImage(file, image.id);
+                        if (file) {
+                          if (hasDbImages) {
+                            handleReplaceImage(file, image.id);
+                          } else {
+                            handleAddImage(file);
+                          }
+                        }
                         e.target.value = "";
                       }}
                     />

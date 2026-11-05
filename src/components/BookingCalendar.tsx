@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +52,11 @@ const formatPhoneInput = (value: string) => {
 };
 
 const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarProps) => {
+  const sessionId = useRef(
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `sess_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+  );
   const [step, setStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedTime, setSelectedTime] = useState<string>("");
@@ -112,26 +117,109 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
   });
 
 
+  const holdCurrentSlot = async (timeToHold?: string) => {
+    const time = timeToHold || selectedTime;
+    if (!selectedDate || !time) return;
+    try {
+      const dateStr = format(selectedDate, "yyyy-MM-dd");
+      await supabase.from("slot_holds").delete().eq("session_id", sessionId.current);
+      await supabase.from("slot_holds").insert({
+        slot_date: dateStr,
+        slot_time: time,
+        session_id: sessionId.current,
+      });
+    } catch {
+      // Ignora caso a tabela ainda não exista
+    }
+  };
+
+  const releaseCurrentHold = async () => {
+    try {
+      await supabase.from("slot_holds").delete().eq("session_id", sessionId.current);
+    } catch {
+      // Ignora erro
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       fetchBookedSlots();
       fetchBlockedSlots();
     }
+  }, [isOpen, selectedDate, step]);
+
+  // Realtime: atualiza horários imediatamente se outra cliente marcar ou admin cancelar
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const channel = supabase
+      .channel("booking-slots-sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "appointments" },
+        () => {
+          fetchBookedSlots();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "blocked_slots" },
+        () => {
+          fetchBlockedSlots();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "slot_holds" },
+        () => {
+          fetchBookedSlots();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [isOpen]);
 
   const fetchBookedSlots = async () => {
+    const fromDate = format(new Date(), "yyyy-MM-dd");
     const { data, error } = await supabase.rpc("get_booked_slots", {
-      _from_date: format(new Date(), "yyyy-MM-dd"),
+      _from_date: fromDate,
     });
 
+    const slots: Appointment[] = [];
     if (!error && data) {
-      setBookedSlots(
-        data.map((d: { appointment_date: string; appointment_time: string }) => ({
+      slots.push(
+        ...data.map((d: { appointment_date: string; appointment_time: string }) => ({
           appointment_date: d.appointment_date,
           appointment_time: d.appointment_time,
         }))
       );
     }
+
+    // Inclui reservas temporárias de outras clientes em andamento (últimos 15 min)
+    try {
+      const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+      const { data: holds } = await supabase
+        .from("slot_holds")
+        .select("slot_date, slot_time, session_id")
+        .gte("created_at", fifteenMinAgo)
+        .neq("session_id", sessionId.current);
+
+      if (holds && holds.length > 0) {
+        slots.push(
+          ...holds.map((h: { slot_date: string; slot_time: string }) => ({
+            appointment_date: h.slot_date,
+            appointment_time: h.slot_time,
+          }))
+        );
+      }
+    } catch {
+      // Tabela opcional
+    }
+
+    setBookedSlots(slots);
   };
 
   const fetchBlockedSlots = async () => {
@@ -227,6 +315,18 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
       return;
     }
 
+    // Verifica se o horário ainda está disponível antes de gravar
+    const availableNow = getAvailableTimes(selectedDate);
+    if (!availableNow.includes(selectedTime)) {
+      toast({
+        title: "Horário indisponível",
+        description: "Este horário acabou de ser selecionado por outra cliente. Por favor, escolha outro horário.",
+        variant: "destructive",
+      });
+      setStep(2);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -290,6 +390,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
 
       const url = `https://wa.me/${whatsappNumber}?text=${message}`;
       setWhatsappUrl(url);
+      await releaseCurrentHold();
       setStep(4);
 
       toast({
@@ -314,6 +415,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
   };
 
   const resetAndClose = () => {
+    releaseCurrentHold();
     setStep(1);
     setSelectedDate(undefined);
     setSelectedTime("");
@@ -414,32 +516,31 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
               ) : availableTimes.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Sem horários disponíveis nesta data
-                </p>
+                <div className="text-center py-8 space-y-2">
+                  <p className="text-muted-foreground font-body">
+                    Todos os horários desta data já foram preenchidos.
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Por favor, selecione outro dia no calendário.
+                  </p>
+                </div>
               ) : (
                 <div className="grid grid-cols-4 gap-2">
-                  {timeSlots.map((time) => {
-                    const isAvailable = availableTimes.includes(time);
-                    return (
-                      <button
-                        key={time}
-                        onClick={() => isAvailable && setSelectedTime(time)}
-                        disabled={!isAvailable}
-                        className={`
-                          py-3 px-2 rounded-xl font-body text-sm transition-all
-                          ${selectedTime === time
-                            ? "bg-primary text-primary-foreground shadow-button"
-                            : isAvailable
-                              ? "bg-secondary text-secondary-foreground hover:bg-primary/20"
-                              : "bg-muted text-muted-foreground line-through opacity-50 cursor-not-allowed"
-                          }
-                        `}
-                      >
-                        {time}
-                      </button>
-                    );
-                  })}
+                  {availableTimes.map((time) => (
+                    <button
+                      key={time}
+                      onClick={() => setSelectedTime(time)}
+                      className={`
+                        py-3 px-2 rounded-xl font-body text-sm transition-all
+                        ${selectedTime === time
+                          ? "bg-primary text-primary-foreground shadow-button scale-105 font-medium"
+                          : "bg-secondary text-secondary-foreground hover:bg-primary/20"
+                        }
+                      `}
+                    >
+                      {time}
+                    </button>
+                  ))}
                 </div>
               )}
 
@@ -472,7 +573,10 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                   Voltar
                 </Button>
                 <Button
-                  onClick={() => setStep(3)}
+                  onClick={async () => {
+                    await holdCurrentSlot(selectedTime);
+                    setStep(3);
+                  }}
                   disabled={!selectedTime || !selectedService}
                   className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
@@ -579,7 +683,10 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
               <div className="flex gap-2">
                 <Button
                   variant="outline"
-                  onClick={() => setStep(2)}
+                  onClick={async () => {
+                    await releaseCurrentHold();
+                    setStep(2);
+                  }}
                   className="flex-1"
                 >
                   Voltar

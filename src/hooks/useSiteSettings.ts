@@ -30,12 +30,12 @@ export const useSiteSettings = () => {
       
       return settingsMap;
     },
-    staleTime: 0,
-    gcTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 10,
     retry: 2,
-    refetchOnWindowFocus: true,
-    refetchOnMount: "always",
-    refetchOnReconnect: true,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 
   const getSetting = useCallback(

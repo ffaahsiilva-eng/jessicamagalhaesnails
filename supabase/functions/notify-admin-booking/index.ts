@@ -11,7 +11,7 @@ interface BookingPayload {
   appointment_date: string;
   appointment_time: string;
   notes?: string | null;
-  action?: 'new' | 'confirmed' | 'cancelled';
+  action?: 'new' | 'confirmed' | 'cancelled' | 'reminder_1h';
   site_url?: string | null;
 }
 
@@ -130,6 +130,35 @@ Deno.serve(async (req) => {
         `Caso deseje remarcar, acesse nosso site: ${baseUrl}`;
 
       await sendWhatsApp(clientNumber, clientCancelText);
+    }
+
+    // 4. Mensagem quando é LEMBRETE DE 1 HORA
+    if (action === 'reminder_1h') {
+      const clientReminderText =
+        `⏰ *LEMBRETE: SEU HORÁRIO É DAQUI A 1 HORA!* ⏰\n\n` +
+        `Olá, *${body.client_name}*! Tudo bem? 💕\n` +
+        `Passando para lembrar que seu atendimento com Jéssica Magalhães está marcado para hoje:\n\n` +
+        `💅 *Serviço:* ${body.service_type}${priceText}\n` +
+        `🕐 *Horário:* ${time}\n` +
+        `📅 *Data:* ${formattedDate}\n\n` +
+        `⏰ *Lembrete:* Temos 15 minutos de tolerância para chegada.\n` +
+        `Te esperamos em breve! ✨`;
+
+      const resClient = await sendWhatsApp(clientNumber, clientReminderText);
+      results.client = { ok: resClient.ok, status: resClient.status };
+
+      const adminReminderText =
+        `⏰ *LEMBRETE - 1H PARA O ATENDIMENTO*\n\n` +
+        `👤 *Cliente:* ${body.client_name}\n` +
+        `📱 *WhatsApp:* ${body.client_phone}\n` +
+        `💅 *Serviço:* ${body.service_type}${priceText}\n` +
+        `📅 *Data:* ${formattedDate}\n` +
+        `🕐 *Horário:* ${time}\n` +
+        (body.notes ? `📝 *Obs:* ${body.notes}\n` : '') +
+        `\n📋 Painel: ${baseUrl}/admin`;
+
+      const resAdmin = await sendWhatsApp(adminNumber, adminReminderText);
+      results.admin = { ok: resAdmin.ok, status: resAdmin.status };
     }
 
     return new Response(JSON.stringify({ success: true, results }), {

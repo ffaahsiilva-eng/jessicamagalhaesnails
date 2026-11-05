@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Calendar, Phone } from "lucide-react";
+import { Calendar, Phone, Camera } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { useAdminEdit } from "@/contexts/AdminEditContext";
 import EditableText from "@/components/admin/EditableText";
@@ -9,6 +9,8 @@ import heroImageDefault from "@/assets/hero-nails.jpg";
 import portraitImg from "@/assets/jessica-portrait.png";
 import heroVideoOptimized from "@/assets/hero-bg-optimized.mp4";
 import heroVideoPoster from "@/assets/hero-bg-poster.jpg";
+import logoJMDefault from "@/assets/logo-jm.png";
+import ServiceMarquee from "@/components/ServiceMarquee";
 
 interface HeroProps {
   onBookClick: () => void;
@@ -17,7 +19,11 @@ interface HeroProps {
 
 const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
   const { getSetting } = useSiteSettings();
-  const { isEditMode, isAdmin } = useAdminEdit();
+  const { isEditMode, isAdmin, openImageModal, getDraftSetting } = useAdminEdit();
+  
+  const heroPortrait = getDraftSetting("hero_portrait_url") || getSetting("hero_portrait_url", "") || portraitImg;
+  const logoUrl = getDraftSetting("logo_url") || getSetting("logo_url", "");
+  const logo = logoUrl || logoJMDefault;
   const portraitRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -94,7 +100,7 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
   }, [whatsappNumber]);
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+    <section className="relative min-h-screen flex flex-col justify-between items-center overflow-hidden pt-28 pb-0">
       {/* Background: looping video (admin edit mode falls back to editable image) */}
       <div className="absolute inset-0 z-0">
         {isAdmin && isEditMode ? (
@@ -123,16 +129,16 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 container mx-auto px-6 text-center">
+      <div className="relative z-10 container mx-auto px-6 text-center my-auto">
         <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div
             ref={portraitRef}
-            className="mb-6 flex justify-center will-change-transform animate-portrait-fade-in"
+            className="mb-8 flex justify-center will-change-transform animate-portrait-fade-in"
           >
-
-            <div className="relative w-72 h-72 sm:w-80 sm:h-80 md:w-96 md:h-96">
+            {/* Foto de Cima: Retrato com suporte a troca em tempo real */}
+            <div className="relative w-72 h-72 sm:w-80 sm:h-80 md:w-96 md:h-96 group/portrait">
               <img
-                src={portraitImg}
+                src={heroPortrait}
                 alt="Jéssica Magalhães"
                 className="w-full h-full object-cover object-top rounded-full"
                 style={{
@@ -149,82 +155,109 @@ const Hero = memo(({ onBookClick, whatsappNumber }: HeroProps) => {
                     "linear-gradient(to bottom, transparent 0%, hsl(var(--background) / 0.6) 55%, hsl(var(--background)) 100%)",
                 }}
               />
+
+              {/* Botão de edição da foto de cima no Modo Edição */}
+              {isAdmin && isEditMode && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openImageModal("hero_portrait_url", heroPortrait, "Foto de Jéssica (Retrato Superior)");
+                  }}
+                  className="absolute top-4 right-4 z-30 px-3 py-1.5 rounded-full bg-black/75 hover:bg-primary text-white shadow-lg backdrop-blur-sm transition-all duration-200 flex items-center gap-1.5 text-xs font-sans hover:scale-105 cursor-pointer"
+                  title="Trocar Foto de Jéssica"
+                >
+                  <Camera className="h-4 w-4" />
+                  <span>Trocar Foto</span>
+                </button>
+              )}
+
+              {/* Logo centralizada sobre a foto com troca no Modo Edição */}
+              <div className="absolute bottom-2 sm:bottom-3 md:bottom-4 left-1/2 -translate-x-1/2 flex items-center justify-center z-10 group/logo">
+                <img
+                  src={logo}
+                  alt="Logo Jéssica Magalhães"
+                  className="h-20 sm:h-24 md:h-28 w-auto object-contain drop-shadow-md pointer-events-none"
+                />
+                {isAdmin && isEditMode && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openImageModal("logo_url", logo, "Logo Centralizada");
+                    }}
+                    className="absolute -top-2 -right-4 p-1.5 rounded-full bg-primary text-primary-foreground shadow-md hover:scale-110 transition-transform cursor-pointer"
+                    title="Trocar Logo"
+                  >
+                    <Camera className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
           <div className="mb-4 animate-in fade-in zoom-in-95 duration-500 delay-150">
-            {isAdmin && isEditMode ? (
-              <EditableText
-                settingKey="hero_subtitle"
-                defaultValue="Nail Designer"
-                className="inline-block uppercase tracking-[0.3em] text-primary font-body font-medium text-xs text-center"
-              />
-            ) : (
-              <span className="inline-block uppercase tracking-[0.3em] text-primary font-body font-medium text-xs text-center">
-                {getSetting("hero_subtitle", "Nail Designer")}
-              </span>
-            )}
+            <EditableText
+              settingKey="hero_subtitle"
+              defaultValue="Nail Designer"
+              as="span"
+              className="inline-block uppercase tracking-[0.3em] text-primary font-body font-medium text-xs text-center"
+            />
           </div>
 
           <div className="mb-6 animate-in fade-in slide-in-from-bottom-2 duration-600 delay-300">
-            {isAdmin && isEditMode ? (
-              <EditableText
-                settingKey="hero_title"
-                defaultValue="Jéssica Magalhães"
-                as="h1"
-                className="md:text-7xl font-display font-semibold text-foreground leading-tight text-4xl"
-              />
-            ) : (
-              <h1 className="md:text-7xl font-display font-semibold text-foreground mb-6 leading-tight text-4xl">
-                {getSetting("hero_title", "Jéssica Magalhães")}
-              </h1>
-            )}
+            <EditableText
+              settingKey="hero_title"
+              defaultValue="Jéssica Magalhães"
+              as="h1"
+              className="md:text-7xl font-display font-semibold text-foreground leading-tight text-4xl"
+            />
           </div>
 
           <div className="mb-10 max-w-md mx-auto animate-in fade-in duration-600 delay-500">
-            {isAdmin && isEditMode ? (
-              <EditableText
-                settingKey="hero_description"
-                defaultValue="Unhas perfeitas com carinho e profissionalismo. Agende seu horário e sinta-se ainda mais linda!"
-                as="p"
-                multiline
-                className="text-lg text-muted-foreground font-body"
-              />
-            ) : (
-              <p className="text-lg text-muted-foreground font-body">
-                {getSetting("hero_description", "Unhas perfeitas com carinho e profissionalismo. Agende seu horário e sinta-se ainda mais linda!")}
-              </p>
-            )}
+            <EditableText
+              settingKey="hero_description"
+              defaultValue="Unhas perfeitas com carinho e profissionalismo. Agende seu horário e sinta-se ainda mais linda!"
+              as="p"
+              multiline
+              className="text-lg text-muted-foreground font-body"
+            />
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center animate-in fade-in slide-in-from-bottom-2 duration-500 delay-700">
             <Button
               size="lg"
-              onClick={onBookClick}
+              onClick={isEditMode ? undefined : onBookClick}
               className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-button font-body group"
             >
               <Calendar className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
-              Agendar Horário
+              <EditableText
+                settingKey="hero_btn_book"
+                defaultValue="Agendar Horário"
+                as="span"
+              />
             </Button>
 
             <Button
               size="lg"
               variant="outline"
-              onClick={handleWhatsAppClick}
+              onClick={isEditMode ? undefined : handleWhatsAppClick}
               className="border-primary text-primary hover:bg-primary/10 font-body group"
             >
               <Phone className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
-              WhatsApp
+              <EditableText
+                settingKey="hero_btn_whatsapp"
+                defaultValue="WhatsApp"
+                as="span"
+              />
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Decorative Scroll Indicator */}
-      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10 animate-bounce">
-        <div className="w-6 h-10 border-2 border-primary/50 rounded-full flex justify-center pt-2">
-          <div className="w-1.5 h-3 bg-primary rounded-full animate-pulse" />
-        </div>
+      {/* Faixa Rolante de Serviços abaixo de Agendar Horário */}
+      <div className="relative z-20 w-full mt-auto">
+        <ServiceMarquee />
       </div>
     </section>
   );
