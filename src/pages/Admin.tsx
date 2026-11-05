@@ -422,21 +422,22 @@ const Admin = () => {
 
   return (
     <div className="min-h-screen bg-background pb-4">
-      {/* Header */}
-      <header className="sticky top-0 bg-card/95 backdrop-blur-md border-b border-border z-40">
-        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+      {/* Header com safe-area para iOS / entalhes */}
+      <header className="sticky top-0 bg-card/95 backdrop-blur-md border-b border-border z-40 pt-[max(env(safe-area-inset-top,0px),0.75rem)] transition-all">
+        <div className="container mx-auto px-3 sm:px-4 pt-2 pb-3 sm:py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-2.5 sm:gap-3">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate("/")}
-                className="text-muted-foreground h-9 w-9"
+                className="text-foreground bg-secondary/80 hover:bg-secondary active:scale-95 transition-transform h-10 w-10 sm:h-9 sm:w-9 rounded-xl touch-manipulation cursor-pointer flex-shrink-0 shadow-sm"
+                aria-label="Voltar para a página inicial"
               >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div>
-                <h1 className="font-display text-lg sm:text-xl font-semibold text-foreground">
+                <h1 className="font-display text-lg sm:text-xl font-semibold text-foreground leading-tight">
                   Painel Admin
                 </h1>
                 <p className="text-xs sm:text-sm text-muted-foreground font-body">
@@ -448,7 +449,7 @@ const Admin = () => {
               variant="outline"
               size="sm"
               onClick={fetchData}
-              className="gap-1.5 h-8 text-xs sm:text-sm"
+              className="gap-1.5 h-9 sm:h-8 text-xs sm:text-sm active:scale-95 transition-transform"
             >
               <RefreshCw className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Atualizar</span>

@@ -28,7 +28,7 @@ const AdminEditToggle = () => {
 
       {isEditMode ? (
         /* Top Floating Control Bar when in Edit Mode */
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[90] flex items-center gap-1.5 sm:gap-2 bg-card/95 backdrop-blur-md border border-primary/30 shadow-2xl rounded-full px-3 sm:px-4 py-2 animate-in slide-in-from-top-4 duration-300 max-w-[95vw]">
+        <div className="fixed top-[max(env(safe-area-inset-top,0px),1rem)] left-1/2 -translate-x-1/2 z-[90] flex items-center gap-1.5 sm:gap-2 bg-card/95 backdrop-blur-md border border-primary/30 shadow-2xl rounded-full px-3 sm:px-4 py-2 animate-in slide-in-from-top-4 duration-300 max-w-[95vw]">
           <div className="flex items-center gap-1.5 sm:gap-2 pr-2 border-r border-border shrink-0">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
             <span className="font-display font-semibold text-xs sm:text-sm text-foreground whitespace-nowrap">
