@@ -37,6 +37,17 @@ const bookingSchema = z.object({
   phone: z.string().trim().regex(/^\(\d{2}\)\s?\d{4,5}-?\d{4}$|^\d{10,11}$/, "Telefone inválido (ex: (91) 91234-5678)"),
 });
 
+const generateUUID = (): string => {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 const formatPhoneInput = (value: string) => {
   const numbers = value.replace(/\D/g, "");
   if (numbers.length <= 2) return numbers;
@@ -46,11 +57,7 @@ const formatPhoneInput = (value: string) => {
 };
 
 const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarProps) => {
-  const sessionId = useRef(
-    typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `sess_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-  );
+  const sessionId = useRef(generateUUID());
   const [step, setStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedTime, setSelectedTime] = useState<string>("");
@@ -347,7 +354,10 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         ? `${notes.trim()}${totalPrice ? ` [Valor: ${totalPrice}]` : ""}`
         : (totalPrice ? `[Valor: ${totalPrice}]` : null);
 
+      const appointmentId = generateUUID();
+
       const appointmentPayload = {
+        id: appointmentId,
         user_id: user?.id || null,
         client_name: name.trim(),
         client_email: email.trim() || null,
@@ -359,11 +369,9 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         status: "pending",
       };
 
-      const { data: insertedAppt, error } = await supabase
+      const { error } = await supabase
         .from("appointments")
-        .insert(appointmentPayload)
-        .select()
-        .single();
+        .insert(appointmentPayload);
 
       if (error) throw error;
 
@@ -371,7 +379,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
       try {
         await notifyWhatsAppBooking({
           ...appointmentPayload,
-          appointment_id: insertedAppt?.id || null,
+          appointment_id: appointmentId,
           service_price: totalPrice,
           site_url: window.location.origin,
           action: "new",

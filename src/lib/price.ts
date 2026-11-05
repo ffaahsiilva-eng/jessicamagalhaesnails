@@ -83,3 +83,4 @@ export const cleanNotesForDisplay = (notes?: string | null): string => {
   if (!notes) return "";
   return notes.replace(/\s*\[Valor:[^\]]*\]/gi, "").trim();
 };
+
