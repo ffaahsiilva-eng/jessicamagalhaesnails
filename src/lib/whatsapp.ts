@@ -16,14 +16,74 @@ export interface SendBookingNotificationParams {
 }
 
 export const getWhatsAppConfig = async () => {
-  const { data, error } = await supabase
-    .from("whatsapp_config")
-    .select("instance_id, instance_token, admin_number, enabled")
-    .limit(1)
-    .maybeSingle();
+  // 1. Tentar ler de whatsapp_config (quando admin está autenticado)
+  try {
+    const { data } = await supabase
+      .from("whatsapp_config")
+      .select("instance_id, instance_token, admin_number, enabled")
+      .limit(1)
+      .maybeSingle();
 
-  if (error || !data) return null;
-  return data;
+    if (data && data.enabled && data.instance_id && data.instance_token) {
+      return data;
+    }
+  } catch {
+    // RLS pode bloquear para visitantes
+  }
+
+  // 2. Fallback: ler de site_settings (público e acessível para todos os visitantes do site)
+  try {
+    const { data: settings } = await supabase
+      .from("site_settings")
+      .select("key, value")
+      .in("key", ["wapi_instance_id", "wapi_instance_token", "wapi_admin_number", "wapi_enabled", "whatsapp_number"]);
+
+    if (settings && settings.length > 0) {
+      const map: Record<string, string> = {};
+      settings.forEach((s) => { map[s.key] = s.value; });
+
+      const instId = map["wapi_instance_id"]?.trim();
+      const instToken = map["wapi_instance_token"]?.trim();
+      const rawAdmin = map["wapi_admin_number"] || map["whatsapp_number"] || "559191837179";
+      const cleanAdmin = rawAdmin.replace(/\D/g, "");
+      const formattedAdmin = cleanAdmin.startsWith("55") ? cleanAdmin : `55${cleanAdmin}`;
+      const isEnabled = map["wapi_enabled"] !== "false";
+
+      if (instId && instToken) {
+        return {
+          instance_id: instId,
+          instance_token: instToken,
+          admin_number: formattedAdmin,
+          enabled: isEnabled,
+        };
+      }
+    }
+  } catch {
+    // Ignora
+  }
+
+  return null;
+};
+
+export const syncWhatsAppConfigToSiteSettings = async (cfg: {
+  instance_id: string;
+  instance_token: string;
+  admin_number?: string;
+  enabled?: boolean;
+}) => {
+  try {
+    const rawAdmin = cfg.admin_number ? cfg.admin_number.replace(/\D/g, "") : "559191837179";
+    const cleanAdmin = rawAdmin.startsWith("55") ? rawAdmin : `55${rawAdmin}`;
+    const payload = [
+      { key: "wapi_instance_id", value: (cfg.instance_id || "").trim(), label: "W-API Instance ID", type: "text", category: "integrations" },
+      { key: "wapi_instance_token", value: (cfg.instance_token || "").trim(), label: "W-API Token", type: "text", category: "integrations" },
+      { key: "wapi_admin_number", value: cleanAdmin, label: "W-API Admin Number", type: "text", category: "integrations" },
+      { key: "wapi_enabled", value: cfg.enabled !== false ? "true" : "false", label: "W-API Enabled", type: "text", category: "integrations" },
+    ];
+    await supabase.from("site_settings").upsert(payload, { onConflict: "key" });
+  } catch (err) {
+    console.warn("Erro ao sincronizar whatsapp config para site_settings:", err);
+  }
 };
 
 export const sendDirectWhatsApp = async (

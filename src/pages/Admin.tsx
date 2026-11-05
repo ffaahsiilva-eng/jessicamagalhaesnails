@@ -54,6 +54,7 @@ import FontManager from "@/components/admin/FontManager";
 import WhatsAppApiManager from "@/components/admin/WhatsAppApiManager";
 import WhatsAppAvailability from "@/components/WhatsAppAvailability";
 import AppointmentsManager from "@/components/admin/AppointmentsManager";
+import { notifyWhatsAppBooking, syncWhatsAppConfigToSiteSettings } from "@/lib/whatsapp";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Appointment = Tables<"appointments">;
@@ -108,9 +109,24 @@ const Admin = () => {
     }
   }, [isAdmin, filter]);
 
+  const syncWapiIfAvailable = async () => {
+    try {
+      const { data } = await supabase
+        .from("whatsapp_config")
+        .select("instance_id, instance_token, admin_number, enabled")
+        .limit(1)
+        .maybeSingle();
+      if (data && data.instance_id && data.instance_token) {
+        await syncWhatsAppConfigToSiteSettings(data);
+      }
+    } catch {
+      // Ignora erro momentaneo
+    }
+  };
+
   const fetchData = async () => {
     setIsLoading(true);
-    await Promise.all([fetchAppointments(), fetchBlockedSlots(), fetchTimeSlots()]);
+    await Promise.all([fetchAppointments(), fetchBlockedSlots(), fetchTimeSlots(), syncWapiIfAvailable()]);
     setIsLoading(false);
   };
 
@@ -183,6 +199,7 @@ const Admin = () => {
 
   const updateStatus = async (id: string, status: string, appointment?: Appointment) => {
     setIsUpdating(id);
+    const targetApp = appointment || appointments.find((a) => a.id === id);
     
     const { error } = await supabase
       .from("appointments")
@@ -198,22 +215,27 @@ const Admin = () => {
     } else {
       toast({
         title: "Status atualizado!",
-        description: `Agendamento ${statusLabels[status].toLowerCase()}.`,
+        description: `Agendamento ${statusLabels[status]?.toLowerCase() || status}.`,
       });
 
-      // Send WhatsApp confirmation message
-      if (status === "confirmed" && appointment) {
-        const formattedDate = format(parseISO(appointment.appointment_date), "dd/MM/yyyy", { locale: ptBR });
-        const message = encodeURIComponent(
-          `Olá ${appointment.client_name}!\n\n` +
-          `Seu agendamento foi *CONFIRMADO*!\n\n` +
-          `*Data:* ${formattedDate}\n` +
-          `*Horário:* ${appointment.appointment_time.slice(0, 5)}\n` +
-          `*Serviço:* ${appointment.service_type}\n\n` +
-          `${getRandomVerse()}\n\n` +
-          `Te espero!`
-        );
-        window.open(`https://wa.me/${appointment.client_phone.replace(/\D/g, '')}?text=${message}`, "_blank");
+      // Enviar notificacoes automaticas para admin e cliente via W-API
+      if (targetApp && (status === "confirmed" || status === "cancelled")) {
+        try {
+          await notifyWhatsAppBooking({
+            appointment_id: targetApp.id,
+            client_name: targetApp.client_name,
+            client_phone: targetApp.client_phone,
+            client_email: targetApp.client_email,
+            service_type: targetApp.service_type,
+            appointment_date: targetApp.appointment_date,
+            appointment_time: targetApp.appointment_time,
+            notes: targetApp.notes,
+            action: status as "confirmed" | "cancelled",
+            site_url: window.location.origin,
+          });
+        } catch (err) {
+          console.warn("Falha ao notificar WhatsApp:", err);
+        }
       }
 
       fetchAppointments();
@@ -758,7 +780,7 @@ const Admin = () => {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => updateStatus(appointment.id, "cancelled")}
+                                onClick={() => updateStatus(appointment.id, "cancelled", appointment)}
                                 disabled={isUpdating === appointment.id}
                                 className="flex-1 border-rose-200 text-rose-600 hover:bg-rose-50 h-8 text-xs"
                               >
@@ -787,7 +809,7 @@ const Admin = () => {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => updateStatus(appointment.id, "cancelled")}
+                                onClick={() => updateStatus(appointment.id, "cancelled", appointment)}
                                 disabled={isUpdating === appointment.id}
                                 className="border-rose-200 text-rose-600 hover:bg-rose-50 h-9 sm:h-8 text-xs"
                               >

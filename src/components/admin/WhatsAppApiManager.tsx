@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { sendDirectWhatsApp } from "@/lib/whatsapp";
+import { sendDirectWhatsApp, syncWhatsAppConfigToSiteSettings } from "@/lib/whatsapp";
 
 interface WhatsAppConfigRow {
   id: string;
@@ -40,7 +40,12 @@ const WhatsAppApiManager = () => {
     if (error) {
       toast({ title: "Erro ao carregar", description: error.message, variant: "destructive" });
     } else if (data) {
-      setConfig(data as WhatsAppConfigRow);
+      const row = data as WhatsAppConfigRow;
+      setConfig(row);
+      // Auto-sincronizar com site_settings para que visitantes do site consigam notificar o admin
+      if (row.instance_id && row.instance_token) {
+        await syncWhatsAppConfigToSiteSettings(row);
+      }
     } else {
       const { data: created, error: insErr } = await supabase
         .from("whatsapp_config")
@@ -59,20 +64,25 @@ const WhatsAppApiManager = () => {
   const handleSave = async () => {
     if (!config) return;
     setIsSaving(true);
+    const cleanAdmin = config.admin_number.replace(/\D/g, "");
+    const formattedAdmin = cleanAdmin.startsWith("55") ? cleanAdmin : `55${cleanAdmin}`;
+    const payload = {
+      instance_id: config.instance_id.trim(),
+      instance_token: config.instance_token.trim(),
+      admin_number: formattedAdmin,
+      enabled: config.enabled,
+    };
+
     const { error } = await supabase
       .from("whatsapp_config")
-      .update({
-        instance_id: config.instance_id.trim(),
-        instance_token: config.instance_token.trim(),
-        admin_number: config.admin_number.replace(/\D/g, ""),
-        enabled: config.enabled,
-      })
+      .update(payload)
       .eq("id", config.id);
 
     if (error) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Configuração salva!", description: "WhatsApp automático atualizado." });
+      await syncWhatsAppConfigToSiteSettings(payload);
+      toast({ title: "Configuração salva!", description: "WhatsApp automático atualizado e sincronizado." });
     }
     setIsSaving(false);
   };

@@ -19,8 +19,14 @@ const Index = () => {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const { getSetting } = useSiteSettings();
 
-  // Get settings from database with fallbacks
-  const whatsappNumber = getSetting("whatsapp_number", "559191837179");
+  // Get settings from database with fallbacks (garantindo formato limpo 559191837179 para wa.me)
+  const rawWhatsApp = getSetting("whatsapp_number", "559191837179");
+  const cleanDigits = rawWhatsApp.replace(/\D/g, "");
+  const whatsappNumber = cleanDigits.startsWith("55")
+    ? cleanDigits
+    : cleanDigits
+    ? `55${cleanDigits}`
+    : "559191837179";
   const instagram = getSetting("instagram_url", "https://www.instagram.com/jessica_magalhaes_nail");
 
   return (

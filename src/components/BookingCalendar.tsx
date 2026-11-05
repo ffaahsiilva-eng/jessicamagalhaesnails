@@ -413,14 +413,23 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         `📋 Painel de agendamentos:\nhttps://jessicamagalhaesnail.vercel.app/admin`
       );
 
-      const url = `https://wa.me/${whatsappNumber}?text=${message}`;
+      const rawAdmin = (whatsappNumber || "559191837179").replace(/\D/g, "");
+      const cleanAdminNumber = rawAdmin.startsWith("55") ? rawAdmin : `55${rawAdmin}`;
+      const url = `https://wa.me/${cleanAdminNumber}?text=${message}`;
       setWhatsappUrl(url);
       await releaseCurrentHold();
       setStep(4);
 
+      // Tentar abrir WhatsApp automaticamente em nova aba
+      try {
+        window.open(url, "_blank");
+      } catch {
+        // Fallback caso popup seja bloqueado pelo navegador
+      }
+
       toast({
         title: "Agendamento salvo!",
-        description: "Clique no botão para enviar pelo WhatsApp.",
+        description: "Notificação enviada. Clique no botão caso queira abrir no WhatsApp.",
       });
     } catch (error: unknown) {
       console.error("Erro ao criar agendamento:", error);
