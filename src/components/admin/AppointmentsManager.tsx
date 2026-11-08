@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Calendar as CalendarIcon,
   Check,
@@ -80,6 +83,7 @@ const AppointmentsManager = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [isSendingSummary, setIsSendingSummary] = useState(false);
   const [servicesList, setServicesList] = useState<Array<{ name: string; price: string }>>([]);
@@ -384,6 +388,10 @@ const AppointmentsManager = () => {
   };
 
   const filtered = appointments.filter((apt) => {
+    if (selectedDate) {
+      const targetDateStr = format(selectedDate, "yyyy-MM-dd");
+      if (apt.appointment_date !== targetDateStr) return false;
+    }
     if (!search) return true;
     const q = search.toLowerCase();
     return (
@@ -423,6 +431,52 @@ const AppointmentsManager = () => {
               className="pl-9 h-9 text-sm"
             />
           </div>
+
+          {/* Filtro por Data com Calendário */}
+          <div className="flex items-center gap-1">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "h-9 justify-start text-left font-normal font-body text-xs sm:text-sm",
+                    selectedDate ? "border-primary text-primary font-medium bg-primary/5" : "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+                  {selectedDate ? (
+                    format(selectedDate, "dd 'de' MMMM", { locale: ptBR })
+                  ) : (
+                    <span>Filtrar por data</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 pointer-events-auto" align="end">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => setSelectedDate(date)}
+                  initialFocus
+                  locale={ptBR}
+                  className="p-3 pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+
+            {selectedDate && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedDate(undefined)}
+                className="h-9 px-2 text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                title="Limpar filtro de data"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+
           <Select value={filter} onValueChange={setFilter}>
             <SelectTrigger className="w-full sm:w-36 h-9">
               <Filter className="h-3.5 w-3.5 mr-1.5" />
@@ -436,9 +490,24 @@ const AppointmentsManager = () => {
             </SelectContent>
           </Select>
         </div>
-        <Badge variant="secondary" className="font-body text-xs w-fit mt-2">
-          {filtered.length} agendamento{filtered.length !== 1 ? "s" : ""}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-2 mt-2">
+          <Badge variant="secondary" className="font-body text-xs w-fit">
+            {filtered.length} agendamento{filtered.length !== 1 ? "s" : ""}
+          </Badge>
+          {selectedDate && (
+            <Badge variant="outline" className="font-body text-xs border-primary/40 text-primary flex items-center gap-1.5">
+              <span>Data: {format(selectedDate, "dd/MM/yyyy")}</span>
+              <button
+                type="button"
+                onClick={() => setSelectedDate(undefined)}
+                className="hover:text-destructive transition-colors ml-0.5"
+                title="Remover filtro de data"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -448,7 +517,23 @@ const AppointmentsManager = () => {
         ) : filtered.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground font-body">
             <CalendarIcon className="h-10 w-10 mx-auto mb-3 opacity-30" />
-            <p>Nenhum agendamento encontrado</p>
+            <p className="font-medium text-foreground">Nenhum agendamento encontrado</p>
+            {selectedDate ? (
+              <p className="text-sm mt-1">
+                Não há agendamentos para o dia {format(selectedDate, "dd/MM/yyyy")}.{" "}
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate(undefined)}
+                  className="text-primary underline ml-1 hover:opacity-80"
+                >
+                  Ver todas as datas
+                </button>
+              </p>
+            ) : (
+              <p className="text-sm mt-1">
+                {search ? "Tente outro termo de busca" : "Não há agendamentos cadastrados"}
+              </p>
+            )}
           </div>
         ) : (
           <>
