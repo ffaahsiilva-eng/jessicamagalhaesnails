@@ -132,29 +132,8 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
     );
   };
 
-  const holdCurrentSlot = async (timeToHold?: string) => {
-    const time = timeToHold || selectedTime;
-    if (!selectedDate || !time) return;
-    try {
-      const dateStr = format(selectedDate, "yyyy-MM-dd");
-      await supabase.from("slot_holds").delete().eq("session_id", sessionId.current);
-      await supabase.from("slot_holds").insert({
-        slot_date: dateStr,
-        slot_time: time,
-        session_id: sessionId.current,
-      });
-    } catch {
-      // Ignora caso a tabela ainda não exista
-    }
-  };
-
-  const releaseCurrentHold = async () => {
-    try {
-      await supabase.from("slot_holds").delete().eq("session_id", sessionId.current);
-    } catch {
-      // Ignora erro
-    }
-  };
+  const holdCurrentSlot = async () => {};
+  const releaseCurrentHold = async () => {};
 
   const normalizeDateStr = (raw: any): string => {
     if (!raw) return "";
@@ -200,13 +179,6 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
           fetchBlockedSlots();
         }
       )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "slot_holds" },
-        () => {
-          fetchBookedSlots();
-        }
-      )
       .subscribe();
 
     return () => {
@@ -234,27 +206,6 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         );
       } else if (error) {
         console.warn("Erro ao buscar horários ocupados via RPC:", error);
-      }
-
-      // Inclui reservas temporárias de outras clientes em andamento (últimos 15 min)
-      try {
-        const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-        const { data: holds } = await supabase
-          .from("slot_holds")
-          .select("slot_date, slot_time, session_id")
-          .gte("created_at", fifteenMinAgo)
-          .neq("session_id", sessionId.current);
-
-        if (holds && holds.length > 0) {
-          slots.push(
-            ...holds.map((h: { slot_date: string; slot_time: string }) => ({
-              appointment_date: normalizeDateStr(h.slot_date),
-              appointment_time: normalizeTimeStr(h.slot_time),
-            }))
-          );
-        }
-      } catch {
-        // Tabela opcional
       }
 
       setBookedSlots(slots);
