@@ -2,8 +2,8 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://rhjqxmnkgscbqxoavvgz.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_s_AdI_RBwF_xR1BjUwSG5A_mWeehHk6";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://nhsbtfilpxsvylqsrbsa.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_M290DIhF0JWtOuMTNSuPHQ_FRbGAR9v";
 
 // Safe storage wrapper for iOS Safari / WebKit Private Browsing
 const safeStorage = {
