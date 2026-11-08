@@ -11,7 +11,7 @@ export interface SendBookingNotificationParams {
   appointment_date: string;
   appointment_time: string;
   notes?: string | null;
-  action: "new" | "confirmed" | "cancelled" | "reminder_1h";
+  action: "new" | "confirmed" | "cancelled" | "reminder_24h" | "reminder_2h" | "reminder_1h";
   site_url?: string;
 }
 
@@ -302,6 +302,69 @@ export const notifyWhatsAppBooking = async (params: SendBookingNotificationParam
 
     await sendDirectWhatsApp(config.instance_id, config.instance_token, config.admin_number, adminText);
     return { success: true, via: "direct-w-api", to: "client_and_admin" };
+  }
+
+  // LEMBRETE DE 1 DIA ANTES (24 HORAS ANTES) -> Notificar Cliente e Admin
+  if (params.action === "reminder_24h") {
+    const clientText =
+      `📅 *LEMBRETE: SEU HORÁRIO É AMANHÃ!* 💕\n\n` +
+      `Olá, *${params.client_name}*! Tudo bem? Passando para lembrar do seu atendimento com Jéssica Magalhães amanhã:\n\n` +
+      `💅 *${serviceLabel}:* ${params.service_type}\n` +
+      priceLine +
+      `📅 *Data:* Amanhã (${formattedDate})\n` +
+      `🕐 *Horário:* ${time}\n` +
+      (cleanNotes ? `📝 *Obs:* ${cleanNotes}\n` : "") +
+      `\n⏰ *Importante:* Temos uma tolerância de 15 minutos para chegada.\n` +
+      `Caso precise remarcar ou tenha algum imprevisto, por favor nos avise com antecedência!\n\n` +
+      `Te esperamos com muito carinho! ✨💖`;
+
+    await sendDirectWhatsApp(config.instance_id, config.instance_token, params.client_phone, clientText);
+
+    const adminText =
+      `📅 *LEMBRETE AUTOMÁTICO - ATENDIMENTO AMANHÃ*\n\n` +
+      `Lembrete de 1 dia antes enviado com sucesso para a cliente:\n` +
+      `👤 *Cliente:* ${params.client_name}\n` +
+      `📱 *WhatsApp:* ${params.client_phone}\n` +
+      `💅 *${serviceLabel}:* ${params.service_type}\n` +
+      (priceDisplay ? `💰 ${priceLabel}: ${priceDisplay}\n` : "") +
+      `📅 *Data:* Amanhã (${formattedDate}) às ${time}\n` +
+      (cleanNotes ? `📝 *Obs:* ${cleanNotes}\n` : "") +
+      `\n📋 Painel: ${baseUrl}/admin`;
+
+    await sendDirectWhatsApp(config.instance_id, config.instance_token, config.admin_number, adminText);
+    return { success: true, via: "direct-w-api", to: "client_and_admin_24h" };
+  }
+
+  // LEMBRETE DE 2 HORAS ANTES -> Notificar Cliente e Admin
+  if (params.action === "reminder_2h") {
+    const clientText =
+      `⏰ *LEMBRETE: SEU HORÁRIO É HOJE DAQUI A 2 HORAS!* ⏰\n\n` +
+      `Olá, *${params.client_name}*! Tudo bem? 💕\n` +
+      `Passando para lembrar que seu atendimento com Jéssica Magalhães está chegando:\n\n` +
+      `💅 *${serviceLabel}:* ${params.service_type}\n` +
+      priceLine +
+      `🕐 *Horário:* Hoje às ${time}\n` +
+      `📅 *Data:* ${formattedDate}\n` +
+      (cleanNotes ? `📝 *Obs:* ${cleanNotes}\n` : "") +
+      `\n⏰ *Lembrete:* Temos 15 minutos de tolerância para chegada.\n` +
+      `📸 *Instagram:* https://www.instagram.com/jessica_magalhaes_nail\n\n` +
+      `Já estamos preparando tudo para receber você! Te esperamos em breve! 💅✨`;
+
+    await sendDirectWhatsApp(config.instance_id, config.instance_token, params.client_phone, clientText);
+
+    const adminText =
+      `⏰ *LEMBRETE AUTOMÁTICO - 2H PARA O ATENDIMENTO*\n\n` +
+      `Lembrete de 2 horas antes enviado para a cliente:\n` +
+      `👤 *Cliente:* ${params.client_name}\n` +
+      `📱 *WhatsApp:* ${params.client_phone}\n` +
+      `💅 *${serviceLabel}:* ${params.service_type}\n` +
+      (priceDisplay ? `💰 ${priceLabel}: ${priceDisplay}\n` : "") +
+      `📅 *Data:* Hoje (${formattedDate}) às ${time}\n` +
+      (cleanNotes ? `📝 *Obs:* ${cleanNotes}\n` : "") +
+      `\n📋 Painel: ${baseUrl}/admin`;
+
+    await sendDirectWhatsApp(config.instance_id, config.instance_token, config.admin_number, adminText);
+    return { success: true, via: "direct-w-api", to: "client_and_admin_2h" };
   }
 
   // LEMBRETE DE 1 HORA ANTES -> Notificar Cliente e Admin

@@ -40,6 +40,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Table,
   TableBody,
   TableCell,
@@ -224,7 +230,7 @@ const AppointmentsManager = () => {
     }
   };
 
-  const send1HourReminder = async (apt: Appointment) => {
+  const sendReminder = async (apt: Appointment, type: "reminder_24h" | "reminder_2h") => {
     setIsUpdating(apt.id);
     try {
       const price = getAppointmentPrice(apt);
@@ -239,13 +245,14 @@ const AppointmentsManager = () => {
         appointment_time: apt.appointment_time,
         notes: apt.notes,
         site_url: window.location.origin,
-        action: "reminder_1h",
+        action: type,
       });
 
       if (res && ((res as { success?: boolean }).success || (res as { via?: string }).via)) {
+        const label = type === "reminder_24h" ? "1 dia antes" : "2 horas antes";
         toast({
-          title: "Lembrete enviado com sucesso!",
-          description: `Lembrete de 1h enviado para ${apt.client_name} e para a administradora.`,
+          title: `Lembrete (${label}) enviado!`,
+          description: `Mensagem enviada para ${apt.client_name} e para a administradora.`,
         });
       } else {
         toast({
@@ -646,16 +653,29 @@ const AppointmentsManager = () => {
                             >
                               <MessageCircle className="h-4 w-4" />
                             </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                              onClick={() => send1HourReminder(apt)}
-                              disabled={isUpdating === apt.id}
-                              title="Enviar lembrete de 1 hora (Cliente + Admin)"
-                            >
-                              {isUpdating === apt.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                  disabled={isUpdating === apt.id}
+                                  title="Enviar Lembrete via WhatsApp (Cliente + Admin)"
+                                >
+                                  {isUpdating === apt.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-56 font-body">
+                                <DropdownMenuItem onClick={() => sendReminder(apt, "reminder_24h")}>
+                                  <CalendarIcon className="h-4 w-4 mr-2 text-primary" />
+                                  <span>Lembrete 1 dia antes (24h)</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => sendReminder(apt, "reminder_2h")}>
+                                  <Clock className="h-4 w-4 mr-2 text-amber-500" />
+                                  <span>Lembrete 2 horas antes</span>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                             <Button
                               size="icon"
                               variant="ghost"
@@ -748,9 +768,23 @@ const AppointmentsManager = () => {
                       <Button size="sm" variant="outline" className="h-8 text-xs text-emerald-600 border-emerald-200" onClick={() => sendWhatsAppConfirmation(apt)}>
                         <MessageCircle className="h-3 w-3 mr-1" /> WhatsApp
                       </Button>
-                      <Button size="sm" variant="outline" className="h-8 text-xs text-amber-600 border-amber-200 hover:bg-amber-50" onClick={() => send1HourReminder(apt)} disabled={isUpdating === apt.id} title="Enviar lembrete de 1h">
-                        {isUpdating === apt.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Bell className="h-3 w-3 mr-1" />} Lembrar 1h
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" variant="outline" className="h-8 text-xs text-amber-600 border-amber-200 hover:bg-amber-50" disabled={isUpdating === apt.id}>
+                            {isUpdating === apt.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Bell className="h-3 w-3 mr-1" />} Lembrar
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56 font-body">
+                          <DropdownMenuItem onClick={() => sendReminder(apt, "reminder_24h")}>
+                            <CalendarIcon className="h-4 w-4 mr-2 text-primary" />
+                            <span>1 dia antes (24h)</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => sendReminder(apt, "reminder_2h")}>
+                            <Clock className="h-4 w-4 mr-2 text-amber-500" />
+                            <span>2 horas antes</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => openEdit(apt)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
