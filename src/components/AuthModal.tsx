@@ -163,7 +163,15 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
               </Button>
 
               <div className="text-center pt-2">
-                
+                <button
+                  type="button"
+                  onClick={() => setMode(mode === "login" ? "signup" : "login")}
+                  className="text-xs text-muted-foreground hover:text-foreground font-body transition-colors"
+                >
+                  {mode === "login"
+                    ? "Não tem uma conta? Criar conta"
+                    : "Já tem uma conta? Entrar"}
+                </button>
               </div>
             </form>
           </motion.div>
