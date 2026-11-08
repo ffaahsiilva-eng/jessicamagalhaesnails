@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { format, addDays, isSunday } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Clock, Check, MessageCircle, X, Loader2, AlertCircle, Sparkles } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Check, MessageCircle, X, Loader2, AlertCircle, Sparkles, CalendarOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
@@ -73,8 +73,10 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
   const [whatsappUrl, setWhatsappUrl] = useState<string>("");
   const { toast } = useToast();
 
+  const [isLoadingBooked, setIsLoadingBooked] = useState(false);
+
   // Fetch available time slots from database
-  const { data: allTimeSlots = [] } = useQuery({
+  const { data: allTimeSlots = [], isLoading: isLoadingSlots } = useQuery({
     queryKey: ["available-times"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -214,46 +216,51 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
   }, [isOpen]);
 
   const fetchBookedSlots = async () => {
-    // Busca desde hoje para trás 1 dia garantindo que não perca fusos horários
-    const fromDate = format(new Date(), "yyyy-MM-dd");
-    const { data, error } = await supabase.rpc("get_booked_slots", {
-      _from_date: fromDate,
-    });
-
-    const slots: Appointment[] = [];
-    if (!error && Array.isArray(data)) {
-      slots.push(
-        ...data.map((d: { appointment_date: string; appointment_time: string }) => ({
-          appointment_date: normalizeDateStr(d.appointment_date),
-          appointment_time: normalizeTimeStr(d.appointment_time),
-        }))
-      );
-    } else if (error) {
-      console.warn("Erro ao buscar horários ocupados via RPC:", error);
-    }
-
-    // Inclui reservas temporárias de outras clientes em andamento (últimos 15 min)
+    setIsLoadingBooked(true);
     try {
-      const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-      const { data: holds } = await supabase
-        .from("slot_holds")
-        .select("slot_date, slot_time, session_id")
-        .gte("created_at", fifteenMinAgo)
-        .neq("session_id", sessionId.current);
+      // Busca desde hoje para trás 1 dia garantindo que não perca fusos horários
+      const fromDate = format(new Date(), "yyyy-MM-dd");
+      const { data, error } = await supabase.rpc("get_booked_slots", {
+        _from_date: fromDate,
+      });
 
-      if (holds && holds.length > 0) {
+      const slots: Appointment[] = [];
+      if (!error && Array.isArray(data)) {
         slots.push(
-          ...holds.map((h: { slot_date: string; slot_time: string }) => ({
-            appointment_date: normalizeDateStr(h.slot_date),
-            appointment_time: normalizeTimeStr(h.slot_time),
+          ...data.map((d: { appointment_date: string; appointment_time: string }) => ({
+            appointment_date: normalizeDateStr(d.appointment_date),
+            appointment_time: normalizeTimeStr(d.appointment_time),
           }))
         );
+      } else if (error) {
+        console.warn("Erro ao buscar horários ocupados via RPC:", error);
       }
-    } catch {
-      // Tabela opcional
-    }
 
-    setBookedSlots(slots);
+      // Inclui reservas temporárias de outras clientes em andamento (últimos 15 min)
+      try {
+        const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+        const { data: holds } = await supabase
+          .from("slot_holds")
+          .select("slot_date, slot_time, session_id")
+          .gte("created_at", fifteenMinAgo)
+          .neq("session_id", sessionId.current);
+
+        if (holds && holds.length > 0) {
+          slots.push(
+            ...holds.map((h: { slot_date: string; slot_time: string }) => ({
+              appointment_date: normalizeDateStr(h.slot_date),
+              appointment_time: normalizeTimeStr(h.slot_time),
+            }))
+          );
+        }
+      } catch {
+        // Tabela opcional
+      }
+
+      setBookedSlots(slots);
+    } finally {
+      setIsLoadingBooked(false);
+    }
   };
 
   const fetchBlockedSlots = async () => {
@@ -573,18 +580,56 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                   </span>
                 </div>
                 
-                {timeSlots.length === 0 ? (
-                  <div className="flex justify-center py-6">
+                {isLoadingSlots ? (
+                  <div className="flex flex-col items-center justify-center py-6 gap-2">
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    <span className="text-xs text-muted-foreground font-body">Carregando horários...</span>
+                  </div>
+                ) : timeSlots.length === 0 ? (
+                  <div className="text-center py-6 px-4 space-y-2.5 bg-rose-500/5 rounded-2xl border border-rose-500/20">
+                    <div className="w-10 h-10 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto">
+                      <CalendarOff className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-foreground font-display font-semibold text-sm">
+                        Não há horários disponíveis para esta data
+                      </p>
+                      <p className="text-xs text-muted-foreground font-body mt-1 max-w-xs mx-auto">
+                        A profissional não disponibilizou horários de atendimento para este dia. Por favor, selecione outra data no calendário.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setStep(1)}
+                      className="text-xs font-body h-8 rounded-lg mt-1 border-primary/30 text-primary hover:bg-primary/10"
+                    >
+                      Escolher outra data
+                    </Button>
                   </div>
                 ) : availableTimes.length === 0 ? (
-                  <div className="text-center py-6 space-y-2 bg-secondary/30 rounded-xl p-3 border border-border">
-                    <p className="text-muted-foreground font-body text-sm">
-                      Todos os horários desta data já foram preenchidos.
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Por favor, selecione outro dia no calendário.
-                    </p>
+                  <div className="text-center py-6 px-4 space-y-2.5 bg-secondary/30 rounded-2xl border border-border">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
+                      <Clock className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-foreground font-display font-semibold text-sm">
+                        Todos os horários desta data já foram preenchidos
+                      </p>
+                      <p className="text-xs text-muted-foreground font-body mt-1 max-w-xs mx-auto">
+                        Os horários cadastrados para este dia já estão reservados ou pendentes de confirmação.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setStep(1)}
+                      className="text-xs font-body h-8 rounded-lg mt-1 border-primary/30 text-primary hover:bg-primary/10"
+                    >
+                      Escolher outra data
+                    </Button>
                   </div>
                 ) : (
                   <div className="grid grid-cols-4 gap-2 max-h-36 overflow-y-auto pr-1">
