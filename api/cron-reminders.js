@@ -20,6 +20,13 @@ function getBrtInfo() {
   const tdd = String(tomorrow.getDate()).padStart(2, "0");
   const tomorrowStr = `${tyyyy}-${tmm}-${tdd}`;
 
+  // Data de 20 dias atrás (manutenção / retorno)
+  const twentyDaysAgo = new Date(brtDate.getTime() - 20 * 24 * 60 * 60 * 1000);
+  const pYyyy = twentyDaysAgo.getFullYear();
+  const pMm = String(twentyDaysAgo.getMonth() + 1).padStart(2, "0");
+  const pDd = String(twentyDaysAgo.getDate()).padStart(2, "0");
+  const target20DaysAgoStr = `${pYyyy}-${pMm}-${pDd}`;
+
   const currentMinutes = brtDate.getHours() * 60 + brtDate.getMinutes();
   const currentFormatted = `${String(brtDate.getHours()).padStart(2, "0")}:${String(
     brtDate.getMinutes()
@@ -28,6 +35,7 @@ function getBrtInfo() {
   return {
     todayStr,
     tomorrowStr,
+    target20DaysAgoStr,
     currentMinutes,
     currentFormatted,
   };
@@ -209,6 +217,60 @@ export default async function handler(req, res) {
 
         results.reminders_2h_sent++;
         results.details.push(`2h reminder sent to ${appt.client_name} (${timeStr})`);
+      }
+    }
+
+    // 4. LEMBRETES DE MANUTENÇÃO (20 DIAS DEPOIS DO SERVIÇO)
+    // Envia durante o horário comercial (entre 09:00 e 20:00 no fuso de Brasília)
+    results.reminders_20d_sent = 0;
+    if (currentMinutes >= 9 * 60 && currentMinutes <= 20 * 60) {
+      const appts20d = await client.query(
+        `SELECT a.id, a.client_name, a.client_phone, a.service_type, a.appointment_date, a.appointment_time
+         FROM appointments a
+         WHERE a.appointment_date = $1
+           AND a.status = 'confirmed'
+           AND NOT EXISTS (
+             SELECT 1 FROM appointment_reminders_sent r
+             WHERE r.appointment_id = a.id AND r.reminder_type = '20d'
+           )`,
+        [target20DaysAgoStr]
+      );
+
+      for (const appt of appts20d.rows) {
+        const [y, mm, d] = String(appt.appointment_date).split("T")[0].split("-");
+        const formattedDate = `${d}/${mm}/${y}`;
+
+        const clientText =
+          `💅✨ *Oiii, ${appt.client_name}! Que saudade de você!* 💕\n\n` +
+          `Já se passaram *20 dias* desde que fizemos as suas unhas (${appt.service_type})! O tempo voa, né? 🌸\n\n` +
+          `Para manter suas unhas sempre perfeitas, impecáveis, fortes e com aquele acabamento maravilhoso que você ama, já está na hora da sua *manutenção*! 💖\n\n` +
+          `✨ Suas unhas merecem esse cuidado e carinho especial!\n\n` +
+          `Que tal garantir o seu horário para essa semana antes que a agenda lote?\n\n` +
+          `👉 *Agende seu horário aqui:* https://jessicamagalhaesnail.vercel.app\n` +
+          `Ou se preferir, basta me responder aqui nesta mensagem com o melhor dia e horário para você!\n\n` +
+          `Será um prazer enorme cuidar de você novamente! Com todo carinho, *Jéssica Magalhães Nail* 💅✨💕`;
+
+        const adminText =
+          `💅 *LEMBRETE AUTOMÁTICO DE RETORNO (20 DIAS)*\n\n` +
+          `Lembrete de manutenção enviado com sucesso para a cliente:\n` +
+          `👤 *Cliente:* ${appt.client_name}\n` +
+          `📱 *WhatsApp:* ${appt.client_phone}\n` +
+          `💅 *Último Serviço:* ${appt.service_type}\n` +
+          `📅 *Atendimento em:* ${formattedDate} (há 20 dias)\n\n` +
+          `📋 Painel: https://jessicamagalhaesnail.vercel.app/admin`;
+
+        await sendWhatsApp(config.instance_id, config.instance_token, appt.client_phone, clientText);
+        await sendWhatsApp(config.instance_id, config.instance_token, config.admin_number, adminText);
+
+        await client.query(
+          `INSERT INTO appointment_reminders_sent (appointment_id, reminder_type, recipient_phone)
+           VALUES ($1, '20d', $2)
+           ON CONFLICT (appointment_id, reminder_type) DO NOTHING`,
+          [appt.id, appt.client_phone]
+        );
+
+        results.reminders_20d_sent++;
+        results.details.push(`20d maintenance reminder sent to ${appt.client_name}`);
       }
     }
 

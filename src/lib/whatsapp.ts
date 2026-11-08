@@ -11,7 +11,7 @@ export interface SendBookingNotificationParams {
   appointment_date: string;
   appointment_time: string;
   notes?: string | null;
-  action: "new" | "confirmed" | "cancelled" | "reminder_24h" | "reminder_2h" | "reminder_1h";
+  action: "new" | "confirmed" | "cancelled" | "reminder_24h" | "reminder_2h" | "reminder_1h" | "reminder_20d";
   site_url?: string;
 }
 
@@ -365,6 +365,33 @@ export const notifyWhatsAppBooking = async (params: SendBookingNotificationParam
 
     await sendDirectWhatsApp(config.instance_id, config.instance_token, config.admin_number, adminText);
     return { success: true, via: "direct-w-api", to: "client_and_admin_2h" };
+  }
+
+  // LEMBRETE DE MANUTENÇÃO (20 DIAS DEPOIS DO SERVIÇO) -> Notificar Cliente e Admin
+  if (params.action === "reminder_20d") {
+    const clientText =
+      `💅✨ *Oiii, ${params.client_name}! Que saudade de você!* 💕\n\n` +
+      `Já se passaram *20 dias* desde que fizemos as suas unhas (${params.service_type})! O tempo voa, né? 🌸\n\n` +
+      `Para manter suas unhas sempre perfeitas, impecáveis, fortes e com aquele acabamento maravilhoso que você ama, já está na hora da sua *manutenção*! 💖\n\n` +
+      `✨ Suas unhas merecem esse cuidado e carinho especial!\n\n` +
+      `Que tal garantir o seu horário para essa semana antes que a agenda lote?\n\n` +
+      `👉 *Agende seu horário aqui:* ${baseUrl}\n` +
+      `Ou se preferir, basta me responder aqui nesta mensagem com o melhor dia e horário para você!\n\n` +
+      `Será um prazer enorme cuidar de você novamente! Com todo carinho, *Jéssica Magalhães Nail* 💅✨💕`;
+
+    await sendDirectWhatsApp(config.instance_id, config.instance_token, params.client_phone, clientText);
+
+    const adminText =
+      `💅 *LEMBRETE AUTOMÁTICO DE RETORNO (20 DIAS)*\n\n` +
+      `Lembrete de manutenção enviado com sucesso para a cliente:\n` +
+      `👤 *Cliente:* ${params.client_name}\n` +
+      `📱 *WhatsApp:* ${params.client_phone}\n` +
+      `💅 *Último Serviço:* ${params.service_type}\n` +
+      `📅 *Atendimento em:* ${formattedDate} (há 20 dias)\n\n` +
+      `📋 Painel: ${baseUrl}/admin`;
+
+    await sendDirectWhatsApp(config.instance_id, config.instance_token, config.admin_number, adminText);
+    return { success: true, via: "direct-w-api", to: "client_and_admin_20d" };
   }
 
   // LEMBRETE DE 1 HORA ANTES -> Notificar Cliente e Admin

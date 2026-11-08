@@ -20,6 +20,7 @@ import {
   Search,
   Bell,
   Send,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -230,7 +231,7 @@ const AppointmentsManager = () => {
     }
   };
 
-  const sendReminder = async (apt: Appointment, type: "reminder_24h" | "reminder_2h") => {
+  const sendReminder = async (apt: Appointment, type: "reminder_24h" | "reminder_2h" | "reminder_20d") => {
     setIsUpdating(apt.id);
     try {
       const price = getAppointmentPrice(apt);
@@ -249,7 +250,12 @@ const AppointmentsManager = () => {
       });
 
       if (res && ((res as { success?: boolean }).success || (res as { via?: string }).via)) {
-        const label = type === "reminder_24h" ? "1 dia antes" : "2 horas antes";
+        const label =
+          type === "reminder_24h"
+            ? "1 dia antes"
+            : type === "reminder_2h"
+            ? "2 horas antes"
+            : "Manutenção (20 dias)";
         toast({
           title: `Lembrete (${label}) enviado!`,
           description: `Mensagem enviada para ${apt.client_name} e para a administradora.`,
@@ -674,6 +680,10 @@ const AppointmentsManager = () => {
                                   <Clock className="h-4 w-4 mr-2 text-amber-500" />
                                   <span>Lembrete 2 horas antes</span>
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => sendReminder(apt, "reminder_20d")}>
+                                  <Sparkles className="h-4 w-4 mr-2 text-rose-500" />
+                                  <span>Manutenção (20 dias)</span>
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                             <Button
@@ -782,6 +792,10 @@ const AppointmentsManager = () => {
                           <DropdownMenuItem onClick={() => sendReminder(apt, "reminder_2h")}>
                             <Clock className="h-4 w-4 mr-2 text-amber-500" />
                             <span>2 horas antes</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => sendReminder(apt, "reminder_20d")}>
+                            <Sparkles className="h-4 w-4 mr-2 text-rose-500" />
+                            <span>Manutenção (20 dias)</span>
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
