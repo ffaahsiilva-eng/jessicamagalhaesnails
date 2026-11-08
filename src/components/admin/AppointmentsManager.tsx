@@ -84,7 +84,11 @@ const bibleVerses = [
   "Seja forte e corajoso! Não se apavore, nem desanime, pois o Senhor estará com você. - Josué 1:9",
 ];
 
-const AppointmentsManager = () => {
+interface AppointmentsManagerProps {
+  onAppointmentUpdated?: () => void;
+}
+
+const AppointmentsManager = ({ onAppointmentUpdated }: AppointmentsManagerProps = {}) => {
   const { toast } = useToast();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -109,6 +113,30 @@ const AppointmentsManager = () => {
   useEffect(() => {
     fetchAppointments();
   }, [filter]);
+
+  // Sincronização em tempo real entre a lista inferior e o painel superior
+  useEffect(() => {
+    const handleSync = () => {
+      fetchAppointments();
+    };
+    window.addEventListener("appointments-changed", handleSync);
+
+    const channel = supabase
+      .channel("manager-appointments-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "appointments" },
+        () => {
+          fetchAppointments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      window.removeEventListener("appointments-changed", handleSync);
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchServices = async () => {
@@ -309,9 +337,20 @@ const AppointmentsManager = () => {
       }
     }
     setIsUpdating(id);
+
+    // Atualização otimista imediata para sincronizar na hora a tela toda
+    setAppointments((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, status } : a))
+    );
+    window.dispatchEvent(new CustomEvent("appointments-changed"));
+    onAppointmentUpdated?.();
+
     const { error } = await supabase.from("appointments").update({ status }).eq("id", id);
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
+      await fetchAppointments();
+      window.dispatchEvent(new CustomEvent("appointments-changed"));
+      onAppointmentUpdated?.();
     } else {
       toast({
         title: `Status: ${statusLabels[status]}`,
@@ -323,7 +362,9 @@ const AppointmentsManager = () => {
         await notifyAdmin(apt, status);
       }
       if (status === "confirmed" && apt) sendWhatsAppConfirmation(apt);
-      fetchAppointments();
+      await fetchAppointments();
+      window.dispatchEvent(new CustomEvent("appointments-changed"));
+      onAppointmentUpdated?.();
     }
     setIsUpdating(null);
   };
@@ -331,12 +372,21 @@ const AppointmentsManager = () => {
   const deleteAppointment = async (id: string) => {
     if (!confirm("Excluir este agendamento permanentemente?")) return;
     setIsUpdating(id);
+    setAppointments((prev) => prev.filter((a) => a.id !== id));
+    window.dispatchEvent(new CustomEvent("appointments-changed"));
+    onAppointmentUpdated?.();
+
     const { error } = await supabase.from("appointments").delete().eq("id", id);
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
+      await fetchAppointments();
+      window.dispatchEvent(new CustomEvent("appointments-changed"));
+      onAppointmentUpdated?.();
     } else {
       toast({ title: "Agendamento excluído!" });
-      fetchAppointments();
+      await fetchAppointments();
+      window.dispatchEvent(new CustomEvent("appointments-changed"));
+      onAppointmentUpdated?.();
     }
     setIsUpdating(null);
   };
@@ -395,7 +445,9 @@ const AppointmentsManager = () => {
       }
 
       setEditingAppointment(null);
-      fetchAppointments();
+      await fetchAppointments();
+      window.dispatchEvent(new CustomEvent("appointments-changed"));
+      onAppointmentUpdated?.();
     }
     setIsUpdating(null);
   };

@@ -109,6 +109,30 @@ const Admin = () => {
     }
   }, [isAdmin, filter]);
 
+  // Sincronização em tempo real entre o painel superior e inferior
+  useEffect(() => {
+    const handleSync = () => {
+      fetchAppointments();
+    };
+    window.addEventListener("appointments-changed", handleSync);
+
+    const channel = supabase
+      .channel("admin-appointments-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "appointments" },
+        () => {
+          fetchAppointments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      window.removeEventListener("appointments-changed", handleSync);
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   const syncWapiIfAvailable = async () => {
     try {
       const { data } = await supabase
@@ -201,6 +225,12 @@ const Admin = () => {
     setIsUpdating(id);
     const targetApp = appointment || appointments.find((a) => a.id === id);
     
+    // Atualização otimista imediata para sincronizar na hora a tela inteira
+    setAppointments((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, status } : a))
+    );
+    window.dispatchEvent(new CustomEvent("appointments-changed"));
+
     const { error } = await supabase
       .from("appointments")
       .update({ status })
@@ -212,6 +242,8 @@ const Admin = () => {
         description: error.message,
         variant: "destructive",
       });
+      fetchAppointments();
+      window.dispatchEvent(new CustomEvent("appointments-changed"));
     } else {
       toast({
         title: "Status atualizado!",
@@ -238,7 +270,8 @@ const Admin = () => {
         }
       }
 
-      fetchAppointments();
+      await fetchAppointments();
+      window.dispatchEvent(new CustomEvent("appointments-changed"));
     }
     
     setIsUpdating(null);
@@ -349,7 +382,8 @@ const Admin = () => {
         title: "Agendamento excluído!",
         description: "O agendamento foi removido permanentemente.",
       });
-      fetchAppointments();
+      await fetchAppointments();
+      window.dispatchEvent(new CustomEvent("appointments-changed"));
     }
     
     setIsUpdating(null);
@@ -871,7 +905,7 @@ const Admin = () => {
 
           {/* All Appointments Manager */}
           <div className="mt-6">
-            <AppointmentsManager />
+            <AppointmentsManager onAppointmentUpdated={fetchAppointments} />
           </div>
 
           {/* Time Slots, Services & WhatsApp */}
