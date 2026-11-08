@@ -246,8 +246,7 @@ export default async function handler(req, res) {
           `Para manter suas unhas sempre perfeitas, impecáveis, fortes e com aquele acabamento maravilhoso que você ama, já está na hora da sua *manutenção*! 💖\n\n` +
           `✨ Suas unhas merecem esse cuidado e carinho especial!\n\n` +
           `Que tal garantir o seu horário para essa semana antes que a agenda lote?\n\n` +
-          `👉 *Agende seu horário aqui:* https://jessicamagalhaesnail.vercel.app\n` +
-          `Ou se preferir, basta me responder aqui nesta mensagem com o melhor dia e horário para você!\n\n` +
+          `👉 *Agende seu horário no site:* https://jessicamagalhaesnail.vercel.app\n\n` +
           `Será um prazer enorme cuidar de você novamente! Com todo carinho, *Jéssica Magalhães Nail* 💅✨💕`;
 
         const adminText =
