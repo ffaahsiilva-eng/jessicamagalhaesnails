@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { format, addDays, isSunday } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Clock, Check, MessageCircle, X, Loader2, AlertCircle, Sparkles, CalendarOff } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Check, MessageCircle, X, Loader2, AlertCircle, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
@@ -535,29 +535,6 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                   <div className="flex flex-col items-center justify-center py-6 gap-2">
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
                     <span className="text-xs text-muted-foreground font-body">Carregando horários...</span>
-                  </div>
-                ) : timeSlots.length === 0 ? (
-                  <div className="text-center py-6 px-4 space-y-2.5 bg-rose-500/5 rounded-2xl border border-rose-500/20">
-                    <div className="w-10 h-10 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto">
-                      <CalendarOff className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-foreground font-display font-semibold text-sm">
-                        Não há horários disponíveis para esta data
-                      </p>
-                      <p className="text-xs text-muted-foreground font-body mt-1 max-w-xs mx-auto">
-                        A profissional não disponibilizou horários de atendimento para este dia. Por favor, selecione outra data no calendário.
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setStep(1)}
-                      className="text-xs font-body h-8 rounded-lg mt-1 border-primary/30 text-primary hover:bg-primary/10"
-                    >
-                      Escolher outra data
-                    </Button>
                   </div>
                 ) : availableTimes.length === 0 ? (
                   <div className="text-center py-6 px-4 space-y-2.5 bg-secondary/30 rounded-2xl border border-border">
