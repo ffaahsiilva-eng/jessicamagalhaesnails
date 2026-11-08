@@ -98,6 +98,9 @@ const SortableServiceItem = ({ service, onEdit, onDelete, onToggleActive, isDele
             src={service.image_url} 
             alt={service.name}
             className="w-full h-full object-cover"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
           />
         ) : (
           <ImageIcon className="h-4 w-4 text-muted-foreground/50" />

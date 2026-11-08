@@ -122,6 +122,9 @@ const PriceTable = memo(() => {
                         src={service.image_url} 
                         alt={service.name}
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.parentElement?.remove();
+                        }}
                       />
                     </div>
                   )}
