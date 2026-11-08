@@ -355,12 +355,19 @@ const Admin = () => {
     setIsUpdating(null);
   };
 
+  const normalizeDateKey = (d: any): string => {
+    if (!d) return "";
+    if (typeof d === "string") return d.split("T")[0].split(" ")[0].trim();
+    if (d instanceof Date) return format(d, "yyyy-MM-dd");
+    return String(d).slice(0, 10).trim();
+  };
+
   // Get dates that have appointments or blocked slots
   const getDatesWithEvents = () => {
     const dates = new Map<string, { hasConfirmed: boolean; hasPending: boolean; hasBlocked: boolean }>();
     
     appointments.forEach((apt) => {
-      const dateKey = apt.appointment_date;
+      const dateKey = normalizeDateKey(apt.appointment_date);
       const existing = dates.get(dateKey) || { hasConfirmed: false, hasPending: false, hasBlocked: false };
       if (apt.status === "confirmed") existing.hasConfirmed = true;
       if (apt.status === "pending") existing.hasPending = true;
@@ -368,7 +375,7 @@ const Admin = () => {
     });
 
     blockedSlots.forEach((slot) => {
-      const dateKey = slot.blocked_date;
+      const dateKey = normalizeDateKey(slot.blocked_date);
       const existing = dates.get(dateKey) || { hasConfirmed: false, hasPending: false, hasBlocked: false };
       existing.hasBlocked = true;
       dates.set(dateKey, existing);
@@ -382,8 +389,8 @@ const Admin = () => {
     if (!date) return { appointments: [], blocked: [] };
     const dateStr = format(date, "yyyy-MM-dd");
     return {
-      appointments: appointments.filter((apt) => apt.appointment_date === dateStr),
-      blocked: blockedSlots.filter((slot) => slot.blocked_date === dateStr),
+      appointments: appointments.filter((apt) => normalizeDateKey(apt.appointment_date) === dateStr),
+      blocked: blockedSlots.filter((slot) => normalizeDateKey(slot.blocked_date) === dateStr),
     };
   };
 
@@ -393,11 +400,11 @@ const Admin = () => {
     const dateStr = format(selectedDate, "yyyy-MM-dd");
     
     const bookedTimes = appointments
-      .filter((apt) => apt.appointment_date === dateStr && apt.status !== "cancelled")
+      .filter((apt) => normalizeDateKey(apt.appointment_date) === dateStr && apt.status !== "cancelled")
       .map((apt) => apt.appointment_time.slice(0, 5));
     
     const blockedTimes = blockedSlots
-      .filter((slot) => slot.blocked_date === dateStr)
+      .filter((slot) => normalizeDateKey(slot.blocked_date) === dateStr)
       .map((slot) => slot.blocked_time.slice(0, 5));
 
     const unavailableTimes = [...bookedTimes, ...blockedTimes];

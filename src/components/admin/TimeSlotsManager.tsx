@@ -313,7 +313,7 @@ const TimeSlotsManager = () => {
     }
 
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
         <AnimatePresence>
           {slots.map((slot) => (
             <motion.div
@@ -322,31 +322,49 @@ const TimeSlotsManager = () => {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               className={`
-                relative flex items-center justify-between p-3 rounded-xl border transition-colors
+                relative flex items-center justify-between p-3 rounded-xl border transition-all shadow-sm
                 ${slot.is_active
-                  ? "bg-secondary/30 border-border"
-                  : "bg-muted/30 border-muted opacity-60"
+                  ? "bg-emerald-500/10 border-emerald-500/40 hover:border-emerald-500/70"
+                  : "bg-rose-500/10 border-rose-500/30 opacity-75 hover:border-rose-500/60"
                 }
               `}
             >
-              <span className={`font-display font-semibold ${slot.is_active ? "text-foreground" : "text-muted-foreground"}`}>
-                {formatTimeDisplay(slot.time_slot)}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    slot.is_active ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-rose-500"
+                  }`}
+                  aria-hidden="true"
+                />
+                <span
+                  className={`font-display font-semibold text-sm ${
+                    slot.is_active
+                      ? "text-emerald-950 dark:text-emerald-100"
+                      : "text-rose-950/70 dark:text-rose-200/70 line-through decoration-rose-400/60"
+                  }`}
+                >
+                  {formatTimeDisplay(slot.time_slot)}
+                </span>
+              </div>
               <div className="flex items-center gap-1">
                 <Button
                   size="icon"
                   variant="ghost"
                   onClick={() => handleToggleActive(slot)}
                   disabled={togglingId === slot.id}
-                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                  title={slot.is_active ? "Desativar" : "Ativar"}
+                  className={`h-8 w-8 transition-colors ${
+                    slot.is_active
+                      ? "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/20"
+                      : "text-rose-500 hover:text-rose-600 hover:bg-rose-500/20"
+                  }`}
+                  title={slot.is_active ? "Horário Ativo (clique para desativar)" : "Horário Desativado (clique para ativar)"}
                 >
                   {togglingId === slot.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin text-current" />
                   ) : slot.is_active ? (
-                    <ToggleRight className="h-4 w-4 text-primary" />
+                    <ToggleRight className="h-5 w-5 text-emerald-600 fill-emerald-500/30" />
                   ) : (
-                    <ToggleLeft className="h-4 w-4" />
+                    <ToggleLeft className="h-5 w-5 text-rose-500 fill-rose-500/30" />
                   )}
                 </Button>
                 <Button
@@ -354,7 +372,8 @@ const TimeSlotsManager = () => {
                   variant="ghost"
                   onClick={() => handleDelete(slot.id)}
                   disabled={deletingId === slot.id}
-                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  title="Excluir Horário"
                 >
                   {deletingId === slot.id ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

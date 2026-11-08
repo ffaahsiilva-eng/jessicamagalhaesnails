@@ -390,7 +390,8 @@ const AppointmentsManager = () => {
   const filtered = appointments.filter((apt) => {
     if (selectedDate) {
       const targetDateStr = format(selectedDate, "yyyy-MM-dd");
-      if (apt.appointment_date !== targetDateStr) return false;
+      const aptDate = (apt.appointment_date || "").split("T")[0].trim();
+      if (aptDate !== targetDateStr) return false;
     }
     if (!search) return true;
     const q = search.toLowerCase();

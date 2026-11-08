@@ -154,6 +154,18 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
     }
   };
 
+  const normalizeDateStr = (raw: any): string => {
+    if (!raw) return "";
+    if (typeof raw === "string") return raw.split("T")[0].split(" ")[0].trim();
+    if (raw instanceof Date) return format(raw, "yyyy-MM-dd");
+    return String(raw).slice(0, 10).trim();
+  };
+
+  const normalizeTimeStr = (raw: any): string => {
+    if (!raw) return "";
+    return String(raw).trim().slice(0, 5);
+  };
+
   useEffect(() => {
     if (isOpen) {
       fetchBookedSlots();
@@ -161,9 +173,14 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
     }
   }, [isOpen, selectedDate, step]);
 
-  // Realtime: atualiza horários imediatamente se outra cliente marcar ou admin cancelar
+  // Realtime + Polling a cada 5s enquanto o modal estiver aberto para sincronia perfeita
   useEffect(() => {
     if (!isOpen) return;
+
+    const intervalId = setInterval(() => {
+      fetchBookedSlots();
+      fetchBlockedSlots();
+    }, 5000);
 
     const channel = supabase
       .channel("booking-slots-sync")
@@ -191,24 +208,28 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
       .subscribe();
 
     return () => {
+      clearInterval(intervalId);
       supabase.removeChannel(channel);
     };
   }, [isOpen]);
 
   const fetchBookedSlots = async () => {
+    // Busca desde hoje para trás 1 dia garantindo que não perca fusos horários
     const fromDate = format(new Date(), "yyyy-MM-dd");
     const { data, error } = await supabase.rpc("get_booked_slots", {
       _from_date: fromDate,
     });
 
     const slots: Appointment[] = [];
-    if (!error && data) {
+    if (!error && Array.isArray(data)) {
       slots.push(
         ...data.map((d: { appointment_date: string; appointment_time: string }) => ({
-          appointment_date: d.appointment_date,
-          appointment_time: d.appointment_time,
+          appointment_date: normalizeDateStr(d.appointment_date),
+          appointment_time: normalizeTimeStr(d.appointment_time),
         }))
       );
+    } else if (error) {
+      console.warn("Erro ao buscar horários ocupados via RPC:", error);
     }
 
     // Inclui reservas temporárias de outras clientes em andamento (últimos 15 min)
@@ -223,8 +244,8 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
       if (holds && holds.length > 0) {
         slots.push(
           ...holds.map((h: { slot_date: string; slot_time: string }) => ({
-            appointment_date: h.slot_date,
-            appointment_time: h.slot_time,
+            appointment_date: normalizeDateStr(h.slot_date),
+            appointment_time: normalizeTimeStr(h.slot_time),
           }))
         );
       }
@@ -240,11 +261,11 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
       _from_date: format(new Date(), "yyyy-MM-dd"),
     });
 
-    if (!error && data) {
+    if (!error && Array.isArray(data)) {
       setBlockedSlots(
         data.map((d: { blocked_date: string; blocked_time: string }) => ({
-          blocked_date: d.blocked_date,
-          blocked_time: d.blocked_time,
+          blocked_date: normalizeDateStr(d.blocked_date),
+          blocked_time: normalizeTimeStr(d.blocked_time),
         }))
       );
     }
@@ -258,22 +279,23 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
     const isToday = dateStr === todayStr;
     
     const bookedTimes = bookedSlots
-      .filter((slot) => slot.appointment_date === dateStr)
-      .map((slot) => slot.appointment_time.slice(0, 5));
+      .filter((slot) => normalizeDateStr(slot.appointment_date) === dateStr)
+      .map((slot) => normalizeTimeStr(slot.appointment_time));
     
     const blockedTimes = blockedSlots
-      .filter((slot) => slot.blocked_date === dateStr)
-      .map((slot) => slot.blocked_time.slice(0, 5));
+      .filter((slot) => normalizeDateStr(slot.blocked_date) === dateStr)
+      .map((slot) => normalizeTimeStr(slot.blocked_time));
 
-    const unavailableTimes = [...bookedTimes, ...blockedTimes];
+    const unavailableTimes = new Set([...bookedTimes, ...blockedTimes]);
     
     // Same-day bookings require at least 4 hours of lead time
     const minBookingTime = isToday ? new Date(Date.now() + 4 * 60 * 60 * 1000) : null;
     
     return timeSlots.filter((time) => {
-      if (unavailableTimes.includes(time)) return false;
+      const normTime = normalizeTimeStr(time);
+      if (unavailableTimes.has(normTime)) return false;
       if (minBookingTime) {
-        const [h, m] = time.split(":").map(Number);
+        const [h, m] = normTime.split(":").map(Number);
         const slotDate = new Date();
         slotDate.setHours(h, m, 0, 0);
         if (slotDate < minBookingTime) return false;
@@ -374,6 +396,16 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         .insert(appointmentPayload);
 
       if (error) throw error;
+
+      // Imediatamente bloqueia esse horário no estado local para nunca mais aparecer disponível
+      setBookedSlots((prev) => [
+        ...prev,
+        {
+          appointment_date: format(selectedDate, "yyyy-MM-dd"),
+          appointment_time: selectedTime,
+        },
+      ]);
+      fetchBookedSlots();
 
       // Notify admin via WhatsApp API (with total price and confirm link)
       try {
