@@ -22,7 +22,9 @@ import {
   Send,
   Sparkles,
   CreditCard,
+  Plus,
 } from "lucide-react";
+import BookingCalendar from "@/components/BookingCalendar";
 import { checkInfinitePayPayment } from "@/lib/infinitepay";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -112,6 +114,7 @@ const AppointmentsManager = ({ onAppointmentUpdated }: AppointmentsManagerProps 
     status: "",
   });
   const [isCheckingPayment, setIsCheckingPayment] = useState<string | null>(null);
+  const [isNewBookingOpen, setIsNewBookingOpen] = useState(false);
 
   const handleCheckInfinitePayPayment = async (apt: Appointment) => {
     setIsCheckingPayment(apt.id);
@@ -505,17 +508,27 @@ const AppointmentsManager = ({ onAppointmentUpdated }: AppointmentsManagerProps 
             <CalendarIcon className="h-5 w-5 text-primary" />
             Todos os Agendamentos
           </CardTitle>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleSendDailySummary}
-            disabled={isSendingSummary}
-            className="w-fit text-xs font-body text-primary border-primary/30 hover:bg-primary/10"
-            title="Enviar agora a lista de agendamentos de hoje para o WhatsApp da administradora"
-          >
-            {isSendingSummary ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
-            Resumo de Hoje no WhatsApp
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => setIsNewBookingOpen(true)}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-body text-xs shadow-button h-8 sm:h-9"
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Novo Agendamento (Admin)
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleSendDailySummary}
+              disabled={isSendingSummary}
+              className="w-fit text-xs font-body text-primary border-primary/30 hover:bg-primary/10 h-8 sm:h-9"
+              title="Enviar agora a lista de agendamentos de hoje para o WhatsApp da administradora"
+            >
+              {isSendingSummary ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
+              Resumo no WhatsApp
+            </Button>
+          </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 mt-3">
           <div className="relative flex-1">
@@ -983,6 +996,17 @@ const AppointmentsManager = ({ onAppointmentUpdated }: AppointmentsManagerProps 
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Modal de Novo Agendamento direto para o Administrador (Sem Sinal) */}
+        <BookingCalendar
+          isOpen={isNewBookingOpen}
+          onClose={() => {
+            setIsNewBookingOpen(false);
+            fetchAppointments();
+            onAppointmentUpdated?.();
+          }}
+          isAdmin={true}
+        />
       </CardContent>
     </Card>
   );

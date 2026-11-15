@@ -6,20 +6,22 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { format, addDays, isSunday } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Clock, Check, MessageCircle, X, Loader2, AlertCircle, Sparkles, CreditCard, ExternalLink, RefreshCw } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Check, MessageCircle, X, Loader2, AlertCircle, Sparkles, CreditCard, ExternalLink, RefreshCw, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { notifyWhatsAppBooking } from "@/lib/whatsapp";
 import { calculateServicesTotal, parsePrice, formatPrice } from "@/lib/price";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import { createInfinitePayCheckout, checkInfinitePayPayment } from "@/lib/infinitepay";
 import { z } from "zod";
 
 interface BookingCalendarProps {
   isOpen: boolean;
   onClose: () => void;
-  whatsappNumber: string;
+  whatsappNumber?: string;
+  isAdmin?: boolean;
 }
 
 interface Appointment {
@@ -58,7 +60,9 @@ const formatPhoneInput = (value: string) => {
   return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
 };
 
-const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarProps) => {
+const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin }: BookingCalendarProps) => {
+  const { isAdmin: roleIsAdmin } = useAdminRole();
+  const isAdmin = propIsAdmin ?? roleIsAdmin;
   const sessionId = useRef(generateUUID());
   const [step, setStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
@@ -404,9 +408,9 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         ? `${notes.trim()}${totalPrice ? ` [Valor: ${totalPrice}]` : ""}${depositNote}`
         : `${totalPrice ? `[Valor: ${totalPrice}]` : ""}${depositNote}`.trim() || null;
 
-      // Se InfinitePay estiver ativo com sinal, NÃO cria agendamento na appointments ainda!
+      // Se InfinitePay estiver ativo com sinal E NÃO for Admin, NÃO cria agendamento na appointments ainda!
       // O agendamento SÓ será criado no banco após a confirmação do pagamento no webhook!
-      if (isInfinitePayEnabled && depositAmount > 0) {
+      if (!isAdmin && isInfinitePayEnabled && depositAmount > 0) {
         const checkoutId = generateUUID();
         setCreatedAppointmentId(checkoutId);
 
@@ -473,9 +477,13 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         return;
       }
 
-      // Fluxo normal (quando pagamento online está desativado no admin)
+      // Fluxo Admin (sem sinal, confirmação direta) ou quando pagamento online está desativado:
       const appointmentId = generateUUID();
       setCreatedAppointmentId(appointmentId);
+
+      const adminNotes = isAdmin
+        ? (notes.trim() ? `${notes.trim()}${totalPrice ? ` [Valor: ${totalPrice}]` : ""} [Admin - Confirmado Direto]` : `${totalPrice ? `[Valor: ${totalPrice}] ` : ""}[Admin - Confirmado Direto]`)
+        : internalNotes;
 
       const appointmentPayload = {
         id: appointmentId,
@@ -486,8 +494,8 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         service_type: combinedServiceType,
         appointment_date: format(selectedDate, "yyyy-MM-dd"),
         appointment_time: selectedTime,
-        notes: internalNotes,
-        status: "pending",
+        notes: adminNotes,
+        status: isAdmin ? "confirmed" : "pending",
       };
 
       const { error } = await supabase
@@ -506,14 +514,14 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
       ]);
       fetchBookedSlots();
 
-      // Notify admin via WhatsApp API
+      // Notify via WhatsApp API
       try {
         await notifyWhatsAppBooking({
           ...appointmentPayload,
           appointment_id: appointmentId,
           service_price: totalPrice,
           site_url: window.location.origin,
-          action: "new",
+          action: isAdmin ? "confirmed" : "new",
         });
       } catch (err) {
         console.warn("notifyWhatsAppBooking failed:", err);
@@ -528,31 +536,46 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         .map((b) => `  • ${b.name}${b.price ? ` (${b.price})` : ""}`)
         .join("\n");
 
-      const message = encodeURIComponent(
-        `Olá! Gostaria de agendar um horário:\n\n` +
-        `*Nome:* ${name.trim()}\n` +
-        `*Telefone:* ${phone}\n` +
-        (email.trim() ? `*Email:* ${email.trim()}\n` : "") +
-        `${serviceLabel}\n${servicesBreakdown}\n` +
-        (totalPrice ? `${priceLabel} ${totalPrice}\n` : "") +
-        `*Data:* ${formattedDate}\n` +
-        `*Horário:* ${selectedTime}\n` +
-        (notes.trim() ? `*Observações:* ${notes.trim()}\n` : "") +
-        `\nVocê pode confirmar meu agendamento?\n\n` +
-        `⏰ *Tolerância de 15 minutos para chegada.*\n\n` +
-        `📸 *Instagram:* https://www.instagram.com/jessica_magalhaes_nail\n\n` +
-        `📋 Painel de agendamentos:\nhttps://jessicamagalhaesnail.vercel.app/admin`
-      );
+      const message = isAdmin
+        ? encodeURIComponent(
+            `✨ Olá, *${name.trim()}*! ✨\n\n` +
+            `✅ O seu agendamento foi *CONFIRMADO* com Jéssica Magalhães! 💕\n\n` +
+            `💅 ${serviceLabel}\n${servicesBreakdown}\n` +
+            (totalPrice ? `${priceLabel} ${totalPrice}\n` : "") +
+            `📅 *Data:* ${formattedDate}\n` +
+            `🕐 *Horário:* ${selectedTime}\n` +
+            (notes.trim() ? `*Observações:* ${notes.trim()}\n` : "") +
+            `\n⏰ *Tolerância de 15 minutos para chegada.*\n\n` +
+            `📸 *Instagram:* https://www.instagram.com/jessica_magalhaes_nail\n\n` +
+            `🙏 Te esperamos com muito carinho! 💕`
+          )
+        : encodeURIComponent(
+            `Olá! Gostaria de agendar um horário:\n\n` +
+            `*Nome:* ${name.trim()}\n` +
+            `*Telefone:* ${phone}\n` +
+            (email.trim() ? `*Email:* ${email.trim()}\n` : "") +
+            `${serviceLabel}\n${servicesBreakdown}\n` +
+            (totalPrice ? `${priceLabel} ${totalPrice}\n` : "") +
+            `*Data:* ${formattedDate}\n` +
+            `*Horário:* ${selectedTime}\n` +
+            (notes.trim() ? `*Observações:* ${notes.trim()}\n` : "") +
+            `\nVocê pode confirmar meu agendamento?\n\n` +
+            `⏰ *Tolerância de 15 minutos para chegada.*\n\n` +
+            `📸 *Instagram:* https://www.instagram.com/jessica_magalhaes_nail\n\n` +
+            `📋 Painel de agendamentos:\nhttps://jessicamagalhaesnail.vercel.app/admin`
+          );
 
-      const rawAdmin = (whatsappNumber || "559191837179").replace(/\D/g, "");
-      const cleanAdminNumber = rawAdmin.startsWith("55") ? rawAdmin : `55${rawAdmin}`;
-      setWhatsappUrl(`https://wa.me/${cleanAdminNumber}?text=${message}`);
+      const targetPhone = isAdmin ? cleanPhone : ((whatsappNumber || "559191837179").replace(/\D/g, ""));
+      const cleanTarget = targetPhone.startsWith("55") ? targetPhone : `55${targetPhone}`;
+      setWhatsappUrl(`https://wa.me/${cleanTarget}?text=${message}`);
       await releaseCurrentHold();
       setStep(4);
 
       toast({
-        title: "Agendamento solicitado!",
-        description: "Enviado para confirmação no painel da Jéssica.",
+        title: isAdmin ? "Agendamento confirmado!" : "Agendamento solicitado!",
+        description: isAdmin
+          ? "Horário confirmado e registrado diretamente na agenda (sem sinal)."
+          : "Enviado para confirmação no painel da Jéssica.",
       });
     } catch (error: unknown) {
       console.error("Erro ao criar agendamento:", error);
@@ -993,7 +1016,17 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                     </div>
                   )}
 
-                  {isInfinitePayEnabled && depositAmount > 0 && (
+                  {isAdmin ? (
+                    <div className="mt-3 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 space-y-1 text-foreground">
+                      <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-semibold text-xs">
+                        <ShieldCheck className="h-4 w-4 shrink-0" />
+                        <span>Modo Administradora (Sem Sinal)</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Como você está no painel de administração, este horário será confirmado diretamente na agenda sem cobrança de sinal.
+                      </p>
+                    </div>
+                  ) : isInfinitePayEnabled && depositAmount > 0 ? (
                     <div className="mt-3 p-3.5 rounded-xl bg-primary/10 border border-primary/25 space-y-2 text-foreground">
                       <div className="flex items-center gap-2 text-primary font-semibold text-xs">
                         <CreditCard className="h-4 w-4" />
@@ -1011,7 +1044,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                         ⚡ Pagamento imediato via Pix ou Cartão em ambiente 100% seguro.
                       </p>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               </div>
 
@@ -1035,13 +1068,17 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                 >
                   {isLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                  ) : isAdmin ? (
+                    <Check className="h-4 w-4 shrink-0" />
                   ) : isInfinitePayEnabled && depositAmount > 0 ? (
                     <CreditCard className="h-4 w-4 shrink-0" />
                   ) : (
                     <MessageCircle className="h-4 w-4 shrink-0" />
                   )}
                   <span className="truncate">
-                    {isInfinitePayEnabled && depositAmount > 0
+                    {isAdmin
+                      ? "Confirmar Agendamento (Admin)"
+                      : isInfinitePayEnabled && depositAmount > 0
                       ? `Pagar Sinal (${formatPrice(depositAmount)})`
                       : "Confirmar Agendamento"}
                   </span>
@@ -1052,7 +1089,35 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
 
           {step === 4 && (
             <div className="text-center py-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
-              {infinitePayUrl && !isPaymentConfirmed ? (
+              {isAdmin ? (
+                <>
+                  <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-950/40 rounded-full flex items-center justify-center mx-auto text-emerald-600">
+                    <Check className="h-8 w-8 text-emerald-600" />
+                  </div>
+                  <h3 className="font-display text-2xl font-semibold text-foreground">
+                    Agendamento Confirmado! 🎉
+                  </h3>
+                  <p className="text-muted-foreground font-body text-sm max-w-sm mx-auto leading-relaxed">
+                    O agendamento de <strong>{name}</strong> para <strong>{selectedDate && format(selectedDate, "dd/MM/yyyy")} às {selectedTime}</strong> foi registrado e confirmado diretamente na agenda!
+                  </p>
+                  <div className="p-3.5 rounded-xl bg-secondary/50 border border-border text-xs text-left max-w-sm mx-auto space-y-1.5">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Cliente:</span>
+                      <span className="font-semibold text-foreground">{name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Telefone:</span>
+                      <span className="font-semibold text-foreground">{phone}</span>
+                    </div>
+                    {pricingSummary.totalFormatted && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Valor a acertar:</span>
+                        <span className="font-semibold text-primary">{pricingSummary.totalFormatted}</span>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : infinitePayUrl && !isPaymentConfirmed ? (
                 <>
                   <div className="w-16 h-16 bg-amber-100 dark:bg-amber-950/40 rounded-full flex items-center justify-center mx-auto text-amber-600 animate-pulse">
                     <CreditCard className="h-8 w-8 text-amber-600" />
@@ -1157,7 +1222,9 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                     className="inline-flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors pt-1"
                   >
                     <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />
-                    Prefere falar direto? Abrir conversa no WhatsApp
+                    {isAdmin
+                      ? "Enviar confirmação no WhatsApp da cliente"
+                      : "Prefere falar direto? Abrir conversa no WhatsApp"}
                   </a>
                 )}
               </div>
