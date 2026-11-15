@@ -19,7 +19,8 @@ import {
   Plus,
   Trash2,
   MessageCircle,
-  DollarSign
+  DollarSign,
+  CreditCard
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -487,15 +488,32 @@ const Admin = () => {
                 </p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchData}
-              className="gap-1.5 h-9 sm:h-8 text-xs sm:text-sm active:scale-95 transition-transform"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Atualizar</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  const el = document.getElementById("payment-settings");
+                  if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }
+                }}
+                className="gap-1.5 h-9 sm:h-8 text-xs sm:text-sm active:scale-95 transition-transform bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20"
+                title="Configurar cobrança de 50% por mês"
+              >
+                <CreditCard className="h-3.5 w-3.5 shrink-0" />
+                <span className="hidden sm:inline">Cobrança 50%</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchData}
+                className="gap-1.5 h-9 sm:h-8 text-xs sm:text-sm active:scale-95 transition-transform"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Atualizar</span>
+              </Button>
+            </div>
           </div>
         </div>
       </header>

@@ -1,27 +1,46 @@
 import { useState, useEffect } from "react";
-import { CreditCard, Loader2, Save, Eye, EyeOff, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
+import { 
+  CreditCard, 
+  Loader2, 
+  Save, 
+  Eye, 
+  EyeOff, 
+  CheckCircle2, 
+  AlertCircle, 
+  RefreshCw,
+  CalendarDays,
+  Info,
+  Check,
+  X
+} from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { MONTHS_LIST, parseDepositMonths } from "@/lib/infinitepay";
 
 interface InfinitePaySettings {
   enabled: boolean;
   handle: string;
   apiKey: string;
   depositPercent: number;
+  depositMonths: number[];
 }
 
 const InfinitePayManager = () => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [config, setConfig] = useState<InfinitePaySettings>({
     enabled: true,
     handle: "paifilhoespirito",
     apiKey: "inchk_cIQ0seCo6bb6xA4y5_MasUTjWuT9T_5Mmqmhb5cVSSA",
     depositPercent: 50,
+    depositMonths: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -44,6 +63,7 @@ const InfinitePayManager = () => {
           "infinitepay_handle",
           "infinitepay_api_key",
           "infinitepay_deposit_percent",
+          "infinitepay_deposit_months",
         ]);
 
       if (error) {
@@ -59,6 +79,7 @@ const InfinitePayManager = () => {
           handle: map["infinitepay_handle"] || "paifilhoespirito",
           apiKey: map["infinitepay_api_key"] || "inchk_cIQ0seCo6bb6xA4y5_MasUTjWuT9T_5Mmqmhb5cVSSA",
           depositPercent: parseInt(map["infinitepay_deposit_percent"] || "50", 10) || 50,
+          depositMonths: parseDepositMonths(map["infinitepay_deposit_months"]),
         });
       }
     } finally {
@@ -80,6 +101,37 @@ const InfinitePayManager = () => {
     );
   };
 
+  const toggleMonth = (monthNumber: number) => {
+    setConfig((prev) => {
+      const exists = prev.depositMonths.includes(monthNumber);
+      const newMonths = exists
+        ? prev.depositMonths.filter((m) => m !== monthNumber)
+        : [...prev.depositMonths, monthNumber].sort((a, b) => a - b);
+      return { ...prev, depositMonths: newMonths };
+    });
+  };
+
+  const handleActivateAllMonths = () => {
+    setConfig((prev) => ({
+      ...prev,
+      depositMonths: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    }));
+  };
+
+  const handleDeactivateAllMonths = () => {
+    setConfig((prev) => ({
+      ...prev,
+      depositMonths: [],
+    }));
+  };
+
+  const handleOnlyDecember = () => {
+    setConfig((prev) => ({
+      ...prev,
+      depositMonths: [12],
+    }));
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     setTestResult(null);
@@ -89,11 +141,15 @@ const InfinitePayManager = () => {
         saveSetting("infinitepay_handle", config.handle.trim(), "InfinitePay Handle/Tag"),
         saveSetting("infinitepay_api_key", config.apiKey.trim(), "InfinitePay API Key"),
         saveSetting("infinitepay_deposit_percent", String(config.depositPercent), "Porcentagem de Sinal (%)"),
+        saveSetting("infinitepay_deposit_months", JSON.stringify(config.depositMonths), "Meses com Cobrança de Sinal"),
       ]);
+
+      queryClient.invalidateQueries({ queryKey: ["site-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["site-settings-admin"] });
 
       toast({
         title: "Configurações salvas!",
-        description: "Os dados da InfinitePay foram atualizados com sucesso.",
+        description: "Regras de cobrança mensal e dados da InfinitePay foram atualizados com sucesso.",
       });
     } catch (err: any) {
       toast({
@@ -146,7 +202,7 @@ const InfinitePayManager = () => {
 
   if (isLoading) {
     return (
-      <Card className="border-border">
+      <Card id="payment-settings" className="border-border">
         <CardContent className="flex items-center justify-center py-10">
           <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
           <span className="font-body text-sm text-muted-foreground">Carregando configurações de pagamento...</span>
@@ -155,8 +211,10 @@ const InfinitePayManager = () => {
     );
   }
 
+  const activeCount = config.depositMonths.length;
+
   return (
-    <Card className="border-border shadow-sm">
+    <Card id="payment-settings" className="border-border shadow-sm scroll-mt-20">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -165,10 +223,10 @@ const InfinitePayManager = () => {
             </div>
             <div>
               <CardTitle className="font-display text-xl text-foreground">
-                Pagamentos InfinitePay (Checkout Automático)
+                Cobrança de Sinal (50%) & InfinitePay
               </CardTitle>
               <CardDescription className="font-body text-sm text-muted-foreground">
-                Cobrança de sinal de 50% para confirmação automática de agendamentos via Pix e Cartão
+                Controle quais meses exigem sinal de 50% no agendamento e gerencie os dados de recebimento
               </CardDescription>
             </div>
           </div>
@@ -184,7 +242,154 @@ const InfinitePayManager = () => {
           </div>
         </div>
       </CardHeader>
+
       <CardContent className="space-y-6">
+        {/* SEÇÃO PRINCIPAL: Ativar / Desativar Cobrança por Mês */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-secondary/30 border border-primary/20 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <CalendarDays className="h-5 w-5 text-primary shrink-0" />
+                <h3 className="font-display text-base sm:text-lg font-semibold text-foreground">
+                  Cobrança de 50% por Mês do Agendamento
+                </h3>
+              </div>
+              <p className="text-xs sm:text-sm text-muted-foreground font-body mt-0.5">
+                Escolha os meses em que o adiantamento de {config.depositPercent}% será cobrado. Nos meses desativados, o agendamento é direto no salão.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleActivateAllMonths}
+                className="h-8 text-xs font-body px-2.5"
+              >
+                Ativar Todos
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleDeactivateAllMonths}
+                className="h-8 text-xs font-body px-2.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+              >
+                Desativar Todos
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={handleOnlyDecember}
+                className="h-8 text-xs font-body px-2.5 bg-primary/15 hover:bg-primary/25 text-primary"
+              >
+                Apenas Dezembro
+              </Button>
+            </div>
+          </div>
+
+          {/* Grid dos 12 meses */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 pt-1">
+            {MONTHS_LIST.map((m) => {
+              const isSelected = config.depositMonths.includes(m.value);
+              const isNovember = m.value === 11;
+              const isDecember = m.value === 12;
+
+              return (
+                <div
+                  key={m.value}
+                  onClick={() => toggleMonth(m.value)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleMonth(m.value);
+                    }
+                  }}
+                  className={`group relative p-3 rounded-xl border transition-all text-left cursor-pointer select-none flex flex-col justify-between min-h-[96px] ${
+                    isSelected
+                      ? "bg-primary/10 border-primary shadow-sm hover:border-primary hover:bg-primary/15"
+                      : "bg-background/80 border-border/80 hover:border-border hover:bg-secondary/40 opacity-75 hover:opacity-100"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-display font-semibold text-sm text-foreground">
+                      {m.name}
+                    </span>
+                    <Switch
+                      checked={isSelected}
+                      onCheckedChange={() => toggleMonth(m.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="scale-75 origin-right"
+                    />
+                  </div>
+
+                  <div className="mt-2 flex items-center justify-between">
+                    <Badge
+                      variant={isSelected ? "default" : "outline"}
+                      className={`text-[10px] px-1.5 py-0 font-medium ${
+                        isSelected
+                          ? "bg-emerald-600 hover:bg-emerald-600 text-white border-transparent"
+                          : "text-muted-foreground border-border/70 bg-background/50"
+                      }`}
+                    >
+                      {isSelected ? "Cobrar 50%" : "Sem Sinal (0%)"}
+                    </Badge>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      {isDecember ? "🎄 Dez" : isNovember ? "🍂 Nov" : m.short}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Resumo dinâmico da regra */}
+          <div className="p-3.5 rounded-xl bg-background/80 border border-border/70 text-xs font-body space-y-1.5">
+            <div className="flex items-center gap-1.5 font-medium text-foreground">
+              <Info className="h-4 w-4 text-primary shrink-0" />
+              <span>Resumo da regra atual para as clientes:</span>
+            </div>
+            <p className="text-muted-foreground leading-relaxed">
+              {!config.enabled ? (
+                <span className="text-amber-600 dark:text-amber-400 font-medium">
+                  ⚠️ O sistema de cobrança online está desativado no botão geral. Nenhum cliente pagará adiantamento independente do mês.
+                </span>
+              ) : activeCount === 12 ? (
+                <>
+                  <strong className="text-emerald-600 dark:text-emerald-400">Todos os 12 meses cobram sinal:</strong> qualquer pessoa que tentar agendar pagará {config.depositPercent}% adiantado via InfinitePay (Pix ou Cartão).
+                </>
+              ) : activeCount === 0 ? (
+                <>
+                  <strong className="text-amber-600 dark:text-amber-400">Nenhum mês cobrará sinal:</strong> todos os agendamentos serão confirmados direto na agenda, sem cobrança de adiantamento.
+                </>
+              ) : (
+                <>
+                  ✅ A cobrança de sinal ({config.depositPercent}%) está <strong>ativada</strong> em:{" "}
+                  <span className="font-semibold text-primary">
+                    {MONTHS_LIST.filter((m) => config.depositMonths.includes(m.value))
+                      .map((m) => m.name)
+                      .join(", ")}
+                  </span>
+                  .
+                  <br />
+                  🚫 Nos meses desativados (
+                  <span className="text-foreground">
+                    {MONTHS_LIST.filter((m) => !config.depositMonths.includes(m.value))
+                      .map((m) => m.name)
+                      .join(", ")}
+                  </span>
+                  ), o cliente que tentar agendar <strong>NÃO pagará sinal adiantado</strong> e o valor será pago diretamente no salão.
+                </>
+              )}
+            </p>
+          </div>
+        </div>
+
+        {/* Credenciais e Ajustes da InfinitePay */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="handle" className="font-body text-foreground">

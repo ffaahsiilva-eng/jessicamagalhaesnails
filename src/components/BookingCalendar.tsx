@@ -14,7 +14,7 @@ import { notifyWhatsAppBooking } from "@/lib/whatsapp";
 import { calculateServicesTotal, parsePrice, formatPrice } from "@/lib/price";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { useAdminRole } from "@/hooks/useAdminRole";
-import { createInfinitePayCheckout, checkInfinitePayPayment } from "@/lib/infinitepay";
+import { createInfinitePayCheckout, checkInfinitePayPayment, isMonthDepositEnabled } from "@/lib/infinitepay";
 import { z } from "zod";
 
 interface BookingCalendarProps {
@@ -89,6 +89,12 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
 
   const isInfinitePayEnabled = getSetting("infinitepay_enabled", "true") !== "false";
   const depositPercent = parseInt(getSetting("infinitepay_deposit_percent", "50"), 10) || 50;
+  const depositMonthsSetting = getSetting("infinitepay_deposit_months", "");
+
+  // Verifica se o mês da data selecionada está configurado para cobrar sinal
+  const isDepositActiveForSelectedDate = useMemo(() => {
+    return isMonthDepositEnabled(selectedDate, depositMonthsSetting, isInfinitePayEnabled);
+  }, [selectedDate, depositMonthsSetting, isInfinitePayEnabled]);
 
   // Fetch available time slots from database
   const { data: allTimeSlots = [], isLoading: isLoadingSlots } = useQuery({
@@ -141,8 +147,9 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
 
   const depositAmount = useMemo(() => {
     if (!pricingSummary.totalNumber) return 0;
+    if (!isDepositActiveForSelectedDate) return 0;
     return Math.round((pricingSummary.totalNumber * (depositPercent / 100)) * 100) / 100;
-  }, [pricingSummary.totalNumber, depositPercent]);
+  }, [pricingSummary.totalNumber, depositPercent, isDepositActiveForSelectedDate]);
 
   const remainingAmount = useMemo(() => {
     if (!pricingSummary.totalNumber) return 0;
@@ -706,6 +713,25 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
                 locale={ptBR}
                 className="rounded-xl border border-border mx-auto max-w-full"
               />
+
+              {selectedDate && (
+                <div className="flex items-center justify-between text-xs font-body p-2.5 rounded-xl bg-secondary/40 border border-border/70">
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <CalendarIcon className="h-3.5 w-3.5 text-primary" />
+                    Data: <strong className="text-foreground">{format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}</strong>
+                  </span>
+                  {isInfinitePayEnabled && isDepositActiveForSelectedDate ? (
+                    <span className="text-primary font-medium bg-primary/10 px-2 py-0.5 rounded-md text-[11px]">
+                      Sinal de {depositPercent}%
+                    </span>
+                  ) : (
+                    <span className="text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-500/10 px-2 py-0.5 rounded-md text-[11px]">
+                      Sem Sinal (Salão)
+                    </span>
+                  )}
+                </div>
+              )}
+
               <Button
                 onClick={() => setStep(2)}
                 disabled={!selectedDate}
@@ -1026,7 +1052,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
                         Como você está no painel de administração, este horário será confirmado diretamente na agenda sem cobrança de sinal.
                       </p>
                     </div>
-                  ) : isInfinitePayEnabled && depositAmount > 0 ? (
+                  ) : isInfinitePayEnabled && isDepositActiveForSelectedDate && depositAmount > 0 ? (
                     <div className="mt-3 p-3.5 rounded-xl bg-primary/10 border border-primary/25 space-y-2 text-foreground">
                       <div className="flex items-center gap-2 text-primary font-semibold text-xs">
                         <CreditCard className="h-4 w-4" />
@@ -1044,7 +1070,22 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
                         ⚡ Pagamento imediato via Pix ou Cartão em ambiente 100% seguro.
                       </p>
                     </div>
-                  ) : null}
+                  ) : (
+                    <div className="mt-3 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 space-y-1.5 text-foreground">
+                      <div className="flex items-center justify-between text-xs font-semibold">
+                        <span className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+                          <Check className="h-4 w-4 shrink-0" />
+                          Agendamento Direto (Sem cobrança de sinal)
+                        </span>
+                        {pricingSummary.totalFormatted && (
+                          <span className="font-bold text-primary text-xs">{pricingSummary.totalFormatted}</span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Para o mês de <strong>{selectedDate ? format(selectedDate, "MMMM", { locale: ptBR }) : "selecionado"}</strong>, não é necessário pagar sinal adiantado. O valor será pago diretamente no salão no dia do atendimento.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 

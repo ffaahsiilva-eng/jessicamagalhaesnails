@@ -28,7 +28,55 @@ export interface InfinitePayConfig {
   handle: string;
   apiKey: string;
   depositPercent: number;
+  depositMonths: number[];
 }
+
+export const MONTHS_LIST = [
+  { value: 1, name: "Janeiro", short: "Jan" },
+  { value: 2, name: "Fevereiro", short: "Fev" },
+  { value: 3, name: "Março", short: "Mar" },
+  { value: 4, name: "Abril", short: "Abr" },
+  { value: 5, name: "Maio", short: "Mai" },
+  { value: 6, name: "Junho", short: "Jun" },
+  { value: 7, name: "Julho", short: "Jul" },
+  { value: 8, name: "Agosto", short: "Ago" },
+  { value: 9, name: "Setembro", short: "Set" },
+  { value: 10, name: "Outubro", short: "Out" },
+  { value: 11, name: "Novembro", short: "Nov" },
+  { value: 12, name: "Dezembro", short: "Dez" },
+];
+
+export const parseDepositMonths = (raw: string | number[] | null | undefined): number[] => {
+  if (Array.isArray(raw)) return raw.map(Number);
+  if (!raw || typeof raw !== "string" || !raw.trim()) {
+    // Padrão: todos os meses ativados se não houver configuração explícita
+    return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.map(Number);
+  } catch {
+    const list = raw
+      .split(",")
+      .map((s) => parseInt(s.trim(), 10))
+      .filter((n) => !isNaN(n));
+    if (list.length > 0) return list;
+  }
+  return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+};
+
+export const isMonthDepositEnabled = (
+  date: Date | string | null | undefined,
+  depositMonthsRaw: string | number[] | null | undefined,
+  isPaymentEnabled = true
+): boolean => {
+  if (!isPaymentEnabled || !date) return false;
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return false;
+  const month = d.getMonth() + 1;
+  const activeMonths = parseDepositMonths(depositMonthsRaw);
+  return activeMonths.includes(month);
+};
 
 export const getInfinitePayConfig = async (): Promise<InfinitePayConfig> => {
   try {
@@ -40,6 +88,7 @@ export const getInfinitePayConfig = async (): Promise<InfinitePayConfig> => {
         "infinitepay_handle",
         "infinitepay_api_key",
         "infinitepay_deposit_percent",
+        "infinitepay_deposit_months",
       ]);
 
     const map: Record<string, string> = {};
@@ -52,6 +101,7 @@ export const getInfinitePayConfig = async (): Promise<InfinitePayConfig> => {
       handle: map["infinitepay_handle"] || "paifilhoespirito",
       apiKey: map["infinitepay_api_key"] || "inchk_cIQ0seCo6bb6xA4y5_MasUTjWuT9T_5Mmqmhb5cVSSA",
       depositPercent: parseInt(map["infinitepay_deposit_percent"] || "50", 10) || 50,
+      depositMonths: parseDepositMonths(map["infinitepay_deposit_months"]),
     };
   } catch (error) {
     console.warn("Erro ao buscar configurações InfinitePay:", error);
@@ -60,6 +110,7 @@ export const getInfinitePayConfig = async (): Promise<InfinitePayConfig> => {
       handle: "paifilhoespirito",
       apiKey: "inchk_cIQ0seCo6bb6xA4y5_MasUTjWuT9T_5Mmqmhb5cVSSA",
       depositPercent: 50,
+      depositMonths: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
     };
   }
 };

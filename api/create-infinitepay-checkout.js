@@ -9,6 +9,7 @@ async function getPaymentConfig() {
   let apiKey = process.env.INFINITEPAY_API_KEY || "inchk_cIQ0seCo6bb6xA4y5_MasUTjWuT9T_5Mmqmhb5cVSSA";
   let percent = parseInt(process.env.INFINITEPAY_DEPOSIT_PERCENT || "50", 10) || 50;
   let enabled = true;
+  let depositMonths = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
   try {
     const client = new Client({
@@ -17,7 +18,7 @@ async function getPaymentConfig() {
     });
     await client.connect();
     const res = await client.query(
-      "SELECT key, value FROM site_settings WHERE key IN ('infinitepay_handle', 'infinitepay_api_key', 'infinitepay_deposit_percent', 'infinitepay_enabled')"
+      "SELECT key, value FROM site_settings WHERE key IN ('infinitepay_handle', 'infinitepay_api_key', 'infinitepay_deposit_percent', 'infinitepay_enabled', 'infinitepay_deposit_months')"
     );
     await client.end();
 
@@ -26,12 +27,21 @@ async function getPaymentConfig() {
       if (r.key === "infinitepay_api_key" && r.value) apiKey = r.value.trim();
       if (r.key === "infinitepay_deposit_percent" && r.value) percent = parseInt(r.value, 10) || percent;
       if (r.key === "infinitepay_enabled") enabled = r.value !== "false";
+      if (r.key === "infinitepay_deposit_months" && r.value) {
+        try {
+          const parsed = JSON.parse(r.value);
+          if (Array.isArray(parsed)) depositMonths = parsed.map(Number);
+        } catch {
+          const list = r.value.split(",").map((s) => parseInt(s.trim(), 10)).filter((n) => !isNaN(n));
+          if (list.length > 0) depositMonths = list;
+        }
+      }
     });
   } catch (err) {
     console.warn("Aviso ao buscar configurações de pagamento do banco:", err.message);
   }
 
-  return { handle, apiKey, percent, enabled };
+  return { handle, apiKey, percent, enabled, depositMonths };
 }
 
 export default async function handler(req, res) {
@@ -67,6 +77,18 @@ export default async function handler(req, res) {
     const config = await getPaymentConfig();
     if (!config.enabled) {
       return res.status(400).json({ error: "Pagamento online da InfinitePay está desativado." });
+    }
+
+    if (appointment_date) {
+      const parts = appointment_date.split("-");
+      if (parts.length >= 2) {
+        const monthNum = parseInt(parts[1], 10);
+        if (!isNaN(monthNum) && !config.depositMonths.includes(monthNum)) {
+          return res.status(400).json({
+            error: `A cobrança de sinal de 50% não está ativada para o mês selecionado (${monthNum}). Este agendamento pode ser confirmado diretamente sem sinal.`,
+          });
+        }
+      }
     }
 
     const total = parseFloat(total_amount) || 0;
