@@ -52,6 +52,7 @@ import SiteSettingsManager from "@/components/admin/SiteSettingsManager";
 import ThemeColorManager from "@/components/admin/ThemeColorManager";
 import FontManager from "@/components/admin/FontManager";
 import WhatsAppApiManager from "@/components/admin/WhatsAppApiManager";
+import InfinitePayManager from "@/components/admin/InfinitePayManager";
 import WhatsAppAvailability from "@/components/WhatsAppAvailability";
 import AppointmentsManager from "@/components/admin/AppointmentsManager";
 import { notifyWhatsAppBooking, syncWhatsAppConfigToSiteSettings } from "@/lib/whatsapp";
@@ -935,6 +936,11 @@ const Admin = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mt-6">
             <FontManager />
             <WhatsAppApiManager />
+          </div>
+
+          {/* InfinitePay Automatic Checkout */}
+          <div className="mt-6">
+            <InfinitePayManager />
           </div>
         </>
         )}

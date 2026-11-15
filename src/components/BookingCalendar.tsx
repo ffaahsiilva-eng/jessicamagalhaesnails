@@ -6,13 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { format, addDays, isSunday } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Clock, Check, MessageCircle, X, Loader2, AlertCircle, Sparkles } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Check, MessageCircle, X, Loader2, AlertCircle, Sparkles, CreditCard, ExternalLink, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { notifyWhatsAppBooking } from "@/lib/whatsapp";
-import { calculateServicesTotal, parsePrice } from "@/lib/price";
+import { calculateServicesTotal, parsePrice, formatPrice } from "@/lib/price";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { createInfinitePayCheckout, checkInfinitePayPayment } from "@/lib/infinitepay";
 import { z } from "zod";
 
 interface BookingCalendarProps {
@@ -77,6 +78,13 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
   const maxDays = parseInt(getSetting("booking_max_days_ahead", "90"), 10) || 90;
 
   const [isLoadingBooked, setIsLoadingBooked] = useState(false);
+  const [infinitePayUrl, setInfinitePayUrl] = useState<string>("");
+  const [createdAppointmentId, setCreatedAppointmentId] = useState<string>("");
+  const [isPaymentConfirmed, setIsPaymentConfirmed] = useState(false);
+  const [isCheckingPayment, setIsCheckingPayment] = useState(false);
+
+  const isInfinitePayEnabled = getSetting("infinitepay_enabled", "true") !== "false";
+  const depositPercent = parseInt(getSetting("infinitepay_deposit_percent", "50"), 10) || 50;
 
   // Fetch available time slots from database
   const { data: allTimeSlots = [], isLoading: isLoadingSlots } = useQuery({
@@ -126,6 +134,46 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
   const pricingSummary = useMemo(() => {
     return calculateServicesTotal(selectedServices, services);
   }, [selectedServices, services]);
+
+  const depositAmount = useMemo(() => {
+    if (!pricingSummary.totalNumber) return 0;
+    return Math.round((pricingSummary.totalNumber * (depositPercent / 100)) * 100) / 100;
+  }, [pricingSummary.totalNumber, depositPercent]);
+
+  const remainingAmount = useMemo(() => {
+    if (!pricingSummary.totalNumber) return 0;
+    return Math.round((pricingSummary.totalNumber - depositAmount) * 100) / 100;
+  }, [pricingSummary.totalNumber, depositAmount]);
+
+  useEffect(() => {
+    if (!createdAppointmentId) return;
+
+    const channel = supabase
+      .channel(`payment-sync-${createdAppointmentId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "appointments",
+          filter: `id=eq.${createdAppointmentId}`,
+        },
+        (payload: any) => {
+          if (payload.new && payload.new.status === "confirmed") {
+            setIsPaymentConfirmed(true);
+            toast({
+              title: "Pagamento Confirmado! 🎉",
+              description: "Seu sinal de reserva foi recebido pela InfinitePay e o horário está garantido!",
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [createdAppointmentId]);
 
   const toggleService = (serviceName: string) => {
     setSelectedServices((prev) =>
@@ -332,12 +380,16 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
       const combinedServiceType = selectedServices.join(" + ");
       const totalPrice = pricingSummary.totalFormatted;
 
-      // Anotação com valor preservado
+      // Anotação com valor preservado e sinal
+      const depositNote = isInfinitePayEnabled && depositAmount > 0
+        ? ` [Sinal ${depositPercent}%: ${formatPrice(depositAmount)} - Restante: ${formatPrice(remainingAmount)}]`
+        : "";
       const internalNotes = notes.trim()
-        ? `${notes.trim()}${totalPrice ? ` [Valor: ${totalPrice}]` : ""}`
-        : (totalPrice ? `[Valor: ${totalPrice}]` : null);
+        ? `${notes.trim()}${totalPrice ? ` [Valor: ${totalPrice}]` : ""}${depositNote}`
+        : `${totalPrice ? `[Valor: ${totalPrice}]` : ""}${depositNote}`.trim() || null;
 
       const appointmentId = generateUUID();
+      setCreatedAppointmentId(appointmentId);
 
       const appointmentPayload = {
         id: appointmentId,
@@ -368,6 +420,33 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
       ]);
       fetchBookedSlots();
 
+      // Se o checkout da InfinitePay estiver ativo e o serviço tiver valor, gera o link
+      let generatedPaymentUrl = "";
+      if (isInfinitePayEnabled && depositAmount > 0) {
+        try {
+          const checkout = await createInfinitePayCheckout({
+            appointment_id: appointmentId,
+            client_name: name.trim(),
+            client_phone: cleanPhone,
+            service_type: combinedServiceType,
+            total_amount: pricingSummary.totalNumber,
+            site_url: window.location.origin,
+          });
+
+          if (checkout.success && checkout.url) {
+            generatedPaymentUrl = checkout.url;
+            setInfinitePayUrl(checkout.url);
+            try {
+              window.open(checkout.url, "_blank");
+            } catch {
+              // se o navegador bloquear popup, o botão na tela de step 4 permite abrir
+            }
+          }
+        } catch (payErr) {
+          console.warn("Aviso ao gerar link da InfinitePay:", payErr);
+        }
+      }
+
       // Notify admin via WhatsApp API (with total price and confirm link)
       try {
         await notifyWhatsAppBooking({
@@ -390,6 +469,10 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         .map((b) => `  • ${b.name}${b.price ? ` (${b.price})` : ""}`)
         .join("\n");
 
+      const depositMsgLine = isInfinitePayEnabled && depositAmount > 0
+        ? `💳 *Sinal de Reserva (${depositPercent}%):* ${formatPrice(depositAmount)}\n🏠 *Restante no Salão:* ${formatPrice(remainingAmount)}\n`
+        : "";
+
       const message = encodeURIComponent(
         `Olá! Gostaria de agendar um horário:\n\n` +
         `*Nome:* ${name.trim()}\n` +
@@ -397,6 +480,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         (email.trim() ? `*Email:* ${email.trim()}\n` : "") +
         `${serviceLabel}\n${servicesBreakdown}\n` +
         (totalPrice ? `${priceLabel} ${totalPrice}\n` : "") +
+        depositMsgLine +
         `*Data:* ${formattedDate}\n` +
         `*Horário:* ${selectedTime}\n` +
         (notes.trim() ? `*Observações:* ${notes.trim()}\n` : "") +
@@ -414,8 +498,10 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
       setStep(4);
 
       toast({
-        title: "Agendamento solicitado!",
-        description: "Enviado para confirmação no painel da Jéssica.",
+        title: isInfinitePayEnabled && depositAmount > 0 ? "Horário pré-reservado!" : "Agendamento solicitado!",
+        description: isInfinitePayEnabled && depositAmount > 0
+          ? "Conclua o pagamento do sinal de 50% para confirmação automática."
+          : "Enviado para confirmação no painel da Jéssica.",
       });
     } catch (error: unknown) {
       console.error("Erro ao criar agendamento:", error);
@@ -434,6 +520,34 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
     }
   };
 
+  const handleManualCheckPayment = async () => {
+    if (!createdAppointmentId) return;
+    setIsCheckingPayment(true);
+    try {
+      const res = await checkInfinitePayPayment(createdAppointmentId);
+      if (res.paid) {
+        setIsPaymentConfirmed(true);
+        toast({
+          title: "Pagamento Confirmado! 🎉",
+          description: "Seu sinal foi aprovado pela InfinitePay e o horário está garantido!",
+        });
+      } else {
+        toast({
+          title: "Aguardando Pagamento",
+          description: "O pagamento do sinal ainda não foi identificado. Conclua a transação no link da InfinitePay.",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Erro ao consultar",
+        description: err.message || "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCheckingPayment(false);
+    }
+  };
+
   const resetAndClose = () => {
     releaseCurrentHold();
     setStep(1);
@@ -444,6 +558,10 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
     setEmail("");
     setPhone("");
     setNotes("");
+    setWhatsappUrl("");
+    setInfinitePayUrl("");
+    setCreatedAppointmentId("");
+    setIsPaymentConfirmed(false);
     setErrors({});
     onClose();
   };
@@ -686,7 +804,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                 <Button
                   variant="outline"
                   onClick={() => setStep(1)}
-                  className="flex-1 h-12 font-body active:scale-[0.98] transition-transform"
+                  className="w-28 sm:flex-1 h-12 font-body active:scale-[0.98] transition-transform"
                 >
                   Voltar
                 </Button>
@@ -822,44 +940,157 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                       <span className="text-base text-primary font-bold">{pricingSummary.totalFormatted}</span>
                     </div>
                   )}
+
+                  {isInfinitePayEnabled && depositAmount > 0 && (
+                    <div className="mt-3 p-3.5 rounded-xl bg-primary/10 border border-primary/25 space-y-2 text-foreground">
+                      <div className="flex items-center gap-2 text-primary font-semibold text-xs">
+                        <CreditCard className="h-4 w-4" />
+                        <span>Sinal de Reserva ({depositPercent}%) via InfinitePay</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Sinal para garantir vaga (Pix/Cartão):</span>
+                        <span className="font-bold text-primary text-sm">{formatPrice(depositAmount)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>Restante no dia do atendimento:</span>
+                        <span className="font-medium text-foreground">{formatPrice(remainingAmount)}</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground italic pt-1 border-t border-primary/15">
+                        ⚡ Pagamento imediato via Pix ou Cartão em ambiente 100% seguro.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-col-reverse sm:flex-row gap-2.5 pt-2">
                 <Button
+                  type="button"
                   variant="outline"
                   onClick={async () => {
                     await releaseCurrentHold();
                     setStep(2);
                   }}
-                  className="flex-1 h-12 font-body active:scale-[0.98] transition-transform"
+                  className="w-full sm:w-28 h-12 font-body text-muted-foreground hover:text-foreground active:scale-[0.98] transition-transform shrink-0"
                 >
                   Voltar
                 </Button>
                 <Button
+                  type="button"
                   onClick={handleSendWhatsApp}
                   disabled={isLoading || !isStep3Valid}
-                  className="flex-1 h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-body shadow-button active:scale-[0.98] transition-transform text-sm sm:text-base"
+                  className="w-full sm:flex-1 h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-body shadow-button active:scale-[0.98] transition-transform text-sm sm:text-base font-medium px-3 sm:px-4 flex items-center justify-center gap-2"
                 >
-                  <MessageCircle className="mr-2 h-4 w-4" />
-                  Enviar via WhatsApp
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                  ) : isInfinitePayEnabled && depositAmount > 0 ? (
+                    <CreditCard className="h-4 w-4 shrink-0" />
+                  ) : (
+                    <MessageCircle className="h-4 w-4 shrink-0" />
+                  )}
+                  <span className="truncate">
+                    {isInfinitePayEnabled && depositAmount > 0
+                      ? `Pagar Sinal (${formatPrice(depositAmount)})`
+                      : "Confirmar Agendamento"}
+                  </span>
                 </Button>
               </div>
             </div>
           )}
 
           {step === 4 && (
-            <div className="text-center py-8 space-y-4 animate-in fade-in zoom-in-95 duration-200">
-              <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto text-primary">
-                <Check className="h-8 w-8 text-primary" />
-              </div>
-              <h3 className="font-display text-2xl font-semibold text-foreground">
-                Agendamento Solicitado! 🎉
-              </h3>
-              <p className="text-muted-foreground font-body text-sm max-w-sm mx-auto leading-relaxed">
-                Sua solicitação foi enviada para o nosso painel. Assim que a Jéssica confirmar o seu horário, você receberá uma notificação diretamente no seu WhatsApp.
-              </p>
-              <div className="pt-2 space-y-3">
+            <div className="text-center py-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+              {infinitePayUrl && !isPaymentConfirmed ? (
+                <>
+                  <div className="w-16 h-16 bg-amber-100 dark:bg-amber-950/40 rounded-full flex items-center justify-center mx-auto text-amber-600 animate-pulse">
+                    <CreditCard className="h-8 w-8 text-amber-600" />
+                  </div>
+                  <h3 className="font-display text-2xl font-semibold text-foreground">
+                    Quase lá! Conclua o Sinal 💅
+                  </h3>
+                  <p className="text-muted-foreground font-body text-sm max-w-sm mx-auto leading-relaxed">
+                    Para garantir o seu horário de <strong>{selectedDate && format(selectedDate, "dd/MM")} às {selectedTime}</strong>, finalize o pagamento do sinal de reserva.
+                  </p>
+
+                  <div className="p-4 rounded-xl bg-secondary/50 border border-border/80 text-left max-w-sm mx-auto space-y-2 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Valor do Sinal ({depositPercent}%):</span>
+                      <span className="font-bold text-sm text-primary">{formatPrice(depositAmount)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-muted-foreground">
+                      <span>Restante no Salão:</span>
+                      <span className="font-medium text-foreground">{formatPrice(remainingAmount)}</span>
+                    </div>
+                    <div className="pt-1.5 border-t border-border/40 text-[11px] text-muted-foreground">
+                      Aceita <strong>Pix com aprovação imediata</strong> ou <strong>Cartão de Crédito em até 12x</strong>.
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pt-2 max-w-sm mx-auto">
+                    <a
+                      href={infinitePayUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full h-12 inline-flex items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-body font-medium shadow-button active:scale-[0.98] transition-transform text-sm sm:text-base"
+                    >
+                      <CreditCard className="h-4 w-4" />
+                      Pagar Sinal na InfinitePay
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleManualCheckPayment}
+                      disabled={isCheckingPayment}
+                      className="w-full h-11 font-body text-xs border-border"
+                    >
+                      {isCheckingPayment ? (
+                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin text-primary" />
+                      ) : (
+                        <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                      )}
+                      Já realizei o pagamento / Verificar
+                    </Button>
+                  </div>
+                </>
+              ) : isPaymentConfirmed ? (
+                <>
+                  <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-950/40 rounded-full flex items-center justify-center mx-auto text-emerald-600">
+                    <Check className="h-8 w-8 text-emerald-600" />
+                  </div>
+                  <h3 className="font-display text-2xl font-semibold text-foreground">
+                    Pagamento Confirmado! 🎉
+                  </h3>
+                  <p className="text-muted-foreground font-body text-sm max-w-sm mx-auto leading-relaxed">
+                    O pagamento do seu sinal foi aprovado pela InfinitePay. Seu agendamento para <strong>{selectedDate && format(selectedDate, "dd/MM/yyyy")} às {selectedTime}</strong> está 100% confirmado!
+                  </p>
+                  <div className="p-3.5 rounded-xl bg-secondary/50 border border-border text-xs text-left max-w-sm mx-auto space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Sinal Pago:</span>
+                      <span className="font-semibold text-emerald-600">{formatPrice(depositAmount)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Restante no Atendimento:</span>
+                      <span className="font-semibold text-foreground">{formatPrice(remainingAmount)}</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto text-primary">
+                    <Check className="h-8 w-8 text-primary" />
+                  </div>
+                  <h3 className="font-display text-2xl font-semibold text-foreground">
+                    Agendamento Solicitado! 🎉
+                  </h3>
+                  <p className="text-muted-foreground font-body text-sm max-w-sm mx-auto leading-relaxed">
+                    Sua solicitação foi enviada para o nosso painel. Assim que a Jéssica confirmar o seu horário, você receberá uma notificação diretamente no seu WhatsApp.
+                  </p>
+                </>
+              )}
+
+              <div className="pt-2 space-y-3 max-w-sm mx-auto">
                 <Button
                   onClick={resetAndClose}
                   className="w-full h-12 font-body text-base font-medium rounded-xl shadow-button active:scale-[0.98] transition-all bg-primary hover:bg-primary/90 text-primary-foreground"

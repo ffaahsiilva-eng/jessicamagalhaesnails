@@ -21,7 +21,9 @@ import {
   Bell,
   Send,
   Sparkles,
+  CreditCard,
 } from "lucide-react";
+import { checkInfinitePayPayment } from "@/lib/infinitepay";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -109,6 +111,34 @@ const AppointmentsManager = ({ onAppointmentUpdated }: AppointmentsManagerProps 
     notes: "",
     status: "",
   });
+  const [isCheckingPayment, setIsCheckingPayment] = useState<string | null>(null);
+
+  const handleCheckInfinitePayPayment = async (apt: Appointment) => {
+    setIsCheckingPayment(apt.id);
+    try {
+      const res = await checkInfinitePayPayment(apt.id);
+      if (res.paid) {
+        toast({
+          title: "Sinal Pago via InfinitePay! 🎉",
+          description: `O sinal da cliente ${apt.client_name} foi localizado e aprovado. Confirmando agendamento...`,
+        });
+        await updateStatus(apt.id, "confirmed", apt);
+      } else {
+        toast({
+          title: "Aguardando Pagamento",
+          description: `O sinal de 50% de ${apt.client_name} ainda não consta como pago na InfinitePay.`,
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Erro ao consultar InfinitePay",
+        description: err.message || "Tente novamente mais tarde.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCheckingPayment(null);
+    }
+  };
 
   useEffect(() => {
     fetchAppointments();
@@ -648,14 +678,35 @@ const AppointmentsManager = ({ onAppointmentUpdated }: AppointmentsManagerProps 
                           )}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={`${statusColors[apt.status]} text-xs`}>
-                            {statusLabels[apt.status]}
-                          </Badge>
+                          <div className="flex flex-col gap-1 items-start">
+                            <Badge variant="outline" className={`${statusColors[apt.status]} text-xs`}>
+                              {statusLabels[apt.status]}
+                            </Badge>
+                            {apt.notes && apt.notes.includes("Sinal") && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 whitespace-nowrap">
+                                💳 Sinal 50% Pago
+                              </span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-end gap-1">
                             {apt.status === "pending" && (
                               <>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8 text-primary hover:text-primary/90 hover:bg-primary/10"
+                                  onClick={() => handleCheckInfinitePayPayment(apt)}
+                                  disabled={isCheckingPayment === apt.id || isUpdating === apt.id}
+                                  title="Consultar Pagamento na InfinitePay"
+                                >
+                                  {isCheckingPayment === apt.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                                  ) : (
+                                    <CreditCard className="h-4 w-4" />
+                                  )}
+                                </Button>
                                 <Button
                                   size="icon"
                                   variant="ghost"
@@ -785,9 +836,16 @@ const AppointmentsManager = ({ onAppointmentUpdated }: AppointmentsManagerProps 
                           {format(parseISO(apt.appointment_date), "dd/MM")} • {apt.appointment_time.slice(0, 5)}
                         </span>
                       </div>
-                      <Badge variant="outline" className={`${statusColors[apt.status]} text-xs`}>
-                        {statusLabels[apt.status]}
-                      </Badge>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge variant="outline" className={`${statusColors[apt.status]} text-xs`}>
+                          {statusLabels[apt.status]}
+                        </Badge>
+                        {apt.notes && apt.notes.includes("Sinal") && (
+                          <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                            💳 Sinal 50% Pago
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-muted-foreground" />
@@ -809,6 +867,9 @@ const AppointmentsManager = ({ onAppointmentUpdated }: AppointmentsManagerProps 
                     <div className="flex gap-1.5 pt-1">
                       {apt.status === "pending" && (
                         <>
+                          <Button size="sm" variant="outline" className="h-8 text-xs text-primary border-primary/30 hover:bg-primary/10" onClick={() => handleCheckInfinitePayPayment(apt)} disabled={isCheckingPayment === apt.id || isUpdating === apt.id} title="Verificar InfinitePay">
+                            {isCheckingPayment === apt.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <CreditCard className="h-3 w-3 mr-1" />} Checar Sinal
+                          </Button>
                           <Button size="sm" className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs" onClick={() => updateStatus(apt.id, "confirmed", apt)} disabled={isUpdating === apt.id}>
                             <Check className="h-3 w-3 mr-1" /> Confirmar
                           </Button>
