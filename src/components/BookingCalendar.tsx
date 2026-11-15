@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { notifyWhatsAppBooking } from "@/lib/whatsapp";
 import { calculateServicesTotal, parsePrice } from "@/lib/price";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { z } from "zod";
 
 interface BookingCalendarProps {
@@ -72,6 +73,8 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [whatsappUrl, setWhatsappUrl] = useState<string>("");
   const { toast } = useToast();
+  const { getSetting } = useSiteSettings();
+  const maxDays = parseInt(getSetting("booking_max_days_ahead", "90"), 10) || 90;
 
   const [isLoadingBooked, setIsLoadingBooked] = useState(false);
 
@@ -505,7 +508,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                 disabled={(date) => {
                   const today = new Date();
                   today.setHours(0, 0, 0, 0);
-                  return date < today || date > addDays(new Date(), 30) || isSunday(date);
+                  return date < today || date > addDays(new Date(), maxDays) || isSunday(date);
                 }}
                 locale={ptBR}
                 className="rounded-xl border border-border mx-auto max-w-full"
