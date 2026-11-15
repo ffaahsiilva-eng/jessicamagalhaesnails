@@ -908,12 +908,14 @@ const Admin = () => {
             <AppointmentsManager onAppointmentUpdated={fetchAppointments} />
           </div>
 
-          {/* Time Slots, Services & WhatsApp */}
+          {/* Gestão de Horários & Disponibilidade por Data */}
+          <div className="mt-6">
+            <TimeSlotsManager />
+          </div>
+
+          {/* Serviços & WhatsApp */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mt-6">
-            <div className="space-y-4">
-              <TimeSlotsManager />
-              <WhatsAppAvailability whatsappNumber={whatsappNumber} />
-            </div>
+            <WhatsAppAvailability whatsappNumber={whatsappNumber} />
             <ServicesManager />
           </div>
 

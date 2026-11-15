@@ -523,15 +523,20 @@ const TimeSlotsManager = () => {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="font-display text-lg flex items-center gap-2">
-            <Clock className="h-5 w-5 text-primary" />
-            Horários Disponíveis
-          </CardTitle>
+      <CardHeader className="p-4 sm:p-6 pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <CardTitle className="font-display text-lg sm:text-xl flex items-center gap-2">
+              <Clock className="h-5 w-5 text-primary" />
+              Horários Disponíveis
+            </CardTitle>
+            <p className="text-xs text-muted-foreground font-body mt-1">
+              Gerencie a liberação de horários por data no calendário ou por dia da semana
+            </p>
+          </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="gap-1.5">
+              <Button size="sm" className="gap-1.5 w-full sm:w-auto">
                 <Plus className="h-4 w-4" />
                 Novo Horário
               </Button>
@@ -582,39 +587,43 @@ const TimeSlotsManager = () => {
             </DialogContent>
           </Dialog>
         </div>
-        <p className="text-xs text-muted-foreground font-body mt-1">
-          Gerencie a liberação de horários por data no calendário ou por dia da semana
-        </p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-4 sm:p-6 pt-0">
         {isLoading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
         ) : (
           <Tabs defaultValue="by-date" className="w-full">
-            <TabsList className="w-full mb-4 flex-wrap h-auto gap-1">
-              <TabsTrigger
-                value="by-date"
-                className="flex-1 min-w-[130px] text-xs px-2 font-medium bg-primary/10 text-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                <CalendarIcon className="h-3.5 w-3.5 mr-1" />
-                📅 Liberar por Data
-              </TabsTrigger>
-              {DAY_KEYS.map((day) => (
-                <TabsTrigger key={day} value={day} className="flex-1 min-w-0 text-xs px-2">
-                  {DAY_SHORT[day]} ({slotsByDay(day).length})
+            {/* Tabs de Navegação com Scroll Suave no Celular */}
+            <div className="w-full overflow-x-auto no-scrollbar pb-1 mb-4">
+              <TabsList className="inline-flex w-max min-w-full sm:w-full justify-start sm:justify-start p-1 bg-muted/60 rounded-xl gap-1 h-auto">
+                <TabsTrigger
+                  value="by-date"
+                  className="px-3.5 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 whitespace-nowrap data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all shadow-none data-[state=active]:shadow-sm"
+                >
+                  <CalendarIcon className="h-3.5 w-3.5" />
+                  Liberar por Data
                 </TabsTrigger>
-              ))}
-            </TabsList>
+                {DAY_KEYS.map((day) => (
+                  <TabsTrigger
+                    key={day}
+                    value={day}
+                    className="px-3 py-1.5 text-xs rounded-lg whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all"
+                  >
+                    {DAY_SHORT[day]} ({slotsByDay(day).length})
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
 
             {/* TAB: GERENCIAR POR DATA NO CALENDÁRIO */}
             <TabsContent value="by-date" className="space-y-5">
               {/* Card de Configuração de Antecedência */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 rounded-xl bg-primary/5 border border-primary/20 gap-3">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 sm:p-4 rounded-xl bg-primary/5 border border-primary/20 gap-3">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-primary" />
+                    <Sparkles className="h-4 w-4 text-primary flex-shrink-0" />
                     <span className="font-display font-semibold text-sm text-foreground">
                       Antecedência Máxima de Agendamento
                     </span>
@@ -623,9 +632,9 @@ const TimeSlotsManager = () => {
                     Define até quando as clientes conseguem ver e agendar datas no calendário do site.
                   </p>
                 </div>
-                <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="w-full sm:w-auto flex-shrink-0">
                   <Select value={maxDaysAhead} onValueChange={handleSaveMaxDaysAhead}>
-                    <SelectTrigger className="w-full sm:w-56 h-9 text-xs font-body bg-background">
+                    <SelectTrigger className="w-full sm:w-60 h-9 text-xs font-body bg-background">
                       <SelectValue placeholder="Selecione o limite" />
                     </SelectTrigger>
                     <SelectContent>
@@ -634,17 +643,17 @@ const TimeSlotsManager = () => {
                       <SelectItem value="90">90 dias (~3 meses - Recomendado)</SelectItem>
                       <SelectItem value="120">120 dias (~4 meses)</SelectItem>
                       <SelectItem value="180">180 dias (~6 meses)</SelectItem>
-                      <SelectItem value="365">365 dias (1 ano inteiro)</SelectItem>
+                      <SelectItem value="365">365 dias (1 ano)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
               {/* Layout Calendário + Horários do Dia */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-start">
                 {/* Coluna Esquerda: Calendário Interativo */}
-                <div className="lg:col-span-5 flex flex-col items-center">
-                  <div className="w-full bg-card rounded-2xl border border-border p-3 shadow-sm">
+                <div className="lg:col-span-5 xl:col-span-5 flex flex-col items-center w-full">
+                  <div className="w-full max-w-sm mx-auto lg:max-w-none bg-card rounded-2xl border border-border p-3 sm:p-4 shadow-sm overflow-hidden">
                     <Calendar
                       mode="single"
                       selected={selectedBlockDate}
@@ -658,18 +667,41 @@ const TimeSlotsManager = () => {
                       modifiers={{
                         hasBlocked: (date) => datesWithBlocks.has(format(date, "yyyy-MM-dd")),
                       }}
-                      modifiersStyles={{
-                        hasBlocked: {
-                          backgroundColor: "hsl(var(--destructive) / 0.15)",
-                          color: "hsl(var(--destructive))",
-                          fontWeight: "bold",
-                        },
+                      modifiersClassNames={{
+                        hasBlocked: "[&:not([aria-selected])]:bg-rose-500/15 [&:not([aria-selected])]:text-rose-600 [&:not([aria-selected])]:font-bold",
                       }}
-                      className="mx-auto w-full [&_.rdp-table]:w-full"
+                      classNames={{
+                        months: "w-full flex justify-center",
+                        month: "w-full max-w-[320px] sm:max-w-[340px] space-y-3",
+                        caption: "flex justify-center pt-1 pb-2 relative items-center",
+                        caption_label: "text-sm sm:text-base font-semibold capitalize font-display text-foreground",
+                        nav: "flex items-center",
+                        nav_button: cn(
+                          buttonVariants({ variant: "outline" }),
+                          "h-8 w-8 bg-background p-0 opacity-70 hover:opacity-100 hover:bg-accent rounded-lg border border-border"
+                        ),
+                        nav_button_previous: "absolute left-0",
+                        nav_button_next: "absolute right-0",
+                        table: "w-full border-collapse space-y-1",
+                        head_row: "flex w-full justify-between items-center mb-1",
+                        head_cell: "text-muted-foreground font-medium text-[0.75rem] sm:text-xs text-center w-8 sm:w-9 capitalize",
+                        row: "flex w-full justify-between items-center mt-1.5",
+                        cell: "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 flex items-center justify-center",
+                        day: cn(
+                          buttonVariants({ variant: "ghost" }),
+                          "h-8 w-8 sm:h-9 sm:w-9 p-0 font-normal rounded-xl transition-all aria-selected:opacity-100"
+                        ),
+                        day_selected:
+                          "!bg-primary !text-primary-foreground font-semibold shadow-md hover:!bg-primary/90 focus:!bg-primary",
+                        day_today: "border border-primary/50 text-primary font-bold",
+                        day_outside: "text-muted-foreground/30 opacity-40 aria-selected:opacity-30",
+                        day_disabled: "text-muted-foreground/30 opacity-30 cursor-not-allowed hover:bg-transparent",
+                      }}
+                      className="p-0 w-full"
                     />
 
                     {/* Legenda */}
-                    <div className="flex flex-wrap items-center justify-center gap-3 pt-3 mt-2 border-t border-border text-xs font-body text-muted-foreground">
+                    <div className="flex flex-wrap items-center justify-center gap-3 pt-3 mt-3 border-t border-border text-[11px] sm:text-xs font-body text-muted-foreground">
                       <div className="flex items-center gap-1.5">
                         <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
                         <span>Liberado</span>
@@ -687,29 +719,29 @@ const TimeSlotsManager = () => {
                 </div>
 
                 {/* Coluna Direita: Detalhes e Horários da Data Selecionada */}
-                <div className="lg:col-span-7 bg-secondary/20 rounded-2xl border border-border p-4 space-y-4">
+                <div className="lg:col-span-7 xl:col-span-7 bg-secondary/20 rounded-2xl border border-border p-3.5 sm:p-5 space-y-4 w-full">
                   {/* Cabeçalho da data selecionada */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
                     <div>
                       <div className="flex items-center gap-2">
-                        <CalendarIcon className="h-4 w-4 text-primary" />
-                        <h4 className="font-display font-semibold text-base capitalize text-foreground">
+                        <CalendarIcon className="h-4 w-4 text-primary flex-shrink-0" />
+                        <h4 className="font-display font-semibold text-base sm:text-lg capitalize text-foreground">
                           {format(selectedBlockDate, "EEEE, dd 'de' MMMM", { locale: ptBR })}
                         </h4>
                       </div>
                       <p className="text-xs text-muted-foreground font-body mt-0.5">
-                        {DAY_LABELS[getDayTypeForDate(selectedBlockDate)]} • {availableCountOnDate} liberado(s) de {allSlotsForDate.length} horários
+                        {DAY_LABELS[getDayTypeForDate(selectedBlockDate)]} • <span className="text-foreground font-medium">{availableCountOnDate} liberado(s)</span> de {allSlotsForDate.length} horários
                       </p>
                     </div>
 
                     {/* Botões de Ação Rápida */}
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="grid grid-cols-2 gap-2 w-full sm:w-auto">
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={handleUnblockAllDay}
                         disabled={isSubmitting || blockedForSelectedDate.length === 0}
-                        className="h-8 text-xs font-body border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 gap-1"
+                        className="h-8 text-xs font-body border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 gap-1.5 justify-center"
                         title="Remove todos os bloqueios desta data"
                       >
                         <Check className="h-3.5 w-3.5 text-emerald-600" />
@@ -720,7 +752,7 @@ const TimeSlotsManager = () => {
                         variant="outline"
                         onClick={handleBlockAllDay}
                         disabled={isSubmitting}
-                        className="h-8 text-xs font-body border-rose-500/40 text-rose-700 dark:text-rose-300 hover:bg-rose-500/10 gap-1"
+                        className="h-8 text-xs font-body border-rose-500/40 text-rose-700 dark:text-rose-300 hover:bg-rose-500/10 gap-1.5 justify-center"
                         title="Bloqueia todos os horários desta data"
                       >
                         <CalendarOff className="h-3.5 w-3.5 text-rose-600" />
@@ -736,7 +768,7 @@ const TimeSlotsManager = () => {
                       <p className="text-xs mt-1">Cadastre horários para este dia da semana na aba correspondente acima.</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-2.5">
                       {allSlotsForDate.map((slot) => {
                         const isBlocked = blockedTimesSet.has(slot.time_slot.slice(0, 5));
                         const isLiberado = slot.is_active && !isBlocked;
@@ -745,25 +777,25 @@ const TimeSlotsManager = () => {
                           <div
                             key={`date-slot-${slot.id}`}
                             className={cn(
-                              "flex items-center justify-between p-3 rounded-xl border transition-all shadow-sm",
+                              "flex items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-all shadow-sm",
                               isLiberado
                                 ? "bg-emerald-500/10 border-emerald-500/40 hover:border-emerald-500/70"
-                                : "bg-rose-500/10 border-rose-500/30 opacity-75 hover:border-rose-500/60"
+                                : "bg-rose-500/10 border-rose-500/30 opacity-80 hover:border-rose-500/60"
                             )}
                           >
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
                               <span
                                 className={cn(
-                                  "w-2 h-2 rounded-full",
+                                  "w-2 h-2 rounded-full flex-shrink-0",
                                   isLiberado
                                     ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
                                     : "bg-rose-500"
                                 )}
                               />
-                              <div className="flex flex-col">
+                              <div className="flex flex-col min-w-0">
                                 <span
                                   className={cn(
-                                    "font-display font-semibold text-sm",
+                                    "font-display font-semibold text-sm leading-tight",
                                     isLiberado
                                       ? "text-emerald-950 dark:text-emerald-100"
                                       : "text-rose-950/70 dark:text-rose-200/70 line-through decoration-rose-400/60"
@@ -773,8 +805,8 @@ const TimeSlotsManager = () => {
                                 </span>
                                 <span
                                   className={cn(
-                                    "text-[10px] font-body",
-                                    isLiberado ? "text-emerald-700 dark:text-emerald-300" : "text-rose-600 dark:text-rose-400"
+                                    "text-[10px] font-body truncate",
+                                    isLiberado ? "text-emerald-700 dark:text-emerald-300 font-medium" : "text-rose-600 dark:text-rose-400"
                                   )}
                                 >
                                   {isLiberado ? "Liberado" : "Bloqueado"}
@@ -788,7 +820,7 @@ const TimeSlotsManager = () => {
                               onClick={() => handleToggleSlotForDate(slot)}
                               disabled={togglingDateSlot === slot.time_slot}
                               className={cn(
-                                "h-8 w-8 transition-colors",
+                                "h-8 w-8 flex-shrink-0 transition-colors rounded-lg",
                                 isLiberado
                                   ? "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/20"
                                   : "text-rose-500 hover:text-rose-600 hover:bg-rose-500/20"
