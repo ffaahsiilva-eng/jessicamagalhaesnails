@@ -1,10 +1,14 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export interface CreateCheckoutParams {
-  appointment_id: string;
+  appointment_id?: string;
   client_name: string;
   client_phone: string;
+  client_email?: string | null;
   service_type: string;
+  appointment_date: string;
+  appointment_time: string;
+  notes?: string | null;
   total_amount: number;
   site_url?: string;
 }
@@ -12,6 +16,7 @@ export interface CreateCheckoutParams {
 export interface CheckoutResult {
   success: boolean;
   url?: string;
+  checkout_id?: string;
   deposit_amount?: number;
   remaining_amount?: number;
   deposit_percent?: number;
@@ -72,7 +77,11 @@ export const createInfinitePayCheckout = async (
         appointment_id: params.appointment_id,
         client_name: params.client_name,
         client_phone: params.client_phone,
+        client_email: params.client_email,
         service_type: params.service_type,
+        appointment_date: params.appointment_date,
+        appointment_time: params.appointment_time,
+        notes: params.notes,
         total_amount: params.total_amount,
         site_url: siteUrl,
       }),
@@ -89,6 +98,7 @@ export const createInfinitePayCheckout = async (
     return {
       success: true,
       url: data.url,
+      checkout_id: data.checkout_id,
       deposit_amount: data.deposit_amount,
       remaining_amount: data.remaining_amount,
       deposit_percent: data.deposit_percent,

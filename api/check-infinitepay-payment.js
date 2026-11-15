@@ -65,10 +65,9 @@ export default async function handler(req, res) {
     });
 
     const checkData = await infiniteRes.json();
-
-    // Se estiver pago, podemos também sincronizar diretamente no banco se fornecido order_nsu
     const isPaid = checkData?.success === true || checkData?.paid === true;
 
+    // Se estiver pago, converte o pending_checkouts em agendamento confirmado!
     if (isPaid && order_nsu) {
       try {
         const client = new Client({
@@ -76,17 +75,62 @@ export default async function handler(req, res) {
           ssl: { rejectUnauthorized: false },
         });
         await client.connect();
-        await client.query(
-          `UPDATE appointments
-           SET status = 'confirmed',
-               notes = CASE
-                 WHEN notes ILIKE '%[Sinal Pago%' THEN notes
-                 ELSE CONCAT(COALESCE(notes, ''), ' [Sinal Pago via InfinitePay]')
-               END,
-               updated_at = now()
-           WHERE id = $1 AND status != 'confirmed'`,
+
+        const pendingRes = await client.query(
+          "SELECT * FROM pending_checkouts WHERE id = $1 LIMIT 1",
           [order_nsu]
         );
+
+        if (pendingRes.rows.length > 0) {
+          const p = pendingRes.rows[0];
+          const notesWithDeposit = p.notes && p.notes.includes("[Sinal")
+            ? p.notes
+            : `${p.notes ? p.notes + " " : ""}[Sinal 50% Pago via InfinitePay]`;
+
+          await client.query(
+            `INSERT INTO appointments (
+              id, user_id, client_name, client_phone, client_email, service_type,
+              appointment_date, appointment_time, notes, status, created_at, updated_at
+            ) VALUES (
+              $1, $2, $3, $4, $5, $6, $7, $8, $9, 'confirmed', now(), now()
+            ) ON CONFLICT (id) DO UPDATE SET
+              status = 'confirmed',
+              notes = EXCLUDED.notes,
+              updated_at = now()`,
+            [
+              p.id,
+              p.user_id || null,
+              p.client_name,
+              p.client_phone,
+              p.client_email,
+              p.service_type,
+              p.appointment_date,
+              p.appointment_time,
+              notesWithDeposit,
+            ]
+          );
+
+          await client.query(
+            "UPDATE pending_checkouts SET status = 'paid', updated_at = now() WHERE id = $1",
+            [p.id]
+          );
+
+          await client.query("DELETE FROM slot_holds WHERE session_id = $1", [p.id]).catch(() => {});
+        } else {
+          // Atualiza se já existia na appointments
+          await client.query(
+            `UPDATE appointments
+             SET status = 'confirmed',
+                 notes = CASE
+                   WHEN notes ILIKE '%[Sinal Pago%' THEN notes
+                   ELSE CONCAT(COALESCE(notes, ''), ' [Sinal Pago via InfinitePay]')
+                 END,
+                 updated_at = now()
+             WHERE id = $1 AND status != 'confirmed'`,
+            [order_nsu]
+          );
+        }
+
         await client.end();
       } catch (dbErr) {
         console.warn("Aviso ao atualizar agendamento após payment_check:", dbErr.message);

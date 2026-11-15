@@ -153,7 +153,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
       .on(
         "postgres_changes",
         {
-          event: "UPDATE",
+          event: "*",
           schema: "public",
           table: "appointments",
           filter: `id=eq.${createdAppointmentId}`,
@@ -161,10 +161,26 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         (payload: any) => {
           if (payload.new && payload.new.status === "confirmed") {
             setIsPaymentConfirmed(true);
+            fetchBookedSlots();
             toast({
               title: "Pagamento Confirmado! 🎉",
-              description: "Seu sinal de reserva foi recebido pela InfinitePay e o horário está garantido!",
+              description: "Seu sinal de reserva foi recebido pela InfinitePay e o horário foi agendado com sucesso!",
             });
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "pending_checkouts",
+          filter: `id=eq.${createdAppointmentId}`,
+        },
+        (payload: any) => {
+          if (payload.new && payload.new.status === "paid") {
+            setIsPaymentConfirmed(true);
+            fetchBookedSlots();
           }
         }
       )
@@ -388,6 +404,76 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         ? `${notes.trim()}${totalPrice ? ` [Valor: ${totalPrice}]` : ""}${depositNote}`
         : `${totalPrice ? `[Valor: ${totalPrice}]` : ""}${depositNote}`.trim() || null;
 
+      // Se InfinitePay estiver ativo com sinal, NÃO cria agendamento na appointments ainda!
+      // O agendamento SÓ será criado no banco após a confirmação do pagamento no webhook!
+      if (isInfinitePayEnabled && depositAmount > 0) {
+        const checkoutId = generateUUID();
+        setCreatedAppointmentId(checkoutId);
+
+        const checkout = await createInfinitePayCheckout({
+          appointment_id: checkoutId,
+          client_name: name.trim(),
+          client_phone: cleanPhone,
+          client_email: email.trim() || null,
+          service_type: combinedServiceType,
+          appointment_date: format(selectedDate, "yyyy-MM-dd"),
+          appointment_time: selectedTime,
+          notes: internalNotes,
+          total_amount: pricingSummary.totalNumber,
+          site_url: window.location.origin,
+        });
+
+        if (!checkout.success || !checkout.url) {
+          throw new Error(checkout.error || "Não foi possível gerar o link de pagamento da InfinitePay.");
+        }
+
+        setInfinitePayUrl(checkout.url);
+        try {
+          window.open(checkout.url, "_blank");
+        } catch {
+          // popup bloqueado pelo navegador, botão no step 4 permite abrir
+        }
+
+        const formattedDate = format(selectedDate, "dd/MM/yyyy", { locale: ptBR });
+        const isMulti = selectedServices.length > 1;
+        const serviceLabel = isMulti ? "*Serviços:*" : "*Serviço:*";
+        const priceLabel = isMulti ? "*Valor Total:*" : "*Valor:*";
+        const servicesBreakdown = pricingSummary.breakdown
+          .map((b) => `  • ${b.name}${b.price ? ` (${b.price})` : ""}`)
+          .join("\n");
+        const depositMsgLine = `💳 *Sinal de Reserva (${depositPercent}%):* ${formatPrice(depositAmount)}\n🏠 *Restante no Salão:* ${formatPrice(remainingAmount)}\n`;
+
+        const message = encodeURIComponent(
+          `Olá! Gostaria de agendar um horário:\n\n` +
+          `*Nome:* ${name.trim()}\n` +
+          `*Telefone:* ${phone}\n` +
+          (email.trim() ? `*Email:* ${email.trim()}\n` : "") +
+          `${serviceLabel}\n${servicesBreakdown}\n` +
+          (totalPrice ? `${priceLabel} ${totalPrice}\n` : "") +
+          depositMsgLine +
+          `*Data:* ${formattedDate}\n` +
+          `*Horário:* ${selectedTime}\n` +
+          (notes.trim() ? `*Observações:* ${notes.trim()}\n` : "") +
+          `\n*Link de Pagamento do Sinal (InfinitePay):*\n${checkout.url}\n\n` +
+          `⏰ *Tolerância de 15 minutos para chegada.*\n\n` +
+          `📸 *Instagram:* https://www.instagram.com/jessica_magalhaes_nail`
+        );
+
+        const rawAdmin = (whatsappNumber || "559191837179").replace(/\D/g, "");
+        const cleanAdminNumber = rawAdmin.startsWith("55") ? rawAdmin : `55${rawAdmin}`;
+        setWhatsappUrl(`https://wa.me/${cleanAdminNumber}?text=${message}`);
+
+        await releaseCurrentHold();
+        setStep(4);
+
+        toast({
+          title: "Sinal gerado com sucesso!",
+          description: "O seu horário será agendado assim que o pagamento do sinal de 50% for confirmado.",
+        });
+        return;
+      }
+
+      // Fluxo normal (quando pagamento online está desativado no admin)
       const appointmentId = generateUUID();
       setCreatedAppointmentId(appointmentId);
 
@@ -410,7 +496,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
 
       if (error) throw error;
 
-      // Imediatamente bloqueia esse horário no estado local para nunca mais aparecer disponível
+      // Imediatamente bloqueia esse horário no estado local
       setBookedSlots((prev) => [
         ...prev,
         {
@@ -420,34 +506,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
       ]);
       fetchBookedSlots();
 
-      // Se o checkout da InfinitePay estiver ativo e o serviço tiver valor, gera o link
-      let generatedPaymentUrl = "";
-      if (isInfinitePayEnabled && depositAmount > 0) {
-        try {
-          const checkout = await createInfinitePayCheckout({
-            appointment_id: appointmentId,
-            client_name: name.trim(),
-            client_phone: cleanPhone,
-            service_type: combinedServiceType,
-            total_amount: pricingSummary.totalNumber,
-            site_url: window.location.origin,
-          });
-
-          if (checkout.success && checkout.url) {
-            generatedPaymentUrl = checkout.url;
-            setInfinitePayUrl(checkout.url);
-            try {
-              window.open(checkout.url, "_blank");
-            } catch {
-              // se o navegador bloquear popup, o botão na tela de step 4 permite abrir
-            }
-          }
-        } catch (payErr) {
-          console.warn("Aviso ao gerar link da InfinitePay:", payErr);
-        }
-      }
-
-      // Notify admin via WhatsApp API (with total price and confirm link)
+      // Notify admin via WhatsApp API
       try {
         await notifyWhatsAppBooking({
           ...appointmentPayload,
@@ -469,10 +528,6 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         .map((b) => `  • ${b.name}${b.price ? ` (${b.price})` : ""}`)
         .join("\n");
 
-      const depositMsgLine = isInfinitePayEnabled && depositAmount > 0
-        ? `💳 *Sinal de Reserva (${depositPercent}%):* ${formatPrice(depositAmount)}\n🏠 *Restante no Salão:* ${formatPrice(remainingAmount)}\n`
-        : "";
-
       const message = encodeURIComponent(
         `Olá! Gostaria de agendar um horário:\n\n` +
         `*Nome:* ${name.trim()}\n` +
@@ -480,7 +535,6 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
         (email.trim() ? `*Email:* ${email.trim()}\n` : "") +
         `${serviceLabel}\n${servicesBreakdown}\n` +
         (totalPrice ? `${priceLabel} ${totalPrice}\n` : "") +
-        depositMsgLine +
         `*Data:* ${formattedDate}\n` +
         `*Horário:* ${selectedTime}\n` +
         (notes.trim() ? `*Observações:* ${notes.trim()}\n` : "") +
@@ -492,16 +546,13 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
 
       const rawAdmin = (whatsappNumber || "559191837179").replace(/\D/g, "");
       const cleanAdminNumber = rawAdmin.startsWith("55") ? rawAdmin : `55${rawAdmin}`;
-      const url = `https://wa.me/${cleanAdminNumber}?text=${message}`;
-      setWhatsappUrl(url);
+      setWhatsappUrl(`https://wa.me/${cleanAdminNumber}?text=${message}`);
       await releaseCurrentHold();
       setStep(4);
 
       toast({
-        title: isInfinitePayEnabled && depositAmount > 0 ? "Horário pré-reservado!" : "Agendamento solicitado!",
-        description: isInfinitePayEnabled && depositAmount > 0
-          ? "Conclua o pagamento do sinal de 50% para confirmação automática."
-          : "Enviado para confirmação no painel da Jéssica.",
+        title: "Agendamento solicitado!",
+        description: "Enviado para confirmação no painel da Jéssica.",
       });
     } catch (error: unknown) {
       console.error("Erro ao criar agendamento:", error);
@@ -527,14 +578,15 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
       const res = await checkInfinitePayPayment(createdAppointmentId);
       if (res.paid) {
         setIsPaymentConfirmed(true);
+        fetchBookedSlots();
         toast({
           title: "Pagamento Confirmado! 🎉",
-          description: "Seu sinal foi aprovado pela InfinitePay e o horário está garantido!",
+          description: "Seu sinal foi aprovado pela InfinitePay e o horário foi agendado com sucesso!",
         });
       } else {
         toast({
           title: "Aguardando Pagamento",
-          description: "O pagamento do sinal ainda não foi identificado. Conclua a transação no link da InfinitePay.",
+          description: "O pagamento do sinal ainda não foi identificado. Conclua a transação no link da InfinitePay para garantir o horário.",
         });
       }
     } catch (err: any) {
@@ -1009,7 +1061,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                     Quase lá! Conclua o Sinal 💅
                   </h3>
                   <p className="text-muted-foreground font-body text-sm max-w-sm mx-auto leading-relaxed">
-                    Para garantir o seu horário de <strong>{selectedDate && format(selectedDate, "dd/MM")} às {selectedTime}</strong>, finalize o pagamento do sinal de reserva.
+                    O seu horário para <strong>{selectedDate && format(selectedDate, "dd/MM")} às {selectedTime}</strong> será agendado na agenda da Jéssica assim que o pagamento do sinal de <strong>{formatPrice(depositAmount)}</strong> for confirmado.
                   </p>
 
                   <div className="p-4 rounded-xl bg-secondary/50 border border-border/80 text-left max-w-sm mx-auto space-y-2 text-xs">
@@ -1060,10 +1112,10 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber }: BookingCalendarPro
                     <Check className="h-8 w-8 text-emerald-600" />
                   </div>
                   <h3 className="font-display text-2xl font-semibold text-foreground">
-                    Pagamento Confirmado! 🎉
+                    Pagamento Aprovado e Agendamento Marcado! 🎉
                   </h3>
                   <p className="text-muted-foreground font-body text-sm max-w-sm mx-auto leading-relaxed">
-                    O pagamento do seu sinal foi aprovado pela InfinitePay. Seu agendamento para <strong>{selectedDate && format(selectedDate, "dd/MM/yyyy")} às {selectedTime}</strong> está 100% confirmado!
+                    O pagamento do seu sinal foi aprovado pela InfinitePay. O seu horário para <strong>{selectedDate && format(selectedDate, "dd/MM/yyyy")} às {selectedTime}</strong> foi agendado e confirmado com sucesso na agenda da Jéssica!
                   </p>
                   <div className="p-3.5 rounded-xl bg-secondary/50 border border-border text-xs text-left max-w-sm mx-auto space-y-1">
                     <div className="flex justify-between">

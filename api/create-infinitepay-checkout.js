@@ -49,11 +49,20 @@ export default async function handler(req, res) {
 
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
-    const { appointment_id, client_name, service_type, total_amount, site_url } = body;
+    const {
+      appointment_id,
+      client_name,
+      client_phone,
+      client_email,
+      service_type,
+      appointment_date,
+      appointment_time,
+      notes,
+      total_amount,
+      site_url,
+    } = body;
 
-    if (!appointment_id) {
-      return res.status(400).json({ error: "appointment_id é obrigatório." });
-    }
+    const checkoutId = appointment_id || crypto.randomUUID();
 
     const config = await getPaymentConfig();
     if (!config.enabled) {
@@ -74,8 +83,62 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Valor do sinal inferior ao mínimo permitido (R$ 1,00)." });
     }
 
+    // 1. Salvar na tabela pending_checkouts (NÃO cria agendamento ainda!)
+    const client = new Client({
+      connectionString: CONNECTION_STRING,
+      ssl: { rejectUnauthorized: false },
+    });
+    await client.connect();
+
+    await client.query(
+      `INSERT INTO pending_checkouts (
+        id, client_name, client_phone, client_email, service_type,
+        appointment_date, appointment_time, notes, total_amount, deposit_amount,
+        remaining_amount, status, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending', now(), now())
+      ON CONFLICT (id) DO UPDATE SET
+        client_name = EXCLUDED.client_name,
+        client_phone = EXCLUDED.client_phone,
+        client_email = EXCLUDED.client_email,
+        service_type = EXCLUDED.service_type,
+        appointment_date = EXCLUDED.appointment_date,
+        appointment_time = EXCLUDED.appointment_time,
+        notes = EXCLUDED.notes,
+        total_amount = EXCLUDED.total_amount,
+        deposit_amount = EXCLUDED.deposit_amount,
+        remaining_amount = EXCLUDED.remaining_amount,
+        status = 'pending',
+        updated_at = now()`,
+      [
+        checkoutId,
+        client_name || "",
+        client_phone || "",
+        client_email || null,
+        service_type || "",
+        appointment_date,
+        appointment_time,
+        notes || "",
+        total,
+        depositValue,
+        remainingValue,
+      ]
+    );
+
+    // Hold temporário de 15 minutos para ninguém pegar o horário durante o pagamento
+    if (appointment_date && appointment_time) {
+      try {
+        await client.query(
+          `INSERT INTO slot_holds (slot_date, slot_time, session_id, created_at)
+           VALUES ($1, $2, $3, now())`,
+          [appointment_date, appointment_time, checkoutId]
+        );
+      } catch {
+        // Ignora se tabela slot_holds não existir ou erro de chave
+      }
+    }
+
     const baseUrl = site_url || "https://jessicamagalhaesnail.vercel.app";
-    const redirectUrl = `${baseUrl.replace(/\/$/, "")}?payment=success&appointment_id=${encodeURIComponent(appointment_id)}`;
+    const redirectUrl = `${baseUrl.replace(/\/$/, "")}?payment=success&order_nsu=${encodeURIComponent(checkoutId)}`;
     const webhookUrl = `${baseUrl.replace(/\/$/, "")}/api/infinitepay-webhook`;
 
     const description = `Sinal ${depositPercent}% - ${service_type || "Agendamento JM Nails"}`.slice(0, 100);
@@ -89,7 +152,7 @@ export default async function handler(req, res) {
           price: depositInCents,
         },
       ],
-      order_nsu: String(appointment_id),
+      order_nsu: String(checkoutId),
       redirect_url: redirectUrl,
       webhook: {
         url: webhookUrl,
@@ -111,6 +174,7 @@ export default async function handler(req, res) {
     const resData = await infiniteRes.json();
 
     if (!infiniteRes.ok) {
+      await client.end();
       console.error("Erro da API InfinitePay:", resData);
       return res.status(infiniteRes.status).json({
         error: resData.message || resData.error || "Falha ao gerar link na InfinitePay",
@@ -118,9 +182,17 @@ export default async function handler(req, res) {
       });
     }
 
+    // Salvar link gerado
+    await client.query(
+      "UPDATE pending_checkouts SET payment_url = $1 WHERE id = $2",
+      [resData.url, checkoutId]
+    );
+    await client.end();
+
     return res.status(200).json({
       success: true,
       url: resData.url,
+      checkout_id: checkoutId,
       deposit_amount: depositValue,
       deposit_cents: depositInCents,
       remaining_amount: remainingValue,
