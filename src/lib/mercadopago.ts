@@ -115,6 +115,60 @@ export const getMercadoPagoConfig = async (): Promise<MercadoPagoConfig> => {
   }
 };
 
+export interface PixCheckoutResult {
+  success: boolean;
+  payment_id?: number | string;
+  checkout_id?: string;
+  qr_code?: string;
+  qr_code_base64?: string;
+  ticket_url?: string;
+  deposit_amount?: number;
+  remaining_amount?: number;
+  deposit_percent?: number;
+  error?: string;
+}
+
+export const createMercadoPagoPix = async (
+  params: CreateCheckoutParams
+): Promise<PixCheckoutResult> => {
+  try {
+    const res = await fetch("/api/create-mercadopago-pix", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(params),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      return {
+        success: false,
+        error: data.error || "Não foi possível gerar a chave Pix no Mercado Pago.",
+      };
+    }
+
+    return {
+      success: true,
+      payment_id: data.payment_id,
+      checkout_id: data.checkout_id,
+      qr_code: data.qr_code,
+      qr_code_base64: data.qr_code_base64,
+      ticket_url: data.ticket_url,
+      deposit_amount: data.deposit_amount,
+      remaining_amount: data.remaining_amount,
+      deposit_percent: data.deposit_percent,
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return {
+      success: false,
+      error: msg,
+    };
+  }
+};
+
 export const createMercadoPagoCheckout = async (
   params: CreateCheckoutParams
 ): Promise<CheckoutResult> => {

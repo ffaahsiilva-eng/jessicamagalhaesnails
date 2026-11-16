@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { format, addDays, isSunday } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Clock, Check, MessageCircle, X, Loader2, AlertCircle, Sparkles, CreditCard, ExternalLink, RefreshCw, ShieldCheck } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Check, MessageCircle, X, Loader2, AlertCircle, Sparkles, CreditCard, ExternalLink, RefreshCw, ShieldCheck, Copy, QrCode } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
@@ -14,7 +14,7 @@ import { notifyWhatsAppBooking } from "@/lib/whatsapp";
 import { calculateServicesTotal, parsePrice, formatPrice } from "@/lib/price";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { useAdminRole } from "@/hooks/useAdminRole";
-import { createMercadoPagoCheckout, checkMercadoPagoPayment, isMonthDepositEnabled } from "@/lib/mercadopago";
+import { createMercadoPagoPix, createMercadoPagoCheckout, checkMercadoPagoPayment, isMonthDepositEnabled } from "@/lib/mercadopago";
 import { z } from "zod";
 
 interface BookingCalendarProps {
@@ -86,6 +86,10 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
   const [createdAppointmentId, setCreatedAppointmentId] = useState<string>("");
   const [isPaymentConfirmed, setIsPaymentConfirmed] = useState(false);
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
+  const [pixQrCodeBase64, setPixQrCodeBase64] = useState<string>("");
+  const [pixCode, setPixCode] = useState<string>("");
+  const [paymentId, setPaymentId] = useState<string | number>("");
+  const [hasCopiedPix, setHasCopiedPix] = useState(false);
 
   const isMercadoPagoEnabled = getSetting("mercadopago_enabled", "true") !== "false";
   const depositPercent = parseInt(getSetting("mercadopago_deposit_percent", "50"), 10) || 50;
@@ -197,10 +201,13 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
       )
       .subscribe();
 
-    // Polling ativo a cada 3.5 segundos para garantir atualização imediata mesmo se WebSocket oscilar
+    // Polling ativo a cada 3 segundos para garantir atualização imediata no momento em que a cliente paga no Pix
     const pollInterval = setInterval(async () => {
       try {
-        const res = await checkMercadoPagoPayment(createdAppointmentId);
+        const res = await checkMercadoPagoPayment({
+          paymentId: paymentId ? String(paymentId) : undefined,
+          orderNsu: createdAppointmentId,
+        });
         if (res.paid) {
           setIsPaymentConfirmed(true);
           fetchBookedSlots();
@@ -212,7 +219,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
       } catch {
         // silencioso no polling periódico
       }
-    }, 3500);
+    }, 3000);
 
     return () => {
       clearInterval(pollInterval);
@@ -439,7 +446,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
         const checkoutId = generateUUID();
         setCreatedAppointmentId(checkoutId);
 
-        const checkout = await createMercadoPagoCheckout({
+        const checkout = await createMercadoPagoPix({
           appointment_id: checkoutId,
           client_name: name.trim(),
           client_phone: cleanPhone,
@@ -452,16 +459,15 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
           site_url: window.location.origin,
         });
 
-        if (!checkout.success || !checkout.url) {
-          throw new Error(checkout.error || "Não foi possível gerar o link de pagamento do Mercado Pago.");
+        if (!checkout.success || !checkout.qr_code) {
+          throw new Error(checkout.error || "Não foi possível gerar a chave Pix do sinal.");
         }
 
-        setPaymentUrl(checkout.url);
-        try {
-          window.open(checkout.url, "_blank");
-        } catch {
-          // popup bloqueado pelo navegador, botão no step 4 permite abrir
-        }
+        setPixCode(checkout.qr_code);
+        setPixQrCodeBase64(checkout.qr_code_base64 || "");
+        setPaymentId(checkout.payment_id || "");
+        setPaymentUrl(checkout.ticket_url || "");
+        setHasCopiedPix(false);
 
         const formattedDate = format(selectedDate, "dd/MM/yyyy", { locale: ptBR });
         const isMulti = selectedServices.length > 1;
@@ -483,7 +489,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
           `*Data:* ${formattedDate}\n` +
           `*Horário:* ${selectedTime}\n` +
           (notes.trim() ? `*Observações:* ${notes.trim()}\n` : "") +
-          `\n*Link de Pagamento do Sinal (Mercado Pago):*\n${checkout.url}\n\n` +
+          `\n*Chave Pix Copia e Cola (Sinal):*\n${checkout.qr_code}\n\n` +
           `⏰ *Tolerância de 15 minutos para chegada.*\n\n` +
           `📸 *Instagram:* https://www.instagram.com/jessica_magalhaes_nail`
         );
@@ -619,11 +625,25 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
     }
   };
 
+  const handleCopyPix = () => {
+    if (!pixCode) return;
+    navigator.clipboard.writeText(pixCode);
+    setHasCopiedPix(true);
+    toast({
+      title: "Chave Pix Copiada! 📋",
+      description: "Abra o aplicativo do seu banco e cole na opção Pix Copia e Cola.",
+    });
+    setTimeout(() => setHasCopiedPix(false), 4000);
+  };
+
   const handleManualCheckPayment = async () => {
-    if (!createdAppointmentId) return;
+    if (!createdAppointmentId && !paymentId) return;
     setIsCheckingPayment(true);
     try {
-      const res = await checkMercadoPagoPayment(createdAppointmentId);
+      const res = await checkMercadoPagoPayment({
+        paymentId: paymentId ? String(paymentId) : undefined,
+        orderNsu: createdAppointmentId,
+      });
       if (res.paid) {
         setIsPaymentConfirmed(true);
         fetchBookedSlots();
@@ -634,7 +654,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
       } else {
         toast({
           title: "Aguardando Pagamento",
-          description: "O pagamento do sinal ainda não foi identificado. Conclua a transação no link do Mercado Pago para garantir o horário.",
+          description: "O pagamento do sinal ainda não foi identificado. Copie o código Pix e efetue o pagamento no aplicativo do seu banco.",
         });
       }
     } catch (err: any) {
@@ -660,6 +680,10 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
     setNotes("");
     setWhatsappUrl("");
     setPaymentUrl("");
+    setPixCode("");
+    setPixQrCodeBase64("");
+    setPaymentId("");
+    setHasCopiedPix(false);
     setCreatedAppointmentId("");
     setIsPaymentConfirmed(false);
     setErrors({});
@@ -1176,50 +1200,85 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
                     )}
                   </div>
                 </>
-              ) : paymentUrl && !isPaymentConfirmed ? (
+              ) : (pixCode || paymentUrl) && !isPaymentConfirmed ? (
                 <>
-                  <div className="w-16 h-16 bg-amber-100 dark:bg-amber-950/40 rounded-full flex items-center justify-center mx-auto text-amber-600 animate-pulse">
-                    <CreditCard className="h-8 w-8 text-amber-600" />
+                  <div className="w-14 h-14 bg-emerald-100 dark:bg-emerald-950/40 rounded-full flex items-center justify-center mx-auto text-emerald-600">
+                    <QrCode className="h-7 w-7 text-emerald-600" />
                   </div>
-                  <h3 className="font-display text-2xl font-semibold text-foreground">
-                    Quase lá! Conclua o Sinal 💅
+                  <h3 className="font-display text-2xl font-bold text-foreground">
+                    Pague o Sinal via Pix 💅
                   </h3>
-                  <p className="text-muted-foreground font-body text-sm max-w-sm mx-auto leading-relaxed">
-                    O seu horário para <strong>{selectedDate && format(selectedDate, "dd/MM")} às {selectedTime}</strong> será agendado na agenda da Jéssica assim que o pagamento do sinal de <strong>{formatPrice(depositAmount)}</strong> for confirmado.
+                  <p className="text-muted-foreground font-body text-xs sm:text-sm max-w-sm mx-auto leading-relaxed">
+                    Para confirmar seu horário em <strong>{selectedDate && format(selectedDate, "dd/MM")} às {selectedTime}</strong>, efetue o Pix do sinal no valor de:
                   </p>
 
-                  <div className="p-4 rounded-xl bg-secondary/50 border border-border/80 text-left max-w-sm mx-auto space-y-2 text-xs">
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Valor do Sinal ({depositPercent}%):</span>
-                      <span className="font-bold text-sm text-primary">{formatPrice(depositAmount)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-muted-foreground">
-                      <span>Restante no Salão:</span>
-                      <span className="font-medium text-foreground">{formatPrice(remainingAmount)}</span>
-                    </div>
-                    <div className="pt-1.5 border-t border-border/40 text-[11px] text-muted-foreground">
-                      Aceita <strong>Pix com aprovação imediata</strong> ou <strong>Cartão de Crédito em até 12x</strong> via <strong>Mercado Pago</strong>.
-                    </div>
+                  <div className="text-center py-1">
+                    <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-4 py-1.5 rounded-xl border border-emerald-500/20 inline-block font-display">
+                      {formatPrice(depositAmount)}
+                    </span>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Restante no salão: <strong>{formatPrice(remainingAmount)}</strong>
+                    </p>
                   </div>
 
-                  <div className="space-y-3 pt-2 max-w-sm mx-auto">
-                    <a
-                      href={paymentUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full h-12 inline-flex items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-body font-medium shadow-button active:scale-[0.98] transition-transform text-sm sm:text-base"
-                    >
-                      <CreditCard className="h-4 w-4" />
-                      Pagar Sinal no Mercado Pago
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
+                  {pixQrCodeBase64 && (
+                    <div className="bg-white p-3 rounded-2xl border-2 border-emerald-500/25 shadow-sm inline-block mx-auto">
+                      <img
+                        src={`data:image/png;base64,${pixQrCodeBase64}`}
+                        alt="QR Code Pix"
+                        className="w-44 h-44 mx-auto rounded-lg object-contain"
+                      />
+                    </div>
+                  )}
 
+                  <div className="space-y-2.5 max-w-sm mx-auto pt-1">
+                    {pixCode && (
+                      <>
+                        <Button
+                          type="button"
+                          onClick={handleCopyPix}
+                          className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                        >
+                          {hasCopiedPix ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                          {hasCopiedPix ? "Código Pix Copiado! Cole no seu banco" : "Copiar Código Pix (Copia e Cola)"}
+                        </Button>
+
+                        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-secondary/60 border border-border">
+                          <input
+                            type="text"
+                            readOnly
+                            value={pixCode}
+                            className="flex-1 bg-transparent px-2.5 py-1.5 text-xs text-muted-foreground font-mono truncate focus:outline-none"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            onClick={handleCopyPix}
+                            className="h-8 px-2.5 text-xs font-medium shrink-0"
+                          >
+                            {hasCopiedPix ? "Copiado" : "Copiar"}
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-1">
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                    </span>
+                    <span>Aguardando pagamento... A tela atualizará sozinha.</span>
+                  </div>
+
+                  <div className="space-y-2 max-w-sm mx-auto pt-1">
                     <Button
                       type="button"
                       variant="outline"
                       onClick={handleManualCheckPayment}
                       disabled={isCheckingPayment}
-                      className="w-full h-11 font-body text-xs border-border"
+                      className="w-full h-10 font-body text-xs border-border"
                     >
                       {isCheckingPayment ? (
                         <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin text-primary" />
@@ -1228,6 +1287,17 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
                       )}
                       Já realizei o pagamento / Verificar
                     </Button>
+
+                    {paymentUrl && (
+                      <a
+                        href={paymentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] text-muted-foreground hover:text-primary underline block text-center pt-1"
+                      >
+                        Abrir comprovante / ticket do Mercado Pago
+                      </a>
+                    )}
                   </div>
                 </>
               ) : isPaymentConfirmed ? (
