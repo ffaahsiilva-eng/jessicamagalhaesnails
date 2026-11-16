@@ -157,7 +157,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
   }, [pricingSummary.totalNumber, depositAmount]);
 
   useEffect(() => {
-    if (!createdAppointmentId) return;
+    if (!createdAppointmentId || isPaymentConfirmed) return;
 
     const channel = supabase
       .channel(`payment-sync-${createdAppointmentId}`)
@@ -197,10 +197,28 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
       )
       .subscribe();
 
+    // Polling ativo a cada 3.5 segundos para garantir atualização imediata mesmo se WebSocket oscilar
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await checkInfinitePayPayment(createdAppointmentId);
+        if (res.paid) {
+          setIsPaymentConfirmed(true);
+          fetchBookedSlots();
+          toast({
+            title: "Pagamento Confirmado! 🎉",
+            description: "Seu sinal foi aprovado pela InfinitePay e o horário foi agendado com sucesso!",
+          });
+        }
+      } catch {
+        // silencioso no polling periódico
+      }
+    }, 3500);
+
     return () => {
+      clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
-  }, [createdAppointmentId]);
+  }, [createdAppointmentId, isPaymentConfirmed]);
 
   const toggleService = (serviceName: string) => {
     setSelectedServices((prev) =>

@@ -163,12 +163,32 @@ export const createInfinitePayCheckout = async (
   }
 };
 
-export const checkInfinitePayPayment = async (orderNsu: string) => {
+export interface CheckPaymentParams {
+  orderNsu?: string;
+  slug?: string;
+  transactionNsu?: string;
+  receiptUrl?: string;
+}
+
+export const checkInfinitePayPayment = async (
+  paramsOrOrderNsu: string | CheckPaymentParams
+) => {
   try {
-    const res = await fetch(`/api/check-infinitepay-payment?order_nsu=${encodeURIComponent(orderNsu)}`);
+    const params: CheckPaymentParams =
+      typeof paramsOrOrderNsu === "string"
+        ? { orderNsu: paramsOrOrderNsu }
+        : paramsOrOrderNsu || {};
+
+    const query = new URLSearchParams();
+    if (params.orderNsu) query.set("order_nsu", params.orderNsu);
+    if (params.slug) query.set("slug", params.slug);
+    if (params.transactionNsu) query.set("transaction_nsu", params.transactionNsu);
+    if (params.receiptUrl) query.set("receipt_url", params.receiptUrl);
+
+    const res = await fetch(`/api/check-infinitepay-payment?${query.toString()}`);
     if (!res.ok) return { paid: false };
     const json = await res.json();
-    return { paid: !!json.paid, data: json.data };
+    return { paid: !!json.paid, data: json.data, appointment: json.appointment };
   } catch {
     return { paid: false };
   }

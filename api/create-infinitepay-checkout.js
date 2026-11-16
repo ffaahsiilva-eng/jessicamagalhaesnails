@@ -161,7 +161,11 @@ export default async function handler(req, res) {
 
     const baseUrl = site_url || "https://jessicamagalhaesnail.vercel.app";
     const redirectUrl = `${baseUrl.replace(/\/$/, "")}?payment=success&order_nsu=${encodeURIComponent(checkoutId)}`;
-    const webhookUrl = `${baseUrl.replace(/\/$/, "")}/api/infinitepay-webhook`;
+    
+    // Se estiver em ambiente local, o webhook precisa apontar para a URL pública em produção
+    const isLocal = baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1");
+    const webhookBaseUrl = isLocal ? "https://jessicamagalhaesnail.vercel.app" : baseUrl;
+    const webhookUrl = `${webhookBaseUrl.replace(/\/$/, "")}/api/infinitepay-webhook`;
 
     const description = `Sinal ${depositPercent}% - ${service_type || "Agendamento JM Nails"}`.slice(0, 100);
 
@@ -176,9 +180,14 @@ export default async function handler(req, res) {
       ],
       order_nsu: String(checkoutId),
       redirect_url: redirectUrl,
+      webhook_url: webhookUrl,
       webhook: {
         url: webhookUrl,
         events: ["paid", "refunded", "canceled"],
+      },
+      options: {
+        single_payment: true,
+        payment_methods_enabled: ["pix", "credit_card"],
       },
       payment_methods_enabled: ["pix", "credit_card"],
       single_payment: true,

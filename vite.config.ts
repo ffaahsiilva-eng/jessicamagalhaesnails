@@ -71,6 +71,36 @@ function localApiPlugin() {
           return;
         }
 
+        if (req.url?.startsWith("/api/infinitepay-webhook")) {
+          try {
+            const { default: handler } = await import("./api/infinitepay-webhook.js");
+            let body = "";
+            req.on("data", (chunk: any) => (body += chunk));
+            req.on("end", async () => {
+              req.body = body ? JSON.parse(body) : {};
+              const resAdapter = {
+                setHeader: (k: string, v: string) => res.setHeader(k, v),
+                status: (code: number) => ({
+                  json: (data: any) => {
+                    res.statusCode = code;
+                    res.setHeader("Content-Type", "application/json");
+                    res.end(JSON.stringify(data));
+                  },
+                  end: () => {
+                    res.statusCode = code;
+                    res.end();
+                  },
+                }),
+              };
+              await handler(req, resAdapter);
+            });
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: err.message }));
+          }
+          return;
+        }
+
         next();
       });
     },

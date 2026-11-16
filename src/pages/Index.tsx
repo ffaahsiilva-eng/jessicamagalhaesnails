@@ -6,6 +6,7 @@ import Gallery from "@/components/Gallery";
 import SocialLinks from "@/components/SocialLinks";
 import Footer from "@/components/Footer";
 import BookingCalendar from "@/components/BookingCalendar";
+import PaymentReturnDialog from "@/components/PaymentReturnDialog";
 import AuthModal from "@/components/AuthModal";
 import InstallBanner from "@/components/InstallBanner";
 import MobileBottomNav from "@/components/MobileBottomNav";
@@ -73,6 +74,8 @@ const Index = () => {
           whatsappNumber={whatsappNumber}
         />
       </ErrorBoundary>
+
+      <PaymentReturnDialog whatsappNumber={whatsappNumber} />
 
       <AuthModal
         isOpen={isAuthOpen}
