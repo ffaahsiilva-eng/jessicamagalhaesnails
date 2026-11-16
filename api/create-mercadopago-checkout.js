@@ -164,14 +164,14 @@ export default async function handler(req, res) {
       }
     }
 
-    const baseUrl = site_url || "https://jessicamagalhaesnail.vercel.app";
-    const redirectSuccess = `${baseUrl.replace(/\/$/, "")}?payment=success&provider=mercadopago&order_nsu=${encodeURIComponent(checkoutId)}`;
-    const redirectPending = `${baseUrl.replace(/\/$/, "")}?payment=pending&provider=mercadopago&order_nsu=${encodeURIComponent(checkoutId)}`;
-    const redirectFailure = `${baseUrl.replace(/\/$/, "")}?payment=failure&provider=mercadopago&order_nsu=${encodeURIComponent(checkoutId)}`;
+    const isLocal = !site_url || site_url.includes("localhost") || site_url.includes("127.0.0.1") || !site_url.startsWith("https://");
+    const publicBaseUrl = isLocal ? "https://jessicamagalhaesnail.vercel.app" : site_url.replace(/\/$/, "");
 
-    const isLocal = baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1");
-    const webhookBaseUrl = isLocal ? "https://jessicamagalhaesnail.vercel.app" : baseUrl;
-    const webhookUrl = `${webhookBaseUrl.replace(/\/$/, "")}/api/mercadopago-webhook`;
+    // Mercado Pago exige obrigatoriamente URLs públicas com HTTPS para back_urls e auto_return
+    const redirectSuccess = `${publicBaseUrl}?payment=success&provider=mercadopago&order_nsu=${encodeURIComponent(checkoutId)}`;
+    const redirectPending = `${publicBaseUrl}?payment=pending&provider=mercadopago&order_nsu=${encodeURIComponent(checkoutId)}`;
+    const redirectFailure = `${publicBaseUrl}?payment=failure&provider=mercadopago&order_nsu=${encodeURIComponent(checkoutId)}`;
+    const webhookUrl = `${publicBaseUrl}/api/mercadopago-webhook`;
 
     const itemTitle = `Sinal ${depositPercent}% - ${service_type || "JM Nails"}`.slice(0, 100);
 
