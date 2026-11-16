@@ -208,6 +208,142 @@ export const createMercadoPagoCheckout = async (
   }
 };
 
+export const detectCardBrand = (number: string): string => {
+  const clean = number.replace(/\D/g, "");
+  // Elo
+  if (/^(401178|401179|431274|438935|451416|457393|457631|457632|504175|627780|636297|636368|655000|655001|651652|651653|651654|506699|5067|509|650|651|655)/.test(clean)) {
+    return "elo";
+  }
+  // Hipercard
+  if (/^(606282|3841)/.test(clean)) {
+    return "hipercard";
+  }
+  // Visa
+  if (/^4/.test(clean)) {
+    return "visa";
+  }
+  // Master
+  if (/^(5[1-5]|2[2-7])/.test(clean)) {
+    return "master";
+  }
+  // Amex
+  if (/^3[47]/.test(clean)) {
+    return "amex";
+  }
+  return "master";
+};
+
+export interface CardPaymentParams {
+  appointment_id: string;
+  cardNumber: string;
+  cardholderName: string;
+  cardholderCpf: string;
+  cardExpiration: string;
+  securityCode: string;
+  installments?: number;
+  email?: string;
+  payment_method_id?: string;
+}
+
+export const processMercadoPagoCard = async (
+  params: CardPaymentParams
+) => {
+  try {
+    const config = await getMercadoPagoConfig();
+    if (!config.publicKey) {
+      return {
+        success: false,
+        error: "Chave pública do Mercado Pago não configurada no Admin.",
+      };
+    }
+
+    const cleanNumber = params.cardNumber.replace(/\D/g, "");
+    const cleanCpf = params.cardholderCpf.replace(/\D/g, "");
+    const parts = params.cardExpiration.replace(/\s/g, "").split("/");
+    const expMonth = parseInt(parts[0], 10);
+    let expYear = parseInt(parts[1] || "", 10);
+    if (expYear < 100) expYear += 2000;
+
+    if (!cleanNumber || cleanNumber.length < 13) {
+      return { success: false, error: "Número do cartão inválido." };
+    }
+    if (!expMonth || expMonth < 1 || expMonth > 12 || !expYear || expYear < 2024) {
+      return { success: false, error: "Data de validade do cartão inválida (formato MM/AA)." };
+    }
+    if (!params.securityCode || params.securityCode.trim().length < 3) {
+      return { success: false, error: "Código de segurança (CVV) inválido." };
+    }
+
+    const brand = params.payment_method_id || detectCardBrand(cleanNumber);
+
+    // 1. Tokenização segura com Public Key no Mercado Pago
+    const tokenRes = await fetch(
+      `https://api.mercadopago.com/v1/card_tokens?public_key=${encodeURIComponent(config.publicKey)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          card_number: cleanNumber,
+          cardholder: {
+            name: params.cardholderName.trim().toUpperCase(),
+            identification: {
+              type: "CPF",
+              number: cleanCpf || undefined,
+            },
+          },
+          security_code: params.securityCode.trim(),
+          expiration_month: expMonth,
+          expiration_year: expYear,
+        }),
+      }
+    );
+
+    const tokenData = await tokenRes.json();
+    if (!tokenRes.ok || !tokenData.id) {
+      const errDetail = tokenData.cause?.[0]?.description || tokenData.message || "Dados do cartão inválidos.";
+      return {
+        success: false,
+        error: errDetail,
+      };
+    }
+
+    // 2. Envio seguro do token para o backend processar a cobrança
+    const payRes = await fetch("/api/process-mercadopago-card", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        appointment_id: params.appointment_id,
+        token: tokenData.id,
+        payment_method_id: brand,
+        installments: params.installments || 1,
+        cpf: cleanCpf,
+        email: params.email,
+        site_url: window.location.origin,
+      }),
+    });
+
+    const payData = await payRes.json();
+    if (!payRes.ok || !payData.success) {
+      return {
+        success: false,
+        error: payData.error || "Pagamento recusado pela operadora do cartão.",
+      };
+    }
+
+    return {
+      success: true,
+      status: payData.status,
+      appointment: payData.appointment,
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return {
+      success: false,
+      error: msg,
+    };
+  }
+};
+
 export interface CheckPaymentParams {
   orderNsu?: string;
   paymentId?: string;

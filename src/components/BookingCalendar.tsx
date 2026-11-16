@@ -14,7 +14,7 @@ import { notifyWhatsAppBooking } from "@/lib/whatsapp";
 import { calculateServicesTotal, parsePrice, formatPrice } from "@/lib/price";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { useAdminRole } from "@/hooks/useAdminRole";
-import { createMercadoPagoPix, createMercadoPagoCheckout, checkMercadoPagoPayment, isMonthDepositEnabled } from "@/lib/mercadopago";
+import { createMercadoPagoPix, createMercadoPagoCheckout, checkMercadoPagoPayment, processMercadoPagoCard, isMonthDepositEnabled } from "@/lib/mercadopago";
 import { z } from "zod";
 
 interface BookingCalendarProps {
@@ -90,6 +90,17 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
   const [pixCode, setPixCode] = useState<string>("");
   const [paymentId, setPaymentId] = useState<string | number>("");
   const [hasCopiedPix, setHasCopiedPix] = useState(false);
+
+  // Card Payment States
+  const [paymentMethodTab, setPaymentMethodTab] = useState<"pix" | "card">("pix");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardholderName, setCardholderName] = useState("");
+  const [cardholderCpf, setCardholderCpf] = useState("");
+  const [cardExpiration, setCardExpiration] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [cardInstallments, setCardInstallments] = useState(1);
+  const [isProcessingCard, setIsProcessingCard] = useState(false);
+  const [cardError, setCardError] = useState("");
 
   const isMercadoPagoEnabled = getSetting("mercadopago_enabled", "true") !== "false";
   const depositPercent = parseInt(getSetting("mercadopago_deposit_percent", "50"), 10) || 50;
@@ -498,6 +509,8 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
         const cleanAdminNumber = rawAdmin.startsWith("55") ? rawAdmin : `55${rawAdmin}`;
         setWhatsappUrl(`https://wa.me/${cleanAdminNumber}?text=${message}`);
 
+        setCardholderName(name.trim().toUpperCase());
+        setCardError("");
         await releaseCurrentHold();
         setStep(4);
 
@@ -668,6 +681,118 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
     }
   };
 
+  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, "").slice(0, 19);
+    const formatted = raw.replace(/(\d{4})/g, "$1 ").trim();
+    setCardNumber(formatted);
+    if (cardError) setCardError("");
+  };
+
+  const handleCardExpirationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, "").slice(0, 4);
+    if (raw.length <= 2) {
+      setCardExpiration(raw);
+    } else {
+      setCardExpiration(`${raw.slice(0, 2)}/${raw.slice(2, 4)}`);
+    }
+    if (cardError) setCardError("");
+  };
+
+  const handleCardCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, "").slice(0, 11);
+    let formatted = raw;
+    if (raw.length > 9) {
+      formatted = `${raw.slice(0, 3)}.${raw.slice(3, 6)}.${raw.slice(6, 9)}-${raw.slice(9, 11)}`;
+    } else if (raw.length > 6) {
+      formatted = `${raw.slice(0, 3)}.${raw.slice(3, 6)}.${raw.slice(6)}`;
+    } else if (raw.length > 3) {
+      formatted = `${raw.slice(0, 3)}.${raw.slice(3)}`;
+    }
+    setCardholderCpf(formatted);
+    if (cardError) setCardError("");
+  };
+
+  const installmentOptions = useMemo(() => {
+    if (!depositAmount || depositAmount <= 0) {
+      return [{ times: 1, label: `1x de ${formatPrice(depositAmount)} sem juros` }];
+    }
+    const maxTimes = Math.min(6, Math.max(1, Math.floor(depositAmount / 15)));
+    const options = [];
+    for (let i = 1; i <= maxTimes; i++) {
+      const val = depositAmount / i;
+      options.push({
+        times: i,
+        label: `${i}x de ${formatPrice(val)} sem juros`,
+      });
+    }
+    return options;
+  }, [depositAmount]);
+
+  const handlePayWithCard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCardError("");
+
+    const cleanNum = cardNumber.replace(/\D/g, "");
+    const cleanCpf = cardholderCpf.replace(/\D/g, "");
+    const expClean = cardExpiration.replace(/\s/g, "");
+
+    if (cleanNum.length < 13) {
+      setCardError("Por favor, digite um número de cartão válido.");
+      return;
+    }
+    if (cardholderName.trim().length < 3) {
+      setCardError("Digite o nome completo do titular como impresso no cartão.");
+      return;
+    }
+    if (cleanCpf.length !== 11) {
+      setCardError("Digite um CPF válido com 11 dígitos.");
+      return;
+    }
+    if (!/^\d{2}\/\d{2,4}$/.test(expClean)) {
+      setCardError("Data de validade inválida. Use o formato MM/AA.");
+      return;
+    }
+    if (cardCvv.trim().length < 3) {
+      setCardError("Código de segurança (CVV) inválido.");
+      return;
+    }
+
+    if (!createdAppointmentId) {
+      setCardError("Identificador do agendamento não encontrado. Tente novamente.");
+      return;
+    }
+
+    setIsProcessingCard(true);
+    try {
+      const res = await processMercadoPagoCard({
+        appointment_id: createdAppointmentId,
+        cardNumber: cleanNum,
+        cardholderName: cardholderName.trim(),
+        cardholderCpf: cleanCpf,
+        cardExpiration: expClean,
+        securityCode: cardCvv.trim(),
+        installments: cardInstallments,
+        email: email.trim() || undefined,
+      });
+
+      if (!res.success) {
+        setCardError(res.error || "Pagamento recusado pela operadora. Verifique os dados ou pague via Pix.");
+        return;
+      }
+
+      setIsPaymentConfirmed(true);
+      fetchBookedSlots();
+      toast({
+        title: "Pagamento Aprovado! 🎉",
+        description: "Seu sinal foi pago no cartão e o agendamento foi confirmado!",
+      });
+    } catch (err: any) {
+      setCardError(err.message || "Erro ao processar cartão. Tente novamente ou use o Pix.");
+    } finally {
+      setIsProcessingCard(false);
+    }
+  };
+
   const resetAndClose = () => {
     releaseCurrentHold();
     setStep(1);
@@ -686,6 +811,14 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
     setHasCopiedPix(false);
     setCreatedAppointmentId("");
     setIsPaymentConfirmed(false);
+    setPaymentMethodTab("pix");
+    setCardNumber("");
+    setCardholderName("");
+    setCardholderCpf("");
+    setCardExpiration("");
+    setCardCvv("");
+    setCardInstallments(1);
+    setCardError("");
     setErrors({});
     onClose();
   };
@@ -1200,105 +1333,299 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
                     )}
                   </div>
                 </>
-              ) : (pixCode || paymentUrl) && !isPaymentConfirmed ? (
+              ) : (pixCode || paymentUrl || createdAppointmentId) && !isPaymentConfirmed ? (
                 <>
-                  <div className="w-14 h-14 bg-emerald-100 dark:bg-emerald-950/40 rounded-full flex items-center justify-center mx-auto text-emerald-600">
-                    <QrCode className="h-7 w-7 text-emerald-600" />
+                  {/* Seletor de Forma de Pagamento (Pix ou Cartão) */}
+                  <div className="flex p-1 rounded-xl bg-secondary/80 border border-border max-w-sm mx-auto mb-3">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethodTab("pix")}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                        paymentMethodTab === "pix"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <QrCode className="h-4 w-4" />
+                      <span>Pix</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethodTab("card")}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                        paymentMethodTab === "card"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <CreditCard className="h-4 w-4" />
+                      <span>Cartão de Crédito</span>
+                    </button>
                   </div>
-                  <h3 className="font-display text-2xl font-bold text-foreground">
-                    Pague o Sinal via Pix 💅
-                  </h3>
-                  <p className="text-muted-foreground font-body text-xs sm:text-sm max-w-sm mx-auto leading-relaxed">
-                    Para confirmar seu horário em <strong>{selectedDate && format(selectedDate, "dd/MM")} às {selectedTime}</strong>, efetue o Pix do sinal no valor de:
-                  </p>
 
-                  <div className="text-center py-1">
-                    <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-4 py-1.5 rounded-xl border border-emerald-500/20 inline-block font-display">
-                      {formatPrice(depositAmount)}
-                    </span>
-                    <p className="text-[11px] text-muted-foreground mt-1">
-                      Restante no salão: <strong>{formatPrice(remainingAmount)}</strong>
-                    </p>
-                  </div>
+                  {paymentMethodTab === "pix" ? (
+                    <div className="space-y-4 animate-in fade-in duration-150">
+                      <div className="w-14 h-14 bg-emerald-100 dark:bg-emerald-950/40 rounded-full flex items-center justify-center mx-auto text-emerald-600">
+                        <QrCode className="h-7 w-7 text-emerald-600" />
+                      </div>
+                      <h3 className="font-display text-2xl font-bold text-foreground">
+                        Pague o Sinal via Pix 💅
+                      </h3>
+                      <p className="text-muted-foreground font-body text-xs sm:text-sm max-w-sm mx-auto leading-relaxed">
+                        Para confirmar seu horário em <strong>{selectedDate && format(selectedDate, "dd/MM")} às {selectedTime}</strong>, efetue o Pix do sinal no valor de:
+                      </p>
 
-                  {pixQrCodeBase64 && (
-                    <div className="bg-white p-3 rounded-2xl border-2 border-emerald-500/25 shadow-sm inline-block mx-auto">
-                      <img
-                        src={`data:image/png;base64,${pixQrCodeBase64}`}
-                        alt="QR Code Pix"
-                        className="w-44 h-44 mx-auto rounded-lg object-contain"
-                      />
-                    </div>
-                  )}
+                      <div className="text-center py-1">
+                        <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-4 py-1.5 rounded-xl border border-emerald-500/20 inline-block font-display">
+                          {formatPrice(depositAmount)}
+                        </span>
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          Restante no salão: <strong>{formatPrice(remainingAmount)}</strong>
+                        </p>
+                      </div>
 
-                  <div className="space-y-2.5 max-w-sm mx-auto pt-1">
-                    {pixCode && (
-                      <>
+                      {pixQrCodeBase64 && (
+                        <div className="bg-white p-3 rounded-2xl border-2 border-emerald-500/25 shadow-sm inline-block mx-auto">
+                          <img
+                            src={`data:image/png;base64,${pixQrCodeBase64}`}
+                            alt="QR Code Pix"
+                            className="w-44 h-44 mx-auto rounded-lg object-contain"
+                          />
+                        </div>
+                      )}
+
+                      <div className="space-y-2.5 max-w-sm mx-auto pt-1">
+                        {pixCode && (
+                          <>
+                            <Button
+                              type="button"
+                              onClick={handleCopyPix}
+                              className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                            >
+                              {hasCopiedPix ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                              {hasCopiedPix ? "Código Pix Copiado! Cole no seu banco" : "Copiar Código Pix (Copia e Cola)"}
+                            </Button>
+
+                            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-secondary/60 border border-border">
+                              <input
+                                type="text"
+                                readOnly
+                                value={pixCode}
+                                className="flex-1 bg-transparent px-2.5 py-1.5 text-xs text-muted-foreground font-mono truncate focus:outline-none"
+                              />
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                onClick={handleCopyPix}
+                                className="h-8 px-2.5 text-xs font-medium shrink-0"
+                              >
+                                {hasCopiedPix ? "Copiado" : "Copiar"}
+                              </Button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-1">
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                        </span>
+                        <span>Aguardando pagamento... A tela atualizará sozinha.</span>
+                      </div>
+
+                      <div className="space-y-2 max-w-sm mx-auto pt-1">
                         <Button
                           type="button"
-                          onClick={handleCopyPix}
-                          className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                          variant="outline"
+                          onClick={handleManualCheckPayment}
+                          disabled={isCheckingPayment}
+                          className="w-full h-10 font-body text-xs border-border"
                         >
-                          {hasCopiedPix ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                          {hasCopiedPix ? "Código Pix Copiado! Cole no seu banco" : "Copiar Código Pix (Copia e Cola)"}
+                          {isCheckingPayment ? (
+                            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin text-primary" />
+                          ) : (
+                            <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                          )}
+                          Já realizei o pagamento / Verificar
                         </Button>
 
-                        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-secondary/60 border border-border">
-                          <input
-                            type="text"
-                            readOnly
-                            value={pixCode}
-                            className="flex-1 bg-transparent px-2.5 py-1.5 text-xs text-muted-foreground font-mono truncate focus:outline-none"
-                          />
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="secondary"
-                            onClick={handleCopyPix}
-                            className="h-8 px-2.5 text-xs font-medium shrink-0"
+                        {paymentUrl && (
+                          <a
+                            href={paymentUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] text-muted-foreground hover:text-primary underline block text-center pt-1"
                           >
-                            {hasCopiedPix ? "Copiado" : "Copiar"}
-                          </Button>
+                            Abrir comprovante / ticket do Mercado Pago
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <form onSubmit={handlePayWithCard} className="space-y-3 max-w-sm mx-auto text-left animate-in fade-in duration-150">
+                      <div className="text-center space-y-1">
+                        <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-primary">
+                          <CreditCard className="h-7 w-7" />
                         </div>
-                      </>
-                    )}
-                  </div>
+                        <h3 className="font-display text-2xl font-bold text-foreground">
+                          Pague no Cartão 💳
+                        </h3>
+                        <p className="text-muted-foreground font-body text-xs sm:text-sm leading-relaxed">
+                          Pague o sinal de <strong>{formatPrice(depositAmount)}</strong> sem sair do site e confirme seu agendamento imediatamente.
+                        </p>
+                        <div className="text-center pt-0.5">
+                          <span className="text-xs text-muted-foreground">
+                            Restante no salão: <strong className="text-foreground">{formatPrice(remainingAmount)}</strong>
+                          </span>
+                        </div>
+                      </div>
 
-                  <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-1">
-                    <span className="relative flex h-2.5 w-2.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                    </span>
-                    <span>Aguardando pagamento... A tela atualizará sozinha.</span>
-                  </div>
-
-                  <div className="space-y-2 max-w-sm mx-auto pt-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleManualCheckPayment}
-                      disabled={isCheckingPayment}
-                      className="w-full h-10 font-body text-xs border-border"
-                    >
-                      {isCheckingPayment ? (
-                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin text-primary" />
-                      ) : (
-                        <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                      {cardError && (
+                        <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 flex items-start gap-2 text-xs text-destructive">
+                          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                          <span>{cardError}</span>
+                        </div>
                       )}
-                      Já realizei o pagamento / Verificar
-                    </Button>
 
-                    {paymentUrl && (
-                      <a
-                        href={paymentUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[11px] text-muted-foreground hover:text-primary underline block text-center pt-1"
+                      <div className="space-y-1">
+                        <Label htmlFor="cardNumber" className="text-xs font-medium text-foreground">
+                          Número do Cartão
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            id="cardNumber"
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="0000 0000 0000 0000"
+                            value={cardNumber}
+                            onChange={handleCardNumberChange}
+                            maxLength={19}
+                            className="h-10 text-sm font-mono pr-9"
+                            required
+                          />
+                          <CreditCard className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label htmlFor="cardholderName" className="text-xs font-medium text-foreground">
+                          Nome impresso no Cartão
+                        </Label>
+                        <Input
+                          id="cardholderName"
+                          type="text"
+                          placeholder="COMO ESTÁ NO CARTÃO"
+                          value={cardholderName}
+                          onChange={(e) => {
+                            setCardholderName(e.target.value.toUpperCase());
+                            if (cardError) setCardError("");
+                          }}
+                          className="h-10 text-sm uppercase"
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label htmlFor="cardholderCpf" className="text-xs font-medium text-foreground">
+                          CPF do Titular do Cartão
+                        </Label>
+                        <Input
+                          id="cardholderCpf"
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="000.000.000-00"
+                          value={cardholderCpf}
+                          onChange={handleCardCpfChange}
+                          maxLength={14}
+                          className="h-10 text-sm font-mono"
+                          required
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div className="space-y-1">
+                          <Label htmlFor="cardExpiration" className="text-xs font-medium text-foreground">
+                            Validade (MM/AA)
+                          </Label>
+                          <Input
+                            id="cardExpiration"
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="MM/AA"
+                            value={cardExpiration}
+                            onChange={handleCardExpirationChange}
+                            maxLength={5}
+                            className="h-10 text-sm font-mono text-center"
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor="cardCvv" className="text-xs font-medium text-foreground">
+                            CVV (Código)
+                          </Label>
+                          <Input
+                            id="cardCvv"
+                            type="password"
+                            inputMode="numeric"
+                            placeholder="123"
+                            value={cardCvv}
+                            onChange={(e) => {
+                              const v = e.target.value.replace(/\D/g, "").slice(0, 4);
+                              setCardCvv(v);
+                              if (cardError) setCardError("");
+                            }}
+                            maxLength={4}
+                            className="h-10 text-sm font-mono text-center"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label htmlFor="cardInstallments" className="text-xs font-medium text-foreground">
+                          Parcelamento
+                        </Label>
+                        <select
+                          id="cardInstallments"
+                          value={cardInstallments}
+                          onChange={(e) => setCardInstallments(parseInt(e.target.value, 10))}
+                          className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                        >
+                          {installmentOptions.map((opt) => (
+                            <option key={opt.times} value={opt.times}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <Button
+                        type="submit"
+                        disabled={isProcessingCard}
+                        className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl text-sm shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2 mt-2"
                       >
-                        Abrir comprovante / ticket do Mercado Pago
-                      </a>
-                    )}
-                  </div>
+                        {isProcessingCard ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                            <span>Processando Pagamento...</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="h-4 w-4 shrink-0" />
+                            <span>Pagar Sinal de {formatPrice(depositAmount)}</span>
+                          </>
+                        )}
+                      </Button>
+
+                      <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground text-center pt-1">
+                        <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                        <span>Ambiente 100% seguro pelo Mercado Pago.</span>
+                      </div>
+                    </form>
+                  )}
                 </>
               ) : isPaymentConfirmed ? (
                 <>
