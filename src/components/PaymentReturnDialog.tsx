@@ -7,9 +7,9 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Clock, CreditCard, ExternalLink, Loader2, Sparkles, AlertCircle } from "lucide-react";
+import { CheckCircle2, Clock, ExternalLink, Loader2, Sparkles } from "lucide-react";
+import { checkMercadoPagoPayment } from "@/lib/mercadopago";
 import { checkInfinitePayPayment } from "@/lib/infinitepay";
-import { formatPrice } from "@/lib/price";
 
 interface PaymentReturnDialogProps {
   whatsappNumber?: string;
@@ -25,29 +25,57 @@ export const PaymentReturnDialog = ({ whatsappNumber }: PaymentReturnDialogProps
   const cleanAdmin = (whatsappNumber || "559191837179").replace(/\D/g, "");
   const formattedAdminPhone = cleanAdmin.startsWith("55") ? cleanAdmin : `55${cleanAdmin}`;
 
-  const verifyPayment = async (orderNsu: string, slug?: string, transactionNsu?: string, receipt?: string) => {
+  const verifyPayment = async () => {
     setStatus("checking");
     setErrorMessage("");
 
+    const params = new URLSearchParams(window.location.search);
+    const orderNsu = params.get("order_nsu") || params.get("external_reference") || "";
+    const paymentId = params.get("payment_id") || params.get("collection_id") || "";
+    const preferenceId = params.get("preference_id") || "";
+    const statusParam = params.get("status") || params.get("collection_status") || "";
+    const provider = params.get("provider") || "";
+
     try {
-      const res = await checkInfinitePayPayment({
+      // 1. Tentar verificação pelo Mercado Pago
+      const mpRes = await checkMercadoPagoPayment({
         orderNsu,
-        slug,
-        transactionNsu,
-        receiptUrl: receipt,
+        paymentId,
+        preferenceId,
+        status: statusParam,
       });
 
-      if (res.paid) {
+      if (mpRes.paid) {
         setStatus("success");
-        setAppointment(res.appointment || null);
-        // Limpar parâmetros da URL de forma limpa sem recarregar a página
+        setAppointment(mpRes.appointment || null);
         if (window.history.replaceState) {
           const cleanUrl = window.location.origin + window.location.pathname;
           window.history.replaceState({}, document.title, cleanUrl);
         }
-      } else {
-        setStatus("pending");
+        return;
       }
+
+      // 2. Se for link legado InfinitePay, tentar InfinitePay
+      if (provider === "infinitepay" || (!paymentId && orderNsu)) {
+        const infRes = await checkInfinitePayPayment({
+          orderNsu,
+          slug: params.get("slug") || undefined,
+          transactionNsu: params.get("transaction_nsu") || undefined,
+          receiptUrl: params.get("receipt_url") || undefined,
+        });
+
+        if (infRes.paid) {
+          setStatus("success");
+          setAppointment(infRes.appointment || null);
+          if (window.history.replaceState) {
+            const cleanUrl = window.location.origin + window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+          }
+          return;
+        }
+      }
+
+      setStatus("pending");
     } catch (err: any) {
       setStatus("pending");
       setErrorMessage(err.message || "Não foi possível confirmar o pagamento neste momento.");
@@ -56,29 +84,19 @@ export const PaymentReturnDialog = ({ whatsappNumber }: PaymentReturnDialogProps
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const orderNsu = params.get("order_nsu");
+    const orderNsu = params.get("order_nsu") || params.get("external_reference");
     const payment = params.get("payment");
-    const transactionNsu = params.get("transaction_nsu");
-    const slug = params.get("slug");
+    const paymentId = params.get("payment_id") || params.get("collection_id");
     const receipt = params.get("receipt_url");
 
     if (receipt) setReceiptUrl(receipt);
 
-    // Se detectou parâmetros de retorno do checkout da InfinitePay
-    if (orderNsu || payment === "success" || transactionNsu) {
+    // Se detectou parâmetros de retorno do Mercado Pago ou de checkout
+    if (orderNsu || payment === "success" || paymentId) {
       setIsOpen(true);
-      verifyPayment(orderNsu || "", slug || undefined, transactionNsu || undefined, receipt || undefined);
+      verifyPayment();
     }
   }, []);
-
-  const handleRetry = () => {
-    const params = new URLSearchParams(window.location.search);
-    const orderNsu = params.get("order_nsu") || "";
-    const slug = params.get("slug") || undefined;
-    const transactionNsu = params.get("transaction_nsu") || undefined;
-    const receipt = params.get("receipt_url") || undefined;
-    verifyPayment(orderNsu, slug, transactionNsu, receipt);
-  };
 
   const handleClose = () => {
     setIsOpen(false);
@@ -103,7 +121,7 @@ export const PaymentReturnDialog = ({ whatsappNumber }: PaymentReturnDialogProps
                 Verificando Pagamento...
               </DialogTitle>
               <DialogDescription className="text-muted-foreground text-sm text-center">
-                Estamos confirmando a aprovação do seu sinal de reserva na InfinitePay e garantindo o seu horário na agenda.
+                Estamos confirmando a aprovação do seu sinal de reserva no <strong>Mercado Pago</strong> e garantindo o seu horário na agenda.
               </DialogDescription>
             </DialogHeader>
           </div>
@@ -120,7 +138,7 @@ export const PaymentReturnDialog = ({ whatsappNumber }: PaymentReturnDialogProps
                 Pagamento Confirmado! 🎉
               </DialogTitle>
               <DialogDescription className="text-muted-foreground text-sm text-center">
-                Seu sinal de reserva foi recebido pela <strong>InfinitePay</strong> e o seu horário foi <strong>oficialmente marcado</strong> na agenda da Jéssica Magalhães!
+                Seu sinal de reserva foi recebido pelo <strong>Mercado Pago</strong> e o seu horário foi <strong>oficialmente marcado</strong> na agenda da Jéssica Magalhães!
               </DialogDescription>
             </DialogHeader>
 
@@ -143,7 +161,7 @@ export const PaymentReturnDialog = ({ whatsappNumber }: PaymentReturnDialogProps
                   </span>
                 </div>
                 <div className="pt-2 border-t border-border/40 flex justify-between text-emerald-600 font-semibold">
-                  <span>Sinal 50% Pago via InfinitePay:</span>
+                  <span>Sinal 50% Pago via Mercado Pago:</span>
                   <span>Aprovado</span>
                 </div>
               </div>
@@ -152,7 +170,7 @@ export const PaymentReturnDialog = ({ whatsappNumber }: PaymentReturnDialogProps
             <div className="space-y-2 pt-2">
               <a
                 href={`https://wa.me/${formattedAdminPhone}?text=${encodeURIComponent(
-                  `Olá Jéssica! Acabei de pagar o sinal na InfinitePay e meu agendamento foi confirmado. Gostaria de tirar uma dúvida!`
+                  `Olá Jéssica! Acabei de pagar o sinal no Mercado Pago e meu agendamento foi confirmado. Gostaria de tirar uma dúvida!`
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -169,7 +187,7 @@ export const PaymentReturnDialog = ({ whatsappNumber }: PaymentReturnDialogProps
                   className="w-full h-10 inline-flex items-center justify-center gap-1.5 rounded-xl border border-border bg-background hover:bg-secondary text-foreground text-xs font-medium"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
-                  Ver Comprovante da InfinitePay
+                  Ver Comprovante
                 </a>
               )}
 
@@ -197,23 +215,22 @@ export const PaymentReturnDialog = ({ whatsappNumber }: PaymentReturnDialogProps
               </DialogTitle>
               <DialogDescription className="text-muted-foreground text-sm text-center">
                 {errorMessage ||
-                  "A InfinitePay ainda está processando o pagamento. Se você pagou via Pix ou Cartão, pode levar alguns segundos para ser atualizado."}
+                  "O Mercado Pago ainda está processando o pagamento. Se você pagou via Pix ou Cartão, pode levar alguns segundos para ser atualizado."}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-2 pt-2">
               <Button
                 type="button"
-                onClick={handleRetry}
+                onClick={verifyPayment}
                 className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium text-sm"
               >
-                <Loader2 className="mr-2 h-4 w-4 animate-spin hidden" />
                 Verificar Novamente
               </Button>
 
               <a
                 href={`https://wa.me/${formattedAdminPhone}?text=${encodeURIComponent(
-                  `Olá Jéssica! Realizei o pagamento do sinal pela InfinitePay, mas gostaria de confirmar se já caiu para você.`
+                  `Olá Jéssica! Realizei o pagamento do sinal pelo Mercado Pago, mas gostaria de confirmar se já caiu para você.`
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"

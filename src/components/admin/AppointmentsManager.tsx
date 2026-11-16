@@ -25,6 +25,7 @@ import {
   Plus,
 } from "lucide-react";
 import BookingCalendar from "@/components/BookingCalendar";
+import { checkMercadoPagoPayment } from "@/lib/mercadopago";
 import { checkInfinitePayPayment } from "@/lib/infinitepay";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -116,25 +117,35 @@ const AppointmentsManager = ({ onAppointmentUpdated }: AppointmentsManagerProps 
   const [isCheckingPayment, setIsCheckingPayment] = useState<string | null>(null);
   const [isNewBookingOpen, setIsNewBookingOpen] = useState(false);
 
-  const handleCheckInfinitePayPayment = async (apt: Appointment) => {
+  const handleCheckPayment = async (apt: Appointment) => {
     setIsCheckingPayment(apt.id);
     try {
-      const res = await checkInfinitePayPayment(apt.id);
+      let res = await checkMercadoPagoPayment(apt.id);
+      let provider = "Mercado Pago";
+
+      if (!res.paid) {
+        const infRes = await checkInfinitePayPayment(apt.id);
+        if (infRes.paid) {
+          res = infRes;
+          provider = "InfinitePay";
+        }
+      }
+
       if (res.paid) {
         toast({
-          title: "Sinal Pago via InfinitePay! 🎉",
+          title: `Sinal Pago via ${provider}! 🎉`,
           description: `O sinal da cliente ${apt.client_name} foi localizado e aprovado. Confirmando agendamento...`,
         });
         await updateStatus(apt.id, "confirmed", apt);
       } else {
         toast({
           title: "Aguardando Pagamento",
-          description: `O sinal de 50% de ${apt.client_name} ainda não consta como pago na InfinitePay.`,
+          description: `O sinal de 50% de ${apt.client_name} ainda não consta como pago no Mercado Pago.`,
         });
       }
     } catch (err: any) {
       toast({
-        title: "Erro ao consultar InfinitePay",
+        title: "Erro ao consultar pagamento",
         description: err.message || "Tente novamente mais tarde.",
         variant: "destructive",
       });
@@ -710,9 +721,9 @@ const AppointmentsManager = ({ onAppointmentUpdated }: AppointmentsManagerProps 
                                   size="icon"
                                   variant="ghost"
                                   className="h-8 w-8 text-primary hover:text-primary/90 hover:bg-primary/10"
-                                  onClick={() => handleCheckInfinitePayPayment(apt)}
+                                  onClick={() => handleCheckPayment(apt)}
                                   disabled={isCheckingPayment === apt.id || isUpdating === apt.id}
-                                  title="Consultar Pagamento na InfinitePay"
+                                  title="Consultar Pagamento no Mercado Pago"
                                 >
                                   {isCheckingPayment === apt.id ? (
                                     <Loader2 className="h-4 w-4 animate-spin text-primary" />
@@ -880,7 +891,7 @@ const AppointmentsManager = ({ onAppointmentUpdated }: AppointmentsManagerProps 
                     <div className="flex gap-1.5 pt-1">
                       {apt.status === "pending" && (
                         <>
-                          <Button size="sm" variant="outline" className="h-8 text-xs text-primary border-primary/30 hover:bg-primary/10" onClick={() => handleCheckInfinitePayPayment(apt)} disabled={isCheckingPayment === apt.id || isUpdating === apt.id} title="Verificar InfinitePay">
+                          <Button size="sm" variant="outline" className="h-8 text-xs text-primary border-primary/30 hover:bg-primary/10" onClick={() => handleCheckPayment(apt)} disabled={isCheckingPayment === apt.id || isUpdating === apt.id} title="Verificar Mercado Pago">
                             {isCheckingPayment === apt.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <CreditCard className="h-3 w-3 mr-1" />} Checar Sinal
                           </Button>
                           <Button size="sm" className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs" onClick={() => updateStatus(apt.id, "confirmed", apt)} disabled={isUpdating === apt.id}>

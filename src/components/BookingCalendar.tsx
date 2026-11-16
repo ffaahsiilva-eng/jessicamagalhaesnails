@@ -14,7 +14,7 @@ import { notifyWhatsAppBooking } from "@/lib/whatsapp";
 import { calculateServicesTotal, parsePrice, formatPrice } from "@/lib/price";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { useAdminRole } from "@/hooks/useAdminRole";
-import { createInfinitePayCheckout, checkInfinitePayPayment, isMonthDepositEnabled } from "@/lib/infinitepay";
+import { createMercadoPagoCheckout, checkMercadoPagoPayment, isMonthDepositEnabled } from "@/lib/mercadopago";
 import { z } from "zod";
 
 interface BookingCalendarProps {
@@ -82,19 +82,19 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
   const maxDays = parseInt(getSetting("booking_max_days_ahead", "90"), 10) || 90;
 
   const [isLoadingBooked, setIsLoadingBooked] = useState(false);
-  const [infinitePayUrl, setInfinitePayUrl] = useState<string>("");
+  const [paymentUrl, setPaymentUrl] = useState<string>("");
   const [createdAppointmentId, setCreatedAppointmentId] = useState<string>("");
   const [isPaymentConfirmed, setIsPaymentConfirmed] = useState(false);
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
 
-  const isInfinitePayEnabled = getSetting("infinitepay_enabled", "true") !== "false";
-  const depositPercent = parseInt(getSetting("infinitepay_deposit_percent", "50"), 10) || 50;
-  const depositMonthsSetting = getSetting("infinitepay_deposit_months", "");
+  const isMercadoPagoEnabled = getSetting("mercadopago_enabled", "true") !== "false";
+  const depositPercent = parseInt(getSetting("mercadopago_deposit_percent", "50"), 10) || 50;
+  const depositMonthsSetting = getSetting("mercadopago_deposit_months", "");
 
   // Verifica se o mês da data selecionada está configurado para cobrar sinal
   const isDepositActiveForSelectedDate = useMemo(() => {
-    return isMonthDepositEnabled(selectedDate, depositMonthsSetting, isInfinitePayEnabled);
-  }, [selectedDate, depositMonthsSetting, isInfinitePayEnabled]);
+    return isMonthDepositEnabled(selectedDate, depositMonthsSetting, isMercadoPagoEnabled);
+  }, [selectedDate, depositMonthsSetting, isMercadoPagoEnabled]);
 
   // Fetch available time slots from database
   const { data: allTimeSlots = [], isLoading: isLoadingSlots } = useQuery({
@@ -175,7 +175,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
             fetchBookedSlots();
             toast({
               title: "Pagamento Confirmado! 🎉",
-              description: "Seu sinal de reserva foi recebido pela InfinitePay e o horário foi agendado com sucesso!",
+              description: "Seu sinal de reserva foi recebido pelo Mercado Pago e o horário foi agendado com sucesso!",
             });
           }
         }
@@ -200,13 +200,13 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
     // Polling ativo a cada 3.5 segundos para garantir atualização imediata mesmo se WebSocket oscilar
     const pollInterval = setInterval(async () => {
       try {
-        const res = await checkInfinitePayPayment(createdAppointmentId);
+        const res = await checkMercadoPagoPayment(createdAppointmentId);
         if (res.paid) {
           setIsPaymentConfirmed(true);
           fetchBookedSlots();
           toast({
             title: "Pagamento Confirmado! 🎉",
-            description: "Seu sinal foi aprovado pela InfinitePay e o horário foi agendado com sucesso!",
+            description: "Seu sinal foi aprovado pelo Mercado Pago e o horário foi agendado com sucesso!",
           });
         }
       } catch {
@@ -426,20 +426,20 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
       const totalPrice = pricingSummary.totalFormatted;
 
       // Anotação com valor preservado e sinal
-      const depositNote = isInfinitePayEnabled && depositAmount > 0
+      const depositNote = isMercadoPagoEnabled && depositAmount > 0
         ? ` [Sinal ${depositPercent}%: ${formatPrice(depositAmount)} - Restante: ${formatPrice(remainingAmount)}]`
         : "";
       const internalNotes = notes.trim()
         ? `${notes.trim()}${totalPrice ? ` [Valor: ${totalPrice}]` : ""}${depositNote}`
         : `${totalPrice ? `[Valor: ${totalPrice}]` : ""}${depositNote}`.trim() || null;
 
-      // Se InfinitePay estiver ativo com sinal E NÃO for Admin, NÃO cria agendamento na appointments ainda!
-      // O agendamento SÓ será criado no banco após a confirmação do pagamento no webhook!
-      if (!isAdmin && isInfinitePayEnabled && depositAmount > 0) {
+      // Se Mercado Pago estiver ativo com sinal E NÃO for Admin, NÃO cria agendamento na appointments ainda!
+      // O agendamento SÓ será criado no banco após a confirmação do pagamento no webhook ou retorno!
+      if (!isAdmin && isMercadoPagoEnabled && depositAmount > 0) {
         const checkoutId = generateUUID();
         setCreatedAppointmentId(checkoutId);
 
-        const checkout = await createInfinitePayCheckout({
+        const checkout = await createMercadoPagoCheckout({
           appointment_id: checkoutId,
           client_name: name.trim(),
           client_phone: cleanPhone,
@@ -453,10 +453,10 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
         });
 
         if (!checkout.success || !checkout.url) {
-          throw new Error(checkout.error || "Não foi possível gerar o link de pagamento da InfinitePay.");
+          throw new Error(checkout.error || "Não foi possível gerar o link de pagamento do Mercado Pago.");
         }
 
-        setInfinitePayUrl(checkout.url);
+        setPaymentUrl(checkout.url);
         try {
           window.open(checkout.url, "_blank");
         } catch {
@@ -483,7 +483,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
           `*Data:* ${formattedDate}\n` +
           `*Horário:* ${selectedTime}\n` +
           (notes.trim() ? `*Observações:* ${notes.trim()}\n` : "") +
-          `\n*Link de Pagamento do Sinal (InfinitePay):*\n${checkout.url}\n\n` +
+          `\n*Link de Pagamento do Sinal (Mercado Pago):*\n${checkout.url}\n\n` +
           `⏰ *Tolerância de 15 minutos para chegada.*\n\n` +
           `📸 *Instagram:* https://www.instagram.com/jessica_magalhaes_nail`
         );
@@ -623,18 +623,18 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
     if (!createdAppointmentId) return;
     setIsCheckingPayment(true);
     try {
-      const res = await checkInfinitePayPayment(createdAppointmentId);
+      const res = await checkMercadoPagoPayment(createdAppointmentId);
       if (res.paid) {
         setIsPaymentConfirmed(true);
         fetchBookedSlots();
         toast({
           title: "Pagamento Confirmado! 🎉",
-          description: "Seu sinal foi aprovado pela InfinitePay e o horário foi agendado com sucesso!",
+          description: "Seu sinal foi aprovado pelo Mercado Pago e o horário foi agendado com sucesso!",
         });
       } else {
         toast({
           title: "Aguardando Pagamento",
-          description: "O pagamento do sinal ainda não foi identificado. Conclua a transação no link da InfinitePay para garantir o horário.",
+          description: "O pagamento do sinal ainda não foi identificado. Conclua a transação no link do Mercado Pago para garantir o horário.",
         });
       }
     } catch (err: any) {
@@ -659,7 +659,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
     setPhone("");
     setNotes("");
     setWhatsappUrl("");
-    setInfinitePayUrl("");
+    setPaymentUrl("");
     setCreatedAppointmentId("");
     setIsPaymentConfirmed(false);
     setErrors({});
@@ -738,7 +738,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
                     <CalendarIcon className="h-3.5 w-3.5 text-primary" />
                     Data: <strong className="text-foreground">{format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}</strong>
                   </span>
-                  {isInfinitePayEnabled && isDepositActiveForSelectedDate ? (
+                  {isMercadoPagoEnabled && isDepositActiveForSelectedDate ? (
                     <span className="text-primary font-medium bg-primary/10 px-2 py-0.5 rounded-md text-[11px]">
                       Sinal de {depositPercent}%
                     </span>
@@ -1070,11 +1070,11 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
                         Como você está no painel de administração, este horário será confirmado diretamente na agenda sem cobrança de sinal.
                       </p>
                     </div>
-                  ) : isInfinitePayEnabled && isDepositActiveForSelectedDate && depositAmount > 0 ? (
+                  ) : isMercadoPagoEnabled && isDepositActiveForSelectedDate && depositAmount > 0 ? (
                     <div className="mt-3 p-3.5 rounded-xl bg-primary/10 border border-primary/25 space-y-2 text-foreground">
                       <div className="flex items-center gap-2 text-primary font-semibold text-xs">
                         <CreditCard className="h-4 w-4" />
-                        <span>Sinal de Reserva ({depositPercent}%) via InfinitePay</span>
+                        <span>Sinal de Reserva ({depositPercent}%) via Mercado Pago</span>
                       </div>
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-muted-foreground">Sinal para garantir vaga (Pix/Cartão):</span>
@@ -1085,7 +1085,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
                         <span className="font-medium text-foreground">{formatPrice(remainingAmount)}</span>
                       </div>
                       <p className="text-[11px] text-muted-foreground italic pt-1 border-t border-primary/15">
-                        ⚡ Pagamento imediato via Pix ou Cartão em ambiente 100% seguro.
+                        ⚡ Pagamento imediato via Pix ou Cartão em ambiente 100% seguro pelo Mercado Pago.
                       </p>
                     </div>
                   ) : (
@@ -1129,7 +1129,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
                     <Loader2 className="h-4 w-4 animate-spin shrink-0" />
                   ) : isAdmin ? (
                     <Check className="h-4 w-4 shrink-0" />
-                  ) : isInfinitePayEnabled && depositAmount > 0 ? (
+                  ) : isMercadoPagoEnabled && depositAmount > 0 ? (
                     <CreditCard className="h-4 w-4 shrink-0" />
                   ) : (
                     <MessageCircle className="h-4 w-4 shrink-0" />
@@ -1137,7 +1137,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
                   <span className="truncate">
                     {isAdmin
                       ? "Confirmar Agendamento (Admin)"
-                      : isInfinitePayEnabled && depositAmount > 0
+                      : isMercadoPagoEnabled && depositAmount > 0
                       ? `Pagar Sinal (${formatPrice(depositAmount)})`
                       : "Confirmar Agendamento"}
                   </span>
@@ -1176,7 +1176,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
                     )}
                   </div>
                 </>
-              ) : infinitePayUrl && !isPaymentConfirmed ? (
+              ) : paymentUrl && !isPaymentConfirmed ? (
                 <>
                   <div className="w-16 h-16 bg-amber-100 dark:bg-amber-950/40 rounded-full flex items-center justify-center mx-auto text-amber-600 animate-pulse">
                     <CreditCard className="h-8 w-8 text-amber-600" />
@@ -1198,19 +1198,19 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
                       <span className="font-medium text-foreground">{formatPrice(remainingAmount)}</span>
                     </div>
                     <div className="pt-1.5 border-t border-border/40 text-[11px] text-muted-foreground">
-                      Aceita <strong>Pix com aprovação imediata</strong> ou <strong>Cartão de Crédito em até 12x</strong>.
+                      Aceita <strong>Pix com aprovação imediata</strong> ou <strong>Cartão de Crédito em até 12x</strong> via <strong>Mercado Pago</strong>.
                     </div>
                   </div>
 
                   <div className="space-y-3 pt-2 max-w-sm mx-auto">
                     <a
-                      href={infinitePayUrl}
+                      href={paymentUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="w-full h-12 inline-flex items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-body font-medium shadow-button active:scale-[0.98] transition-transform text-sm sm:text-base"
                     >
                       <CreditCard className="h-4 w-4" />
-                      Pagar Sinal na InfinitePay
+                      Pagar Sinal no Mercado Pago
                       <ExternalLink className="h-4 w-4" />
                     </a>
 
@@ -1239,7 +1239,7 @@ const BookingCalendar = ({ isOpen, onClose, whatsappNumber, isAdmin: propIsAdmin
                     Pagamento Aprovado e Agendamento Marcado! 🎉
                   </h3>
                   <p className="text-muted-foreground font-body text-sm max-w-sm mx-auto leading-relaxed">
-                    O pagamento do seu sinal foi aprovado pela InfinitePay. O seu horário para <strong>{selectedDate && format(selectedDate, "dd/MM/yyyy")} às {selectedTime}</strong> foi agendado e confirmado com sucesso na agenda da Jéssica!
+                    O pagamento do seu sinal foi aprovado pelo <strong>Mercado Pago</strong>. O seu horário para <strong>{selectedDate && format(selectedDate, "dd/MM/yyyy")} às {selectedTime}</strong> foi agendado e confirmado com sucesso na agenda da Jéssica!
                   </p>
                   <div className="p-3.5 rounded-xl bg-secondary/50 border border-border text-xs text-left max-w-sm mx-auto space-y-1">
                     <div className="flex justify-between">
